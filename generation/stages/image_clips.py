@@ -219,7 +219,8 @@ Further conditions, which should be captured as part of the enhanced description
 
 
 @exception_handler
-def process_generate_image(context: Context, clip: Clip, status: str='') -> ImagesMetadata:
+def process_generate_image(context: Context, clip: Clip, status: str = '',
+                           web_images: bool = True) -> ImagesMetadata:
     image_hash = clip.media.id
     image_src = f'/tmp/{image_hash}.png'
     s3_images_folder = context.media_path + f'images/{image_hash}/'
@@ -229,7 +230,8 @@ def process_generate_image(context: Context, clip: Clip, status: str='') -> Imag
     image_class, image_urls, image_citations, custom_output = generate_image_wrapper(
         context,
         clip,
-        image_src
+        image_src,
+        type=None if web_images else GeneratedImageTypes.FLUX,
     )
 
     img_metadata = ImagesMetadata(
@@ -296,10 +298,13 @@ def generate_all_images(output_path: str, output_type: str, inputs: dict, force:
         generated_images, not_generated_clips = [], clips
     logger.info(f"Identified {len(not_generated_clips)} images to generate in {time.time() - start}s")
     
+    web_images = bool(inputs.get("LAYER_WEB_IMAGES", True))
     futures = []
     with ContextAwareThreadPoolExecutor(max_workers=12) as exec: # Limits Uknown
         for i, not_generated_clip in enumerate(not_generated_clips, 1):
-            futures.append(exec.submit(process_generate_image, context, not_generated_clip, status=f"[{i}/{len(not_generated_clips)}]"))
+            futures.append(exec.submit(process_generate_image, context, not_generated_clip,
+                                       status=f"[{i}/{len(not_generated_clips)}]",
+                                       web_images=web_images))
 
     for i, future in enumerate(as_completed(futures), 1):
         generated_images.append(future.result())

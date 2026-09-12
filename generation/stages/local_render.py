@@ -1,34 +1,10 @@
-"""Composite a finished lesson MP4 with ffmpeg. The local-mode stand-in for ShotStack.
-
-ShotStack composites from public URLs: get_lesson_video_body presigns every asset before an
-edit is submitted. That is the single reason local mode could not reach a video, since there
-is no bucket to presign against. ffmpeg reads local paths and is already a dependency, used
-for the section splits and behind every template render, so this needs no vendor at all.
-
-The layer order is ShotStack's own, read off generate_lesson_video_edit: it builds
-audio + mediaclip + text_slide + diagram + conclusion + avatar_intro + avatar and then
-reverses, and track 0 is the topmost in a ShotStack timeline. So bottom to top the picture is
-stills, text slides, diagrams, conclusion, avatar.
-
-The thing to know before reading the graph: the stills are the bottom layer and the cards are
-opaque and full-frame, so a still is visible *between* card windows rather than underneath
-them. The Scenes Breakdown track is built that way -- its gaps line up with the card windows.
-Anything filling those gaps has to preserve their length, or every later overlay is placed
-against a base that is too short and lands at the wrong timestamp.
-
-Returns the same 'lesson_video' shape as the ShotStack stage, and writes the MP4 to the same
-media path, so a consumer reading lesson_video.src does not care which renderer ran.
-
-Not implemented: the avatar inset (D-ID is skipped locally, and Avatar Clips leaves the
-speaker portrait as a fal.media URL rather than storing it, so the slot is normally empty --
-the geometry is here and checked, waiting for an asset), the section splits, the SRTs, and
-the title overlays ShotStack draws as native text assets.
-"""
+"""Composite a finished lesson MP4 with ffmpeg; the local-mode stand-in for ShotStack."""
 
 from __future__ import annotations
 
 import logging
 import os
+import random
 import subprocess
 import tempfile
 from pathlib import Path
@@ -47,17 +23,68 @@ WIDTH, HEIGHT, FPS = 1280, 720, 30
 # ShotStack's avatar placement, from generate_avatar_tracks.
 AVATAR_SCALE, AVATAR_X, AVATAR_Y = 0.148, 0.41, -0.24
 
+# The camera moves a still can carry; no vertical pan since 720px of height quantises first.
+MOTIONS = ("zoom_in", "zoom_out", "pan_left", "pan_right")
+
+# Magnification added over the whole clip, kept small and calm rather than cinematic.
+ZOOM_MIN, ZOOM_MAX = 0.10, 0.16
+
+# A pan's own zoom, resizing the crop every frame so no two frames come out identical.
+PAN_DRIFT = 0.08
+
+# How far off centre a zoom may sit, as a fraction of the slack. 0.5 is dead centre.
+BIAS_MIN, BIAS_MAX = 0.35, 0.65
+
+# Stills are pre-scaled above output so zoompan's pixel-rounding doesn't stall slow moves.
+SOURCE_W, SOURCE_H = WIDTH * 6, HEIGHT * 6
+
+# The longest scene the clip splitter produces, the worst case for the rounding above.
+MAX_CLIP_SECONDS = 20
+
 
 def place(scale: float, x: float, y: float, w: int = WIDTH, h: int = HEIGHT):
-    """Convert one ShotStack asset placement into ffmpeg overlay arguments.
-
-    The two disagree twice. ShotStack sizes an asset as a fraction of the output and
-    positions it by its centre, with offsets in fractions of the output and +y pointing up;
-    ffmpeg's overlay takes pixels and positions by the top-left corner with +y down.
-    """
+    """Convert one ShotStack asset placement into ffmpeg overlay arguments."""
     cw, ch = round(w * scale), round(h * scale)
     cx, cy = (0.5 + x) * w, (0.5 - y) * h
     return cw, ch, round(cx - cw / 2), round(cy - ch / 2)
+
+
+def motion_for(media_id: str, duration: float) -> dict:
+    """Pick a deterministic camera move for a still, seeded from its media id."""
+    rng = random.Random(media_id)
+    kind = rng.choice(MOTIONS)
+    a = rng.uniform(ZOOM_MIN, ZOOM_MAX)
+    bx = rng.uniform(BIAS_MIN, BIAS_MAX)
+    by = rng.uniform(BIAS_MIN, BIAS_MAX)
+    n = max(1, round(duration * FPS))
+    return {"kind": kind, "a": a, "bx": bx, "by": by, "n": n}
+
+
+def zoompan(move: dict) -> str:
+    """One zoompan filter for a still, as linear expressions over zoompan's output frame index."""
+    kind, a, bx, by, n = move["kind"], move["a"], move["bx"], move["by"], move["n"]
+    denom = max(1, n - 1)
+    if kind == "zoom_in":
+        z = f"1+{a}*on/{denom}"
+        x = f"(iw-iw/zoom)*{bx}"
+        y = f"(ih-ih/zoom)*{by}"
+    elif kind == "zoom_out":
+        z = f"1+{a}-{a}*on/{denom}"
+        x = f"(iw-iw/zoom)*{bx}"
+        y = f"(ih-ih/zoom)*{by}"
+    elif kind == "pan_right":
+        z = f"1+{PAN_DRIFT}"
+        x = f"(iw-iw/zoom)*on/{denom}"
+        y = f"(ih-ih/zoom)*0.5"
+    elif kind == "pan_left":
+        z = f"1+{PAN_DRIFT}"
+        x = f"(iw-iw/zoom)*(1-on/{denom})"
+        y = f"(ih-ih/zoom)*0.5"
+    else:
+        raise ValueError(kind)
+    return (f"scale={SOURCE_W}:{SOURCE_H}:force_original_aspect_ratio=increase,"
+            f"crop={SOURCE_W}:{SOURCE_H},setsar=1,"
+            f"zoompan=z='{z}':x='{x}':y='{y}':d={n}:s={WIDTH}x{HEIGHT}:fps={FPS}")
 
 
 def ffmpeg(args: list[str], label: str) -> None:
@@ -76,32 +103,29 @@ def probe_duration(path: Path) -> float:
     return float(out.stdout.strip())
 
 
-def scene_segments(clips: list[dict]) -> list[tuple[str | None, float]]:
-    """Flatten the scene track into (still or None, duration) covering the whole timeline.
-
-    None is a stretch with no still scheduled, which is where a full-frame card takes over.
-    """
-    out: list[tuple[str | None, float]] = []
+def scene_segments(clips: list[dict]) -> list[tuple[str | None, float, str | None]]:
+    """Flatten the scene track into (still or None, duration, media id); None is a filler gap."""
+    out: list[tuple[str | None, float, str | None]] = []
     at = 0.0
     for clip in sorted(clips, key=lambda c: c["start_time"]):
         if clip["start_time"] - at > 0.01:
-            out.append((None, clip["start_time"] - at))
-        out.append((clip["image_path"], clip["end_time"] - clip["start_time"]))
+            out.append((None, clip["start_time"] - at, None))
+        out.append((clip["image_path"], clip["end_time"] - clip["start_time"],
+                    clip.get("media_id")))
         at = clip["end_time"]
     return out
 
 
-def build_base(segments: list[tuple[str | None, float]], out: Path) -> None:
-    """Concatenate the stills into the bottom visual track.
-
-    ShotStack fits media with 'contain', which letterboxes rather than crops, so this is
-    decrease-then-pad. setsar guards against a still whose pixel aspect ratio would otherwise
-    make concat refuse the join.
-    """
+def build_base(segments: list[tuple[str | None, float, str | None]], out: Path,
+               animate: bool = False) -> None:
+    """Concatenate the stills into the bottom visual track, optionally with a camera move on each."""
+    if animate:
+        build_base_animated(segments, out)
+        return
     inputs: list[str] = []
     graph, labels = [], []
     n = 0
-    for i, (image, duration) in enumerate(segments):
+    for i, (image, duration, _) in enumerate(segments):
         if image is None:
             graph.append(f"color=c=black:s={WIDTH}x{HEIGHT}:r={FPS}:d={duration:.3f}[s{i}]")
         else:
@@ -118,6 +142,33 @@ def build_base(segments: list[tuple[str | None, float]], out: Path) -> None:
            f"{len(segments)} scene segments into the base track")
 
 
+# Every segment is encoded identically so the concat can stream-copy them into the base track.
+ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+
+
+def build_base_animated(segments: list[tuple[str | None, float, str | None]],
+                        out: Path) -> None:
+    """Render each segment on its own, then join them, rather than holding every still in one graph."""
+    with tempfile.TemporaryDirectory(prefix="lr_anim_") as tmp:
+        parts: list[str] = []
+        listing = Path(tmp) / "parts.txt"
+        for i, (image, duration, media_id) in enumerate(segments):
+            part = Path(tmp) / f"seg{i:04d}.mp4"
+            if image is None or media_id is None:
+                ffmpeg(["-f", "lavfi",
+                        "-i", f"color=c=black:s={WIDTH}x{HEIGHT}:r={FPS}:d={duration:.3f}",
+                        *ENCODE, str(part)],
+                       f"filler segment {i}")
+            else:
+                move = motion_for(media_id, duration)
+                ffmpeg(["-i", image, "-vf", zoompan(move), *ENCODE, str(part)],
+                       f"animated segment {i} ({move['kind']})")
+            parts.append(f"file '{part.as_posix()}'\n")
+        listing.write_text("".join(parts), encoding="utf-8")
+        ffmpeg(["-f", "concat", "-safe", "0", "-i", str(listing), "-c:v", "copy", str(out)],
+               f"{len(segments)} animated segments joined")
+
+
 def build_audio(sources: list[Path], out: Path) -> None:
     """Concatenate the narration. Avatar Clips emits contiguous segments."""
     listing = out.with_suffix(".txt")
@@ -132,12 +183,7 @@ def build_audio(sources: list[Path], out: Path) -> None:
 
 def build_final(base: Path, audio: Path, cards: list[dict], avatars: list[dict],
                 out: Path) -> None:
-    """Overlay the cards and the avatar inset onto the base, then mux the narration.
-
-    Each card has to be both moved to its slot (setpts) and confined to it (enable). Without
-    enable, ffmpeg holds a clip's last frame to the end of the render, so the first card would
-    cover the rest of the lesson.
-    """
+    """Overlay the cards and the avatar inset onto the base, then mux the narration."""
     inputs = ["-i", str(base)]
     graph, cur = [], "0:v"
 
@@ -164,23 +210,17 @@ def build_final(base: Path, audio: Path, cards: list[dict], avatars: list[dict],
 
     args = [*inputs]
     if graph:
-        args += ["-filter_complex", ";".join(graph), "-map", f"[{cur}]"]
+        args += ["-filter_complex", ";".join(graph), "-map", f"[{cur}]",
+                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
     else:
-        args += ["-map", "0:v"]
-    args += ["-map", f"{audio_index}:a",
-             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-             "-pix_fmt", "yuv420p", "-c:a", "copy", "-shortest", str(out)]
+        # Nothing to composite, so copy the base through instead of re-encoding it a second time.
+        args += ["-map", "0:v", "-c:v", "copy"]
+    args += ["-map", f"{audio_index}:a", "-c:a", "copy", "-shortest", str(out)]
     ffmpeg(args, f"{len(cards)} cards and {len(avatars)} avatar insets")
 
 
 def collect(context: Context) -> dict:
-    """Gather every asset the render needs, resolved to local paths.
-
-    Reads the same artifacts through the same Context properties ShotStack uses, so the
-    -edited.json sidecars a reviewer may have written are picked up here too. Per-image
-    metadata rather than the Image Gen Clips aggregate, for the same reason: that is where a
-    human_choice override lands.
-    """
+    """Gather every asset the render needs, resolved to local paths."""
     from core.clients.local_store import path_for
 
     def local(src: str) -> str | None:
@@ -192,8 +232,7 @@ def collect(context: Context) -> dict:
     clips = []
     for clip in load_json_from_s3(context.clips_path)["clips"]:
         media_id = clip["media"]["id"]
-        # Video Gen Clips is skipped locally, so only the still is ever available. ShotStack
-        # picks between images/ and videos/ here; there is nothing to pick between.
+        # Video Gen Clips is skipped locally; ShotStack picks images/ vs videos/, nothing to pick.
         metadata_path = f"{context.media_path}images/{media_id}/{media_id}.json"
         if not does_file_exist(metadata_path):
             logger.warning(f"No image metadata for scene {media_id}; leaving it black")
@@ -204,7 +243,7 @@ def collect(context: Context) -> dict:
             choice = metadata.get("qc_choice") or 0
         path = local(metadata["image"][choice]["src"])
         if path:
-            clips.append({**clip, "image_path": path})
+            clips.append({**clip, "image_path": path, "media_id": media_id})
 
     overlays = load_json_from_s3(context.text_overlays_path)
     cards = []
@@ -225,8 +264,7 @@ def collect(context: Context) -> dict:
                     key=lambda a: a["start_time"])
     audio = [path_for(a["src"]) for a in assets if local(a["src"])]
 
-    # avatar_clip is the D-ID video and is never produced locally; the still portrait is
-    # usually a fal.media URL rather than a stored file, so this list is normally empty.
+    # avatar_clip is the D-ID video and is never produced locally; normally an empty list.
     avatars = [{"path": local(a.get("avatar_clip") or a.get("image") or ""),
                 "start_time": a["start_time"], "end_time": a["end_time"]}
                for a in assets
@@ -241,34 +279,32 @@ def collect(context: Context) -> dict:
 def render_lesson(output_path: str, output_type: str, inputs: dict) -> dict:
     context = Context(**inputs)
     if not is_local():
-        # Nothing stops ffmpeg compositing an S3 lesson, but it would mean downloading every
-        # asset first, and on S3 the ShotStack stage already runs. Not worth building twice.
+        # On S3 the ShotStack stage already runs; downloading every asset to composite locally is not worth it.
         raise RuntimeError("Local Render only runs under STORAGE=local; use ShotStack on s3")
 
+    animate = bool(inputs.get("LAYER_PROGRAMMATIC_MOTION", False))
     logger.info(f"Rendering locally: {context.subsection}")
     assets = collect(context)
     if not assets["audio"]:
         raise RuntimeError("No narration found; the Avatar Clips stage has to run first")
 
     segments = scene_segments(assets["clips"])
-    covered = sum(duration for _, duration in segments)
+    covered = sum(duration for _, duration, _ in segments)
     logger.info(f"{len(assets['clips'])} stills, {len(assets['cards'])} cards, "
                 f"{len(assets['audio'])} narration segments, {assets['total']:.0f}s "
                 f"({covered:.0f}s of stills)")
     if assets["total"] - covered > 0.5:
-        # The stills stop before the narration does, so pad rather than let -shortest cut
-        # the lesson off early.
-        segments.append((None, assets["total"] - covered))
+        # Pad so -shortest doesn't cut the lesson off before the narration ends.
+        segments.append((None, assets["total"] - covered, None))
 
-    # The same media path and filename the ShotStack stage writes, so lesson_video.src means
-    # the same thing in both modes.
+    # The same media path and filename the ShotStack stage writes.
     key = f"{context.media_path}{sanitize_path(context.subsection)}.mp4"
 
     with tempfile.TemporaryDirectory(prefix="local_render_") as tmp:
         base = Path(tmp) / "base.mp4"
         audio = Path(tmp) / "narration.m4a"
         video = Path(tmp) / "lesson.mp4"
-        build_base(segments, base)
+        build_base(segments, base, animate=animate)
         build_audio(assets["audio"], audio)
         build_final(base, audio, assets["cards"], assets["avatars"], video)
         duration = probe_duration(video)
@@ -297,19 +333,45 @@ def _selfcheck() -> None:
     # +y is up for ShotStack, down for ffmpeg.
     assert place(0.5, 0.0, 0.25)[3] < place(0.5, 0.0, -0.25)[3]
 
-    # The scene track has gaps where the cards take over. They must become filler, or every
-    # overlay after the first gap is placed against a base that is too short.
+    # scene_segments must produce 3-tuples with correct durations and filler gaps.
     segments = scene_segments([
-        {"start_time": 0.0, "end_time": 5.0, "image_path": "a.png"},
-        {"start_time": 12.0, "end_time": 20.0, "image_path": "b.png"}])
+        {"start_time": 0.0, "end_time": 5.0, "image_path": "a.png", "media_id": "x"},
+        {"start_time": 12.0, "end_time": 20.0, "image_path": "b.png", "media_id": "y"}])
     assert [s[0] for s in segments] == ["a.png", None, "b.png"], segments
-    assert abs(sum(d for _, d in segments) - 20.0) < 1e-6, segments
+    assert abs(sum(d for _, d, _ in segments) - 20.0) < 1e-6, segments
     assert abs(segments[1][1] - 7.0) < 1e-6, segments[1]
-    # Contiguous input must not gain filler.
-    tight = scene_segments([{"start_time": 0.0, "end_time": 5.0, "image_path": "a.png"},
-                            {"start_time": 5.0, "end_time": 9.0, "image_path": "b.png"}])
+    tight = scene_segments([
+        {"start_time": 0.0, "end_time": 5.0, "image_path": "a.png", "media_id": "x"},
+        {"start_time": 5.0, "end_time": 9.0, "image_path": "b.png", "media_id": "y"}])
     assert [s[0] for s in tight] == ["a.png", "b.png"], tight
-    assert abs(sum(d for _, d in tight) - 9.0) < 1e-6, tight
+    assert abs(sum(d for _, d, _ in tight) - 9.0) < 1e-6, tight
+
+    # The slowest move must still travel; zoompan() must produce a valid filter string.
+    for kind in MOTIONS:
+        for dur in (1.0, MAX_CLIP_SECONDS):
+            n = max(1, round(dur * FPS))
+            expr = zoompan({"kind": kind, "a": ZOOM_MIN, "bx": 0.5, "by": 0.5, "n": n})
+            assert "zoompan=" in expr, expr
+
+    # No move may hold constant zoom across a clip, or frames come back bit-identical.
+    assert ZOOM_MIN > 0 and ZOOM_MAX > ZOOM_MIN and PAN_DRIFT > 0
+
+    # Zoom never drops below 1.0, and the crop window stays inside the source for every move.
+    for kind in MOTIONS:
+        for dur in (1.0, 5.0, MAX_CLIP_SECONDS):
+            n = max(1, round(dur * FPS))
+            for frame in (0, n // 2, max(0, n - 1)):
+                if kind == "zoom_in":
+                    z = 1 + ZOOM_MAX * frame / max(1, n - 1)
+                elif kind == "zoom_out":
+                    z = 1 + ZOOM_MAX - ZOOM_MAX * frame / max(1, n - 1)
+                else:
+                    z = 1 + PAN_DRIFT
+                assert z >= 1.0 - 1e-9, (kind, dur, frame, z)
+                assert SOURCE_W / z <= SOURCE_W + 1e-6 and SOURCE_H / z <= SOURCE_H + 1e-6
+
+    # Same id always produces the same motion (deterministic seed).
+    assert motion_for("abc", 5.0) == motion_for("abc", 5.0)
 
 
 if __name__ == "__main__":
