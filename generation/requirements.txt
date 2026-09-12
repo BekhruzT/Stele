@@ -1,0 +1,64 @@
+# Every third-party import in this tree, and nothing else. tools/check_selfcontained.py
+# fails on an import that is not listed here, so adding a dependency means adding it in
+# the same commit.
+#
+# The pipeline itself needs none of the ops/ block at the bottom. Install without it and
+# run.py still builds a video; only the tools under ops/ break.
+
+# LLMs. There is no Anthropic client: the four LLM.CLAUDE_* names in
+# core/clients/openai.py are enum aliases carrying gpt-* values, so nothing reaches an
+# anthropic SDK.
+openai==1.59.6
+google-generativeai
+langchain==0.3.14
+langchain-community==0.3.14
+
+# speech, avatars, images, motion, render
+elevenlabs==1.9.0
+assemblyai==0.28.0
+pydub==0.25.1
+fal_client==0.4.1
+lumaai==1.5.0
+shotstack-sdk==0.2.8
+opencv-python==4.11.0.86
+Pillow
+CairoSVG==2.7.1
+
+# HTML to video
+playwright==1.47.0
+Jinja2==3.1.2
+beautifulsoup4==4.12.2
+
+# Google Sheets and Drive, where the knowledge graph and image mappings live
+google-api-python-client==2.101.0
+gspread==6.1.4
+pygsheets==2.0.6
+oauth2client
+
+# AWS
+boto3==1.35.97
+
+# data, text and reporting
+pydantic>=2
+pandas==2.0.3
+numpy==1.24.4
+matplotlib==3.7.5
+nltk
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.26.0
+requests==2.32.3
+tenacity==8.2.3
+tqdm
+python-dotenv
+
+# Only ops/ needs these; no stage imports either. Streamlit runs the review apps under
+# ops/review, and PyDrive2 fetches the character bundles in ops/media.
+streamlit==1.41.1
+PyDrive2==1.20.0
+
+# Voice cleanup in core/clients/speech.py: `from df.enhance import enhance, init_df`.
+# This is the heavy end of the install, several GB. torchvision was pinned in the old
+# requirements but nothing imports it, so it is not carried over.
+deepfilternet==0.5.6
+torch==2.6.0
+torchaudio==2.6.0

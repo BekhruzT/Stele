@@ -1,0 +1,320 @@
+{% import './components/visual-container.html' as vc %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Text Slide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./components/visual-container.css">
+
+    <style>
+      /* Full-page background */
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: black;
+      }
+
+      .slide {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        color: white;
+        font-family: "Open Sans", sans-serif;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+      }
+
+      h1 {
+        font-family: "Arial Black", Arial, sans-serif;
+        font-size: 3.5rem;
+        text-align: center;
+        margin-top: 2rem;
+      }
+
+      .elements {
+        font-size: 2rem;
+        font-weight: 600;
+        margin-right: 15%;
+        text-align: center;
+        max-width: 80%;
+        padding-bottom: 1em;
+        display: flex;
+        height: 100%;
+        flex-direction: column;
+        gap: 1em;
+        position: relative; /* Added for proper positioning of visuals */
+      }
+
+      .element {
+        margin: 0;
+      }
+
+      .text-content {
+        white-space: normal;
+        visibility: hidden; /* FIXED: Changed from visible to hidden */
+      }
+
+      .title,
+      .elements {
+        width: 100%;
+      }
+
+      .char {
+        visibility: hidden;
+      }
+
+      /* Visual container overrides */
+      .visuals-container {
+        transform: translate(0%, -5%) !important;
+        height: 100% !important;
+      } 
+
+      .visual {
+        background-color: rgba(0, 0, 0, 1.0) !important;
+        box-shadow: 0 50px 0 50px rgba(0, 0, 0, 1.0) !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="slide">
+      <div class="title"><h1>{{ title }}</h1></div>
+      <div class="elements">
+        {% for element in elements %}
+        <div
+          class="element"
+          data-type="{{ element.type }}"
+        >
+          {% if element.type == 'image' %}
+          <img src="{{ element.content }}" alt="Slide image" style="display: none; max-height: 25vh" />
+          {% else %}
+          <div class="text-content">
+            {% for phrase in element.contents %}
+            <span class="phrase" data-start-time="{{ phrase.start_time }}" data-duration="{{ phrase.start_duration }}">{{ phrase.content }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+        
+        <!-- Use the visual container macro -->
+        {{ vc.visual_container(visuals, 'slide-visuals') }}
+      </div>
+    </div>
+    
+    <script src="./components/visual-container.js"></script>
+    <script>
+      // handle overflow
+      const checkAndAdjustOverflow = () => {
+        // Get relevant elements
+        const elements = document.querySelector(".elements");
+        const body = document.querySelector("body");
+
+        // Check for overflow
+        const hasOverflow = () => {
+          return elements.getBoundingClientRect().bottom > body.getBoundingClientRect().bottom;
+        };
+
+        // try to decrease the font
+        let size = 2;
+        while (hasOverflow()) {
+          size -= 0.1;
+          elements.style.fontSize = `${size}rem`;
+        }
+      };
+
+      // Position captions within the actual image dimensions
+      function positionCaptions() {
+        const imgContainers = document.querySelectorAll('.img-container');
+        
+        imgContainers.forEach(container => {
+          const img = container.querySelector('img');
+          const caption = container.querySelector('.visual-caption');
+          
+          if (img && caption) {
+            // Wait for image to load to get actual dimensions
+            if (img.complete) {
+              adjustCaption(img, caption, container);
+            } else {
+              img.onload = () => adjustCaption(img, caption, container);
+            }
+          }
+        });
+      }
+      
+      function adjustCaption(img, caption, container) {
+        // Get the rendered dimensions of the image
+        const imgRect = img.getBoundingClientRect();
+        
+        // If the image hasn't rendered yet or has 0 dimensions, try again later
+        if (imgRect.width === 0 || imgRect.height === 0) {
+          setTimeout(() => adjustCaption(img, caption, container), 100);
+          return;
+        }
+        
+        // Position the caption relative to the actual rendered image
+        caption.style.position = 'absolute';
+        caption.style.bottom = '0px';
+        caption.style.left = '0px';
+        caption.style.width = 'auto';
+        caption.style.maxWidth = imgRect.width + 'px';
+      }
+
+      // Run layout adjustments after a delay
+      setTimeout(() => {
+        checkAndAdjustOverflow();
+        positionCaptions();
+      }, 100);
+      
+      // Also handle window resize events
+      window.addEventListener('resize', () => {
+        checkAndAdjustOverflow();
+        positionCaptions();
+      });
+    </script>
+    <script>
+      // We'll track each phrase's data here
+      let typewriterPhrases = [];
+      let visualContainer = null;
+
+      function prepareTypewriterElements() {
+        // Handle phrases for text elements
+        const phrases = document.querySelectorAll(".phrase");
+        
+        phrases.forEach((phraseEl) => {
+          const startTime = parseFloat(phraseEl.getAttribute("data-start-time")) * 1000 || 0;
+          const duration = parseFloat(phraseEl.getAttribute("data-duration")) * 1000 || 500;
+          
+          // Get the original text
+          const rawText = phraseEl.textContent;
+          phraseEl.textContent = ""; // Clear the original text
+          let spans = [];
+
+          // Turn each character into a span
+          rawText.split("").forEach((char) => {
+            const span = document.createElement("span");
+            span.textContent = char;
+            span.className = "char";
+            phraseEl.appendChild(span);
+            spans.push(span);
+          });
+
+          // Make the phrase element visible since we control visibility at char level
+          phraseEl.style.visibility = "visible";
+
+          typewriterPhrases.push({
+            element: phraseEl,
+            spans: spans,
+            startTime,
+            duration,
+            started: false,
+            finished: false,
+            startTypeTime: 0,
+          });
+        });
+
+        // Handle images separately
+        const elements = document.querySelectorAll(".element");
+        elements.forEach((el) => {
+          const type = el.getAttribute("data-type");
+          if (type === "image") {
+            const img = el.querySelector("img");
+            if (img) {
+              // For images, we'll use the first phrase timing if available
+              const firstPhrase = el.querySelector(".phrase");
+              const startTime = firstPhrase ? 
+                parseFloat(firstPhrase.getAttribute("data-start-time")) * 1000 : 0;
+              
+              typewriterPhrases.push({
+                type: "image",
+                element: img,
+                startTime,
+                shown: false,
+              });
+            }
+          }
+        });
+      }
+
+      function updateTypewriter(currentTime) {
+        // For each phrase, incrementally reveal text based on the currentTime
+        typewriterPhrases.forEach((item) => {
+          // Handle images
+          if (item.type === "image") {
+            if (!item.shown && currentTime >= item.startTime) {
+              item.shown = true;
+              item.element.style.display = "block";
+            }
+            return;
+          }
+
+          // Handle text phrases
+          if (!item.started && currentTime >= item.startTime) {
+            item.started = true;
+            item.startTypeTime = currentTime;
+            // Make the parent text-content visible when we start typing
+            const textContent = item.element.closest('.text-content');
+            if (textContent) {
+              textContent.style.visibility = "visible";
+            }
+          }
+
+          if (item.started && !item.finished) {
+            let elapsed = currentTime - item.startTypeTime;
+            if (elapsed < 0) elapsed = 0;
+
+            const totalChars = item.spans.length;
+            const timePerChar = item.duration / totalChars;
+            const charsToShow = Math.floor(elapsed / timePerChar);
+
+            // Reveal only up to charsToShow
+            for (let i = 0; i < totalChars; i++) {
+              item.spans[i].style.visibility = i < charsToShow ? "visible" : "hidden";
+            }
+            if (charsToShow >= totalChars) {
+              item.finished = true;
+            }
+          }
+        });
+
+        // Update visuals if visual container exists
+        if (visualContainer) {
+          visualContainer.updateVisuals(currentTime);
+        }
+      }
+
+      function animate() {
+        const now = performance.now();
+        updateTypewriter(now);
+        requestAnimationFrame(animate);
+      }
+
+      window.onload = async function () {
+        // Initialize visual container if there are visuals
+        if (document.getElementById('slide-visuals')) {
+          // Wait for VisualContainer to be available
+          if (typeof VisualContainer !== 'undefined') {
+            visualContainer = new VisualContainer('slide-visuals');
+            // Give it time to preload images
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+        
+        // Prepare typewriter elements
+        prepareTypewriterElements();
+        
+        // Start the typewriter animation
+        requestAnimationFrame(animate);
+      };
+    </script>
+  </body>
+</html>

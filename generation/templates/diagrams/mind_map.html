@@ -1,0 +1,571 @@
+{% import './components/visual-container.html' as vc %}
+<html>
+  <head>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./components/visual-container.css">
+    
+    <style>
+      html, body {
+        margin: 0;
+        box-sizing: border-box;
+        background-color: white;
+      }
+
+      .container {
+        position: relative;
+        width: 1280px;
+        height: 720px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: #484848;
+        font-family: 'Open Sans', sans-serif;
+        overflow: hidden;
+        {% if categories|length == 3 or categories|length == 5 %}
+        transform: translateY(-30px);
+        {% endif %}
+        overflow: visible;
+      }
+
+      /* Fade-in animation for progressive disclosure */
+      @keyframes fadeIn {
+        0%   { opacity: 0; }
+        100% { opacity: 1; }
+      }
+      .fade-in {
+        opacity: 0;
+        animation: fadeIn 0.75s forwards;
+      }
+
+      .center-node {
+        position: absolute;
+        padding: 20px 30px;
+        background: #f0f0f0;
+        border-radius: 20px;
+        border: 2px solid #484848;
+        z-index: 2;
+        text-align: center;
+        {% if categories|length == 4 %}
+        top: 230px;
+        {% elif categories|length == 5 %}
+        top: 180px;
+        {% else %}
+        top: 130px;
+        {% endif %}
+        min-width: 130px;
+        max-width: 160px;
+        font-size: 1.3rem;
+        min-height: 150px;
+        max-height: 230px;
+        display: flex;
+        flex-wrap: wrap;
+        align-content: center;
+        justify-content: center;
+        gap: 5px;
+        left: 580px;
+        transform: translate(-50%, 0) scale(1);
+        transition: all 0.75s linear;
+      }
+      .center-node i {
+        font-size: 2.5rem;
+        transition: all 0.75s linear;
+      }
+      .category-title i {
+        font-size: 1.5rem;
+      }
+
+      .categories-container {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+      }
+
+      .category {
+        position: absolute;
+        width: 300px;
+        height: 200px;
+      }
+      .category-title {
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 1.2rem;
+        z-index: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .category-items {
+        font-size: 1.1rem;
+        color: #484848;
+        margin-left: 10px;
+        position: relative;
+      }
+
+      .category-item {
+        padding: 8px 0;
+        padding-left: 30px;
+        position: relative;
+        border-left: 2px dashed #757373;
+      }
+
+      .category-item:before {
+        content: "";
+        border-bottom: 2px dashed #757373;
+        width: 21px;
+        display: inline-block;
+        margin-left: -30px;
+        height: 4px;
+        margin-right: 9px;
+        border-radius: 0px 10px;
+        position: absolute;
+        top: calc(50% - 4px);
+      }
+      .category-item:last-child {
+        border-left: none;
+      }
+      .category-item:last-child::after {
+        content: "";
+        border-left: 2px dashed #757373;
+        left: 0px;
+        position: absolute;
+        z-index: 1;
+        width: 2px;
+        height: calc(50% - 4px);
+        top: 2px;
+      }
+
+      svg {
+        position: absolute;
+        width: 397px;
+        height: 429px;
+        z-index: 1;
+        {% if categories|length == 4 %}
+        top: 130px;
+        {% elif categories|length == 5 %}
+        top: 80px;
+        {% else %}
+        top: 30px;
+        {% endif %}
+        margin-left: -120px;
+      }
+
+      .categories-container .category-item:nth-child(1) {
+        padding-top: 17px;
+      }
+      .categories-container .category-item:nth-child(1)::before {
+        top: calc(50% - -3px);
+      }
+
+      {% set colors = {
+        1: {'bg': 'rgb(255, 236, 236)', 'border': '#e55753'},
+        2: {'bg': 'rgb(245, 230, 255)', 'border': '#ba5de5'},
+        3: {'bg': 'rgb(240, 255, 230)', 'border': '#92bd39'},
+        4: {'bg': 'rgb(255, 249, 230)', 'border': '#E3AC03'},
+        5: {'bg': 'rgb(230, 245, 255)', 'border': '#5faaf8'}
+      } %}
+
+      {% for i in range(1, categories|length + 1) %}
+      .categories-container .category:nth-child({{ i }}) {
+        {% if categories|length == 2 %}
+          {% if i == 1 %}
+          left: 120px;
+          top: 240px;
+          {% elif i == 2 %}
+          right: 250px;
+          top: 240px;
+          {% endif %}
+        {% elif categories|length == 3 %}
+          {% if i == 1 %}
+          left: 120px;
+          top: 240px;
+          {% elif i == 2 %}
+          right: 250px;
+          top: 240px;
+          {% elif i == 3 %}
+          left: calc(50% - 220px);
+          top: 400px;
+          {% endif %}
+        {% elif categories|length == 4 %}
+          {% if i == 1 %}
+          left: 120px;
+          top: 100px;
+          {% elif i == 2 %}
+          right: 250px;
+          top: 100px;
+          {% elif i == 3 %}
+          left: 120px;
+          top: 340px;
+          {% elif i == 4 %}
+          right: 250px;
+          top: 340px;
+          {% endif %}
+        {% elif categories|length == 5 %}
+          {% if i == 1 %}
+          left: 120px;
+          top: 50px;
+          {% elif i == 2 %}
+          right: 250px;
+          top: 50px;
+          {% elif i == 3 %}
+          left: 120px;
+          top: 290px;
+          {% elif i == 4 %}
+          right: 250px;
+          top: 290px;
+          {% elif i == 5 %}
+          left: calc(50% - 220px);
+          top: 467px;
+          {% endif %}
+        {% else %}
+          {% if i == 1 %}
+          left: 120px;
+          top: 0px;
+          {% elif i == 2 %}
+          right: 250px;
+          top: 0px;
+          {% elif i == 3 %}
+          left: 120px;
+          top: 240px;
+          {% elif i == 4 %}
+          right: 250px;
+          top: 240px;
+          {% elif i == 5 %}
+          left: calc(50% - 210px);
+          top: 450px;
+          {% endif %}
+        {% endif %}
+      }
+      .categories-container .category:nth-child({{ i }}) .category-title {
+        background-color: {{ colors[i]['bg'] }};
+        border: 2px solid {{ colors[i]['border'] }};
+        color: {{ colors[i]['border'] }};
+      }
+      {% endfor %}
+
+      .center-node.centered {
+        position: fixed;
+        top: 50vh;
+        left: 50vw;
+        /* how i am calculating the position
+        horizontal:
+        -50% (to set it center horizontally)
+        vertical:
+        -50% - 10px - 5rem
+        gap is of 5px, scaled by 4.0, so 20px
+        the icon is 2.5rem in height, scaled by 4.0, so 10rem
+        Now vertically we want to offset (gap+icon_height)/2 to make the text vertically centered
+        so 20px/2 = 10px and 10rem/2 = 5rem
+        */
+        transform: translate(calc(-50%), calc(-50% - 10px - 5rem)) scale(4.0);
+        background-color: transparent;
+        border-color: transparent;
+        color: black;
+      }
+      .center-node.centered i {
+        opacity: 0;
+      }
+      
+      /* Override visual container styles for white background */
+      .visuals-container {
+        transform: translate(10%, 20%) !important;
+        width: 75% !important;
+        height: 75% !important;
+      } 
+
+      .visual {
+        background-color: rgba(255, 255, 255, 0.8) !important;
+        box-shadow: -55px 0 0 100px rgba(255, 255, 255, 0.8) !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <svg id="Layer_2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215.77 264.14">
+        <defs>
+          <style>
+            .cls-1,
+            .cls-2,
+            .cls-3,
+            .cls-4,
+            .cls-5 {
+              fill: none;
+              stroke: #757373;
+              stroke-miterlimit: 10;
+            }
+            .cls-2 {
+              stroke-dasharray: 3.01 3.01;
+            }
+            .cls-3 {
+              stroke-dasharray: 2.98 2.98;
+            }
+            .cls-4 {
+              stroke-dasharray: 3;
+            }
+            .cls-5 {
+              stroke-dasharray: 3.02 3.02;
+            }
+          </style>
+        </defs>
+        <g id="Layer_1-2">
+          {% if categories|length >= 4 %}
+          <!-- Top right connection (B) => category #2 => categories[1] -->
+          <line
+            class="cls-1 fade-in"
+            style="animation-delay: {{ categories[1].title.start_time|default(0) }}s"
+            x1="119.39"
+            y1="115.23"
+            x2="119.39"
+            y2="113.73"
+          />
+          <path
+            class="cls-3 fade-in"
+            style="animation-delay: {{ categories[1].title.start_time|default(0) }}s"
+            d="M119.39,110.75V8.5c0-4.42,3.58-8,8-8h80.52"
+          />
+          <line
+            class="cls-1 fade-in"
+            style="animation-delay: {{ categories[1].title.start_time|default(0) }}s"
+            x1="209.4"
+            y1=".5"
+            x2="210.9"
+            y2=".5"
+          />
+
+          <!-- Top left connection (A) => category #1 => categories[0] -->
+          <line
+            class="cls-1 fade-in"
+            style="animation-delay: {{ categories[0].title.start_time|default(0) }}s"
+            x1="99.52"
+            y1="115.23"
+            x2="99.52"
+            y2="113.73"
+          />
+          <path
+            class="cls-2 fade-in"
+            style="animation-delay: {{ categories[0].title.start_time|default(0) }}s"
+            d="M99.52,110.72V8.5c0-4.42-3.58-8-8-8H3.01"
+          />
+          <line
+            class="cls-1 fade-in"
+            style="animation-delay: {{ categories[0].title.start_time|default(0) }}s"
+            x1="1.5"
+            y1=".5"
+            x2="0"
+            y2=".5"
+          />
+          {% endif %} {% if categories|length >= 2 %} {% if categories|length == 2 %}
+          <!-- Two categories => left middle => cat[0], right middle => cat[1] -->
+          <line
+            class="cls-4 fade-in"
+            style="animation-delay: {{ categories[0].title.start_time|default(0) }}s"
+            x1="93.6"
+            y1="148.11"
+            x2="5.42"
+            y2="148.11"
+          />
+          <line
+            class="cls-4 fade-in"
+            style="animation-delay: {{ categories[1].title.start_time|default(0) }}s"
+            x1="215.77"
+            y1="148.11"
+            x2="127.59"
+            y2="148.11"
+          />
+          {% elif categories|length == 3 %}
+          <!-- Three categories => left middle => cat[0], right middle => cat[1] -->
+          <line
+            class="cls-4 fade-in"
+            style="animation-delay: {{ categories[0].title.start_time|default(0) }}s"
+            x1="93.6"
+            y1="148.11"
+            x2="5.42"
+            y2="148.11"
+          />
+          <line
+            class="cls-4 fade-in"
+            style="animation-delay: {{ categories[1].title.start_time|default(0) }}s"
+            x1="215.77"
+            y1="148.11"
+            x2="127.59"
+            y2="148.11"
+          />
+          {% else %}
+          <!-- Four or five categories => left middle => cat[2], right middle => cat[3] -->
+          <line
+            class="cls-4 fade-in"
+            style="animation-delay: {{ categories[2].title.start_time|default(0) }}s"
+            x1="93.6"
+            y1="148.11"
+            x2="5.42"
+            y2="148.11"
+          />
+          <line
+            class="cls-4 fade-in"
+            style="animation-delay: {{ categories[3].title.start_time|default(0) }}s"
+            x1="215.77"
+            y1="148.11"
+            x2="127.59"
+            y2="148.11"
+          />
+          {% endif %} {% endif %} {% if categories|length == 3 or categories|length == 5 %}
+          <!-- Bottom connection (E) => category #3 if length=3, else #5 if length=5 -->
+          {% if categories|length == 3 %}
+          <line
+            class="cls-5 fade-in"
+            style="animation-delay: {{ categories[2].title.start_time|default(0) }}s"
+            x1="109.45"
+            y1="259.62"
+            x2="109.45"
+            y2="152.42"
+          />
+          {% else %}
+          <line
+            class="cls-5 fade-in"
+            style="animation-delay: {{ categories[4].title.start_time|default(0) }}s"
+            x1="109.45"
+            y1="259.62"
+            x2="109.45"
+            y2="152.42"
+          />
+          {% endif %} {% endif %}
+        </g>
+      </svg>
+
+      <!-- Updated center node markup -->
+      <div class="center-node {% if is_section %}centered{% endif %}" id="centerNode">
+        <i class="fas fa-{{ root.icon }}"></i>
+        <span class="center-node-text">{{ root.title }}</span>
+      </div>
+
+      <div class="categories-container">
+        {% for category in categories %}
+        <div class="category">
+          <!-- Apply fade-in class and set animation delay based on start_time -->
+          <div class="category-title fade-in" style="animation-delay: {{ category.title.start_time|default(0) }}s;">
+            <i class="fas fa-{{ category.title.icon }}"></i> {{ category.title.text }}
+          </div>
+          <div class="category-items">
+            {% for point in category.points %}
+            <div class="category-item fade-in" style="animation-delay: {{ point.start_time|default(0) }}s;">
+              {{ point.text }}
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      
+      <!-- Use the visual container macro -->
+      {{ vc.visual_container(visuals, 'diagram-visuals') }}
+    </div>
+    
+    <script src="./components/visual-container.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const categories = document.querySelectorAll(".categories-container .category");
+        const categoryCount = categories.length;
+
+        if (categoryCount === 4) {
+          const removeLine5 = document.querySelector("line.removeLine5");
+          if (removeLine5) removeLine5.remove();
+        } else if (categoryCount <= 3) {
+          const removeLine4 = document.querySelector("line.removeLine4");
+          const removeLine5 = document.querySelector("line.removeLine5");
+          if (removeLine4) removeLine4.remove();
+          if (removeLine5) removeLine5.remove();
+        }
+
+        {% if is_section %}
+        const centerNode = document.getElementById('centerNode');
+        const delay = {{ categories[0].title.start_time - 1 }};
+
+        setTimeout(() => {
+          centerNode.classList.remove('centered');
+        }, delay * 1000);
+        {% endif %}
+
+        // Initialize visual container if there are visuals
+        if (document.getElementById('diagram-visuals')) {
+          const visualContainer = new VisualContainer('diagram-visuals');
+        }
+
+        // Only run this logic for 4 or 5 categories
+        const checkAndAdjustOverflow = () => {
+          if (categoryCount < 4) return;
+
+          // Get relevant elements
+          const firstCategoryItems = document.querySelector('.categories-container .category:nth-child(1) .category-items');
+          const secondCategoryItems = document.querySelector('.categories-container .category:nth-child(2) .category-items');
+          const thirdCategoryTitle = document.querySelector('.categories-container .category:nth-child(3) .category-title');
+          const fourthCategoryTitle = document.querySelector('.categories-container .category:nth-child(4) .category-title');
+          const fifthCategoryItems= document.querySelector('.categories-container .category:nth-child(5) .category-items');
+
+          const thirdCategory = document.querySelector('.categories-container .category:nth-child(3)');
+          const fourthCategory = document.querySelector('.categories-container .category:nth-child(4)');
+          const fifthCategory = document.querySelector('.categories-container .category:nth-child(5)');
+
+          const container = document.querySelector('.container');
+
+          // Check for overflow
+          const hasNodesClash = () => {
+            const firstOverflows = thirdCategoryTitle &&
+              (firstCategoryItems.getBoundingClientRect().bottom > thirdCategoryTitle.getBoundingClientRect().top);
+            const secondOverflows = fourthCategoryTitle &&
+              (secondCategoryItems.getBoundingClientRect().bottom > fourthCategoryTitle.getBoundingClientRect().top);
+            return firstOverflows || secondOverflows;
+          };
+          const hasBottomNodeOverflow = () => {
+            if (categoryCount < 5) return false;
+            const fifthOverflows = fifthCategoryItems &&
+              (fifthCategoryItems.getBoundingClientRect().bottom > container.getBoundingClientRect().bottom);
+            return fifthOverflows;
+          };
+
+          // first try to move down nodes 3 and 4 to avoid clash
+          const topCategoriesTop = parseInt(window.getComputedStyle(thirdCategory).top);
+          let topDelta = 0;
+          while (hasNodesClash() && topDelta < 20) {
+            topDelta += 1;
+            thirdCategory.style.top = `${topCategoriesTop + topDelta}px`;
+            fourthCategory.style.top = `${topCategoriesTop + topDelta}px`;
+          }
+          // first try to move up node 5 to avoid overflow
+          let bottomCategoriesTop = fifthCategory ? parseInt(window.getComputedStyle(fifthCategory).top) : 0;
+          while (hasBottomNodeOverflow() && bottomCategoriesTop > 441) {
+            bottomCategoriesTop -= 1;
+            fifthCategory.style.top = `${bottomCategoriesTop}px`;
+          }
+
+          // then try to reduce font size and padding to avoid overflow
+          let fontSize = 1.1;
+          let padding = 8;
+          while ((hasNodesClash() || hasBottomNodeOverflow()) && fontSize > 0.9 && padding > 4) {
+            document.querySelectorAll('.category-item').forEach(item => {
+              item.style.padding = `${padding}px 0 ${padding}px 30px`;
+            });
+            document.querySelectorAll('.category-items').forEach(container => {
+              container.style.fontSize = `${fontSize}rem`;
+            });
+            fontSize -= 0.01;
+            padding -= 0.2;
+          }
+        };
+
+        // Use requestAnimationFrame instead of setTimeout
+        requestAnimationFrame(() => {
+          // Double RAF to ensure everything is rendered
+          requestAnimationFrame(checkAndAdjustOverflow);
+        });
+
+        // double check for overflow after 100ms
+        setTimeout(() => {
+          checkAndAdjustOverflow();
+        }, 100);
+      });
+    </script>
+  </body>
+</html>

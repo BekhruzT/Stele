@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Conclusion Slide</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        width: 1280px;
+        height: 720px;
+        background-color: #000;
+        color: #fff;
+        font-family: "Open Sans", sans-serif;
+        display: flex;
+        justify-content: center;
+        /* align-items: center; */
+      }
+      .slide {
+        text-align: left;
+        width: 1150px;
+        margin: 0 auto;
+      }
+
+      /* Fade-in animation */
+      @keyframes fadeIn {
+        0% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      .fade-in {
+        opacity: 0;
+        animation: fadeIn 0.75s forwards;
+      }
+
+      .main-list {
+        padding-bottom: 0.5em;
+      }
+      ul.main-list {
+        margin-right: 150px;
+        margin-top: 2em;
+      }
+      h1 {
+        font-size: 48px;
+        margin-bottom: 10px;
+        text-align: center;
+        padding: 0 50px;
+        font-family: "Arial Black", Arial, sans-serif;
+        margin-top: 1em;
+      }
+      h2 {
+        font-size: 28px;
+        margin-bottom: 40px;
+        text-align: right;
+        padding: 0 50px;
+        font-family: "Arial Black", Arial, sans-serif;
+      }
+      ul {
+        list-style-type: disc;
+        font-size: 24px;
+        margin-left: 1px;
+        line-height: 1.5;
+      }
+      ul ul {
+        list-style-type: none;
+        margin-left: 20px;
+      }
+      ul li.main-bullet {
+        margin-bottom: 1em;
+        font-size: 1.2em;
+      }
+      ul ul li {
+        margin-bottom: 5px;
+      }
+      li::marker {
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="slide">
+      <!-- Title and optional subtitle are shown immediately -->
+      <h1>{{ title }}</h1>
+      {% if subtitle %}
+      <h2>{{ subtitle }}</h2>
+      {% endif %}
+
+      <ul class="main-list">
+        {% for bullet in bullets %}
+        <!-- Main bullet fades in at bullet.start_time -->
+        <li class="main-bullet fade-in" style="animation-delay: {{ bullet.start_time|default(0) }}s;">
+          {{ bullet.text }}
+          <!-- Sub-bullets fade in at their own start_time -->
+          {% if bullet.sub_points %}
+          <ul>
+            {% for sub in bullet.sub_points %}
+            <li class="fade-in" style="animation-delay: {{ sub.start_time|default(0) }}s;">- {{ sub.text }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <script>
+      // handle overflow
+      const checkAndAdjustOverflow = () => {
+        // Get relevant elements
+        const mainList = document.querySelector(".main-list");
+        const slideContainer = document.querySelector(".slide");
+
+        // Check for overflow
+        const hasOverflow = () => {
+          return mainList.getBoundingClientRect().bottom > slideContainer.getBoundingClientRect().bottom;
+        };
+
+        // first remove the extra spaces
+        if (hasOverflow()) {
+          mainList.style.marginTop = "0.5em";
+        }
+        if (hasOverflow()) {
+          mainList.style.marginRight = "0px";
+          document.querySelectorAll(".main-bullet").forEach((bullet) => {
+            bullet.style.marginBottom = "0.5em";
+          });
+        }
+        if (hasOverflow()) {
+          document.querySelector("h1").style.marginTop = "0.5em";
+        }
+
+        // then try to decrease font size
+        if (hasOverflow()) {
+          document.querySelector("h1").style.fontSize = "40px";
+        }
+        let size = 24;
+        while (hasOverflow()) {
+          document.querySelectorAll(".main-list li").forEach((li) => {
+            li.style.fontSize = `${size}px`;
+          });
+          size -= 1;
+        }
+      };
+
+      // Use requestAnimationFrame instead of setTimeout
+      requestAnimationFrame(() => {
+        // Double RAF to ensure everything is rendered
+        requestAnimationFrame(checkAndAdjustOverflow);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,19 @@
+{% macro visual_container(visuals=[], container_id='visuals-container') %}
+<div class="visuals-container" id="{{ container_id }}">
+  {% if visuals %}
+    {% for visual in visuals %}
+    <div 
+      class="visual" 
+      data-start-time="{{ visual.start_time }}" 
+      data-end-time="{{ visual.end_time }}"
+      data-src="{{ visual.src }}"
+    >
+      <div class="img-container">
+        <img alt="{{ visual.caption }}">
+        <div class="visual-caption">{{ visual.caption }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  {% endif %}
+</div>
+{% endmacro %}

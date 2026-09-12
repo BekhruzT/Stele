@@ -1,0 +1,297 @@
+{% import './components/visual-container.html' as vc %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Venn Diagram</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&family=Arial+Black&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./components/visual-container.css">
+    
+    <style>
+      :root {
+        --circle1-color: #f99f16;
+        --circle1-bg: rgb(255 173 49 / 14%);
+        --circle2-color: #de58af;
+        --circle2-bg: rgba(252, 221, 247, 0.29);
+        --circle3-color: #3287e8;
+        --circle3-bg: #e8f9ff;
+        --intersection-color: #32cd32;
+        --title-color: #856dec;
+      }
+
+      body {
+        font-family: "Open Sans", sans-serif;
+        padding: 0;
+        font-size: 1.1rem;
+        justify-items: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin: 0;
+        height: 760px;
+        background-color: white;
+      }
+
+      /* Fade-in animation for progressive disclosure */
+      @keyframes fadeIn {
+        0% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      .fade-in {
+        opacity: 0;
+        animation: fadeIn 0.75s forwards;
+      }
+
+      .heading {
+        color: var(--title-color);
+        font-size: 2rem;
+        font-family: Arial Black, sans-serif;
+      }
+
+      .sub-title {
+        font-size: 1.2rem;
+        color: var(--title-color);
+      }
+
+      .main-container {
+        display: flex;
+        flex-direction: column;
+        width: 1000px;
+        position: relative;
+      }
+
+      .title-container {
+        text-align: center;
+        margin-left: -210px;
+      }
+
+      .venn-diagram {
+        position: relative;
+        font-size: 1rem;
+        width: 1000px;
+        margin-top: 1rem;
+        height: 650px;
+      }
+
+      .pie-art {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        border-radius: 50%;
+      }
+
+      .pie-art h3 {
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin: 16px 0px;
+      }
+
+      .pie-art:before {
+        display: none;
+      }
+
+      .pie-art ul,
+      .pie-art p {
+        position: relative;
+        margin: 0;
+        padding: 0;
+        font-size: 1.1rem;
+        max-width: 195px;
+      }
+
+      /* First Circle */
+      .pie-art:nth-child(1) {
+        z-index: 1;
+        border: 2px solid var(--circle1-color);
+        left: 40px;
+        background: var(--circle1-bg);
+      }
+      .pie-art:nth-child(1) h3 {
+        color: var(--circle1-color);
+        right: 387px;
+        display: inline-block;
+        max-width: 140px;
+        position: absolute;
+        margin-top: 16px;
+        text-align: right;
+        width: 100%;
+      }
+      .pie-art:nth-child(1) ul,
+      .pie-art:nth-child(1) p {
+        top: 75px;
+        left: 70px;
+        color: var(--circle1-color);
+      }
+
+      /* Second Circle */
+      .pie-art:nth-child(2) {
+        left: 300px;
+        background-color: var(--circle2-bg);
+        z-index: 3;
+        border: 2px solid var(--circle2-color);
+        top: -400px;
+      }
+      .pie-art:nth-child(2) h3 {
+        color: var(--circle2-color);
+        right: -161px;
+        display: inline-block;
+        max-width: 175px;
+        position: absolute;
+        margin-top: 10px;
+        text-align: left;
+        width: 100%;
+      }
+      .pie-art:nth-child(2) ul,
+      .pie-art:nth-child(2) p {
+        top: 70px;
+        left: 165px;
+        color: var(--circle2-color);
+      }
+
+      /* Third Circle */
+      .pie-art:nth-child(3) {
+        top: -600px;
+        left: 173px;
+        z-index: 0;
+        background-color: var(--circle3-bg);
+        border: 2px solid var(--circle3-color);
+      }
+      .pie-art:nth-child(3) h3 {
+        color: var(--circle3-color);
+        text-align: center;
+        right: 370px;
+        position: absolute;
+        bottom: 0;
+      }
+      .pie-art:nth-child(3) ul,
+      .pie-art:nth-child(3) p {
+        top: 196px;
+        left: calc(50% - 125px);
+        color: var(--circle3-color);
+        max-width: 270px;
+      }
+
+      .two-circles .pie-main-intersection {
+        font-size: 1.1rem;
+        position: absolute;
+        top: 202px;
+        left: 372px;
+        z-index: 5;
+        width: 120px;
+        padding: 0;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: var(--intersection-color);
+      }
+      .two-circles .pie-main-intersection mark {
+        background-color: rgba(217, 250, 202, 0.2);
+        color: var(--intersection-color);
+      }
+
+      .pie-main-intersection {
+        font-size: 1.1rem;
+        position: absolute;
+        top: 280px;
+        left: 372px;
+        z-index: 5;
+        width: 170px;
+        padding: 0;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: var(--intersection-color);
+      }
+      /* For short intersection text (≤ 4 words) */
+      .short-intersection {
+        width: 120px;
+        top: 270px;
+      }
+      .pie-main-intersection mark {
+        background-color: rgba(217, 250, 202, 0.7);
+        color: var(--intersection-color);
+      }
+      
+      .venn-diagram .visuals-container {
+        transform: translate(0%, -6%) !important;
+        border-radius: 10% !important;
+        width: 75% !important;
+        height: 90% !important;
+      } 
+
+      .venn-diagram .visual {
+        background-color: white !important;
+        /* background-color: blue !important; */
+        border-radius: 22% !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+      <div class="title-container">
+        <!-- Title and subtitle are always visible -->
+        <div class="heading">{{ root.title }}</div>
+        <div class="sub-title">{{ root.subtitle }}</div>
+      </div>
+      <div class="venn-diagram">
+        {% for circle in circles %}
+        <div class="pie-art">
+          <!-- Circle name fade-in -->
+          <h3 class="fade-in" style="animation-delay: {{ circle.name.start_time|default(0) }}s;">
+            {{ circle.name.text }}
+          </h3>
+          <ul>
+            <!-- Each point fade-in -->
+            {% for point in circle.points %}
+            <li class="fade-in" style="animation-delay: {{ point.start_time|default(0) }}s;">{{ point.text }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+
+        <!-- Intersection fade-in -->
+        <div class="pie-main-intersection fade-in" style="animation-delay: {{ intersection.start_time|default(0) }}s;">
+          <mark>{{ intersection.text }}</mark>
+        </div>
+        
+        <!-- Use the visual container macro inside the venn-diagram -->
+        {{ vc.visual_container(visuals, 'venn-visuals') }}
+      </div>
+    </div>
+
+    <script src="./components/visual-container.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const circles = document.querySelectorAll(".pie-art");
+        const intersection = document.querySelector(".venn-diagram");
+        const intersectionElement = document.querySelector(".pie-main-intersection");
+
+        // If there are only 2 circles, add the class for layout
+        if (circles.length === 2) {
+          intersection.classList.add("two-circles");
+        }
+
+        // Check word count in intersection text and apply class if ≤ 4 words
+        if (intersectionElement) {
+          const intersectionText = intersectionElement.textContent.trim();
+          const wordCount = intersectionText.split(/\s+/).length;
+
+          if (wordCount <= 4) {
+            intersectionElement.classList.add("short-intersection");
+          }
+        }
+        
+        // Initialize visual container if there are visuals
+        if (document.getElementById('venn-visuals')) {
+          const visualContainer = new VisualContainer('venn-visuals');
+        }
+      });
+    </script>
+  </body>
+</html>

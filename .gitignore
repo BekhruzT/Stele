@@ -1,0 +1,20 @@
+# pycache
+__pycache__/
+
+# Environments
+.venv
+venv
+.env
+.env.tmp
+
+# Local artifact store, when LOCAL_STORAGE_ROOT is left at its default
+generation/artifacts/
+
+# Every prompt and response, appended by core/clients/openai.py::log_llm_message into
+# whatever directory the run started from. Grows without bound and contains model output.
+prompts.txt
+
+.idea
+**/.idea/
+temp/
+*.ipynb

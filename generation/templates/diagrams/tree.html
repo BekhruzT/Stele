@@ -1,0 +1,392 @@
+{% import './components/visual-container.html' as vc %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Tree Diagram with Horizontal Lines</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./components/visual-container.css">
+    
+    <style>
+      body {
+        font-family: "Open Sans", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 720px;
+        margin: 0;
+        background-color: #f9f9f9;
+      }
+      .tree-diagram {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        width: 1280px;
+      }
+      .tree-diagram ul {
+        padding-left: 0;
+        position: relative;
+        list-style: none;
+        text-align: center;
+      }
+      .tree-diagram > ul {
+        padding-right: 270px;
+        padding-left: 20px;
+      }
+      .tree-diagram li:first-child {
+        padding-left: 0px;
+      }
+      .tree-diagram li:last-child {
+        padding-right: 0px;
+      }
+      .tree-diagram ul ul {
+        padding-top: 30px;
+        display: flex;
+        justify-content: center;
+        position: relative;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+      }
+      .tree-diagram li {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px 12px;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+        padding-top: 20px;
+      }
+      .tree-diagram li.show {
+        opacity: 1;
+      }
+
+      .tree-diagram > ul > li > div + ul::after {
+        content: "";
+        position: absolute;
+        top: 0px;
+        left: 50%;
+        width: 2px;
+        height: 25px;
+        background: #514f4f;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+      }
+
+      .tree-diagram > ul > li > ul > li::before {
+        content: "";
+        position: absolute;
+        top: -5px;
+        left: 50%;
+        width: 2px;
+        height: 25px;
+        background: #514f4f;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+      }
+
+      .tree-diagram > ul > li > ul > li::after {
+        content: "\f107";
+        font-family: "Font Awesome 5 Free";
+        font-weight: 900;
+        color: #514f4f;
+        font-size: 14px;
+        position: absolute;
+        top: 10px;
+        left: calc(50% - 4.3px);
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+      }
+
+      .tree-diagram > ul > li > ul > li > div + ul::after {
+        content: "";
+        position: absolute;
+        top: 0px;
+        left: 50%;
+        width: 2px;
+        height: 25px;
+        background: #514f4f;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+      }
+
+      .tree-diagram > ul > li > ul > li > ul > li::before {
+        content: "";
+        position: absolute;
+        top: -5px;
+        left: 50%;
+        width: 2px;
+        height: 25px;
+        background: #514f4f;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+      }
+
+      .tree-diagram > ul > li > ul > li > ul > li::after {
+        content: "\f107";
+        font-family: "Font Awesome 5 Free";
+        font-weight: 900;
+        color: #514f4f;
+        font-size: 14px;
+        position: absolute;
+        top: 10px;
+        left: calc(50% - 4.3px);
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+      }
+
+      .tree-diagram li.show-lines::after,
+      .tree-diagram li.show-lines::before,
+      .tree-diagram li.show-lines > ul::after,
+      .tree-diagram > ul > li.show-lines > div + ul::after {
+        opacity: 1;
+      }
+
+      .tree-diagram ul ul.show {
+        opacity: 1;
+      }
+
+      .tree-diagram ul ul li.show-lines::before,
+      .tree-diagram ul ul li.show-lines::after {
+        opacity: 1;
+      }
+
+      .tree-diagram li div {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: center;
+        padding: 10px;
+        border-radius: 8px;
+        border: 2px solid;
+        background: white;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+        text-align: center;
+        max-width: 120px;
+      }
+      .tree-diagram li div.show {
+        opacity: 1;
+      }
+      .tree-diagram li div.tree-diagram-root {
+        border-color: #e0cb15;
+        background-color: rgba(252, 249, 29, 0.2);
+        color: #6b6868;
+      }
+      .tree-diagram li div.tree-diagram-node {
+        border-color: #1eabda;
+        background-color: rgba(42, 198, 251, 0.1);
+        color: #1eabda;
+      }
+
+      .tree-diagram li div span.title {
+        word-wrap: break-word;
+        hyphens: auto;
+        font-size: 0.9em;
+        line-height: 1.2;
+        font-weight: bold;
+      }
+
+      .tree-diagram li div span.description {
+        word-wrap: break-word;
+        hyphens: auto;
+        font-size: 0.9em;
+        line-height: 1.2;
+        color: #666;
+      }
+
+      .tree-diagram li div i {
+        font-size: 1.1em;
+      }
+
+      .horizontal-lines-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+
+      .horizontal-line {
+        position: absolute;
+        height: 2px;
+        background-color: #514f4f;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out, width 0.5s ease-in-out;
+      }
+      
+      /* Override visual container styles for white background */
+      .visuals-container {
+        transform: translate(5%, 0) !important;
+        width: 75% !important;
+        height: 120% !important;
+      } 
+
+      .visual {
+        background-color: rgba(249, 249, 249, 0.8) !important;
+        /* background-color: blue !important; */
+        box-shadow: -100px -100px 0 0 rgba(249, 249, 249, 0.8), /* Left shadow (solid yellow) */
+            110px 110px 0 0 rgba(249, 249, 249, 0.8), /* Right shadow (solid yellow) */
+            110px -100px 0 0 rgba(249, 249, 249, 0.8), /* Top shadow (solid yellow) */
+            -100px 110px 0 0 rgba(249, 249, 249, 0.8) !important; /* Bottom shadow (solid yellow) */
+
+      }
+    </style>
+  </head>
+  <body>
+    <div class="tree-diagram">
+      <ul>
+        {% macro render_node(node) %}
+        <li>
+          <div
+            class="tree-diagram-{{ 'root' if node.is_root|default(false) else 'node' }}"
+            data-start-time="{{ node.start_time|default(0) }}"
+          >
+            <i class="fas fa-{{ node.icon }}"></i>
+            <span class="title">{{ node.title }}</span>
+            {% if node.description %}
+            <span class="description">{{ node.description }}</span>
+            {% endif %}
+          </div>
+          {% if node.children %}
+          <ul>
+            {% for child in node.children %} {{ render_node(child) }} {% endfor %}
+          </ul>
+          {% endif %}
+        </li>
+        {% endmacro %} {{ render_node(tree) }}
+      </ul>
+      <div class="horizontal-lines-container"></div>
+      
+      <!-- Use the visual container macro -->
+      {{ vc.visual_container(visuals, 'tree-visuals') }}
+    </div>
+
+    <script src="./components/visual-container.js"></script>
+    <script>
+      function revealTree() {
+        const container = document.querySelector(".horizontal-lines-container");
+        const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+        async function createHorizontalLine(firstNode, lastNode, parentNode) {
+          const line = document.createElement("div");
+          line.className = "horizontal-line";
+
+          const containerRect = container.getBoundingClientRect();
+          const firstRect = firstNode.getBoundingClientRect();
+          const lastRect = lastNode.getBoundingClientRect();
+          const parentRect = parentNode.getBoundingClientRect();
+
+          const firstCenter = firstRect.left + firstRect.width / 2;
+          const lastCenter = lastRect.left + lastRect.width / 2;
+
+          // Calculate yOffset based on parent node's bottom position
+          const yOffset = parentRect.bottom - containerRect.top + 25;
+
+          Object.assign(line.style, {
+            left: `${firstCenter - containerRect.left}px`,
+            top: `${yOffset}px`,
+            width: `${lastCenter - firstCenter}px`,
+          });
+
+          container.appendChild(line);
+          return delay(50).then(() => (line.style.opacity = "1"));
+        }
+
+        async function revealElements(elements, classes, delayTime = 50) {
+          if (!elements.length) return;
+          await delay(delayTime);
+          elements.forEach((el) => el.classList.add(...classes));
+        }
+
+        async function revealSubtree(child) {
+          const childDiv = child.querySelector("div");
+          const startTime = parseFloat(childDiv.dataset.startTime) * 1000;
+          const grandchildren = child.querySelector("ul");
+
+          await delay(startTime);
+
+          await revealElements([child], ["show"]);
+          await revealElements([childDiv], ["show"]);
+          await revealElements([child], ["show-lines"], 50);
+
+          if (!grandchildren) return;
+
+          await revealElements([grandchildren], ["show"], 50);
+          const grandchildrenArray = Array.from(grandchildren.children);
+
+          if (grandchildrenArray.length > 1) {
+            await createHorizontalLine(
+              grandchildrenArray[0],
+              grandchildrenArray[grandchildrenArray.length - 1],
+              childDiv // Pass the parent div
+            );
+          }
+        }
+
+        async function revealNode(node) {
+          const childrenContainer = node.querySelector(":scope > ul");
+          const div = node.querySelector("div");
+          const startTime = parseFloat(div.dataset.startTime) * 1000;
+
+          await delay(startTime);
+
+          await revealElements([node], ["show"]);
+          await revealElements([div], ["show"]);
+          await revealElements([node], ["show-lines"], 50);
+
+          if (!childrenContainer) return;
+
+          await revealElements([childrenContainer], ["show"], 50);
+          const children = Array.from(childrenContainer.children);
+
+          if (
+            children.length &&
+            childrenContainer.parentElement === document.querySelector(".tree-diagram > ul > li")
+          ) {
+            if (children.length > 1) {
+              await createHorizontalLine(
+                children[0],
+                children[children.length - 1],
+                div // Pass the parent div
+              );
+            }
+
+            children.forEach((child) => {
+              revealSubtree(child);
+            });
+          }
+        }
+
+        const allNodes = document.querySelectorAll(".tree-diagram li");
+
+        allNodes.forEach((node) => {
+          const div = node.querySelector("div");
+          const startTime = parseFloat(div.dataset.startTime) * 1000;
+
+          setTimeout(() => {
+            revealElements([node], ["show-lines"], 50);
+            revealElements([node], ["show"]);
+            revealElements([div], ["show"]);
+          }, startTime);
+        });
+
+        const rootNode = document.querySelector(".tree-diagram > ul > li");
+        rootNode && revealNode(rootNode);
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        revealTree();
+        
+        // Initialize visual container if there are visuals
+        if (document.getElementById('tree-visuals')) {
+          const visualContainer = new VisualContainer('tree-visuals');
+        }
+      });
+    </script>
+  </body>
+</html>

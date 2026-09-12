@@ -1,0 +1,46 @@
+{
+  "content": {
+    "subsection": [
+      {
+        "title": "Knowledge Graph",
+        "type": "custom"
+      },
+      {
+        "title": "Video Plan",
+        "type": "custom"
+      },
+      {
+        "title": "Video Transcript",
+        "type": "custom"
+      },
+      {
+        "title": "Avatar Clips",
+        "type": "custom"
+      },
+      {
+        "title": "Text Overlays",
+        "type": "custom"
+      },
+      {
+        "title": "Scenes Breakdown",
+        "type": "custom"
+      },
+      {
+        "title": "Image Gen Clips",
+        "type": "custom"
+      },
+      {
+        "title": "Video Gen Clips",
+        "type": "custom"
+      },
+      {
+        "title": "ShotStack",
+        "type": "custom"
+      }
+    ],
+    "section": [],
+    "chapter": [],
+    "unit": [],
+    "book": []
+  }
+}

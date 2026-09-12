@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="-1" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Tree-diagram</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet" />
+    <style>
+      body {
+        padding: 0;
+        font-size: 1.1rem;
+        justify-items: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 720px;
+        margin: 0;
+        background-color: white;
+      }
+
+      .tree-diagram {
+        width: 1280px;
+        padding: 0;
+        font-size: 1.1rem;
+        justify-items: center;
+        display: flex;
+        justify-content: center;
+        font-family: "Open Sans", sans-serif;
+      }
+
+      .tree-diagram ul {
+        position: relative;
+        padding-left: 0;
+      }
+
+      .tree-diagram ul ul {
+        padding-top: 30px;
+        display: flex;
+        justify-content: space-between;
+        padding-left: 0;
+      }
+
+      .tree-diagram li {
+        float: left;
+        list-style-type: none;
+        position: relative;
+        padding: 30px 10px 0 10px;
+      }
+
+      .tree-diagram li::before,
+      .tree-diagram li::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: calc(50% - 2px);
+        border-top: 2px dashed #514f4f;
+        width: 50%;
+        height: 30px;
+      }
+
+      .tree-diagram li::after {
+        right: auto;
+        left: 50%;
+        border-left: 2px dashed #514f4f;
+      }
+
+      .tree-diagram li:only-child::after,
+      .tree-diagram li:only-child::before {
+        display: none;
+      }
+
+      .tree-diagram li:only-child {
+        padding-top: 0;
+      }
+
+      .tree-diagram li:first-child::before,
+      .tree-diagram li:last-child::after {
+        border: 0 none;
+      }
+
+      .tree-diagram li:first-child::after {
+        border-radius: 10px 0px 0px;
+      }
+
+      .tree-diagram li:last-child::before {
+        border-right: 2px dashed #514f4f;
+        border-radius: 0px 10px 0px;
+      }
+
+      .tree-diagram ul ul::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: calc(50% - 1px);
+        border-left: 2px dashed #514f4f;
+        width: 0;
+        height: 30px;
+      }
+
+      .tree-diagram li .tree-diagram-node {
+        border: 2px solid;
+        padding: 10px 12px;
+        border-radius: 8px;
+        position: relative;
+        align-content: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 5px;
+        width: 300px;
+        box-sizing: border-box;
+        white-space: normal;
+        min-height: 45px;
+      }
+
+      .tree-diagram div.tree-diagram-root {
+        border: 2px solid #484848;
+        border-radius: 8px;
+        background-color: rgba(72, 72, 72, 0.1);
+        color: #484848;
+        font-family: "Open Sans", sans-serif;
+        font-size: 1.2rem;
+        width: 170px;
+        padding: 20px;
+        text-align: center;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .tree-diagram li div.tree-diagram-root i {
+        font-size: 2.3rem;
+      }
+
+      .tree-diagram .tree-diagram-node i {
+        font-size: 1.5rem;
+      }
+
+      .tree-diagram li .tree-diagram-node {
+        border-color: #1eabda;
+        background-color: rgba(42, 198, 251, 0.1);
+        color: #1eabda;
+        font-weight: 400;
+        font-family: "Open Sans", sans-serif;
+        font-size: 1.1rem;
+      }
+
+      .tree-diagram li div .fas {
+        padding-right: 5px;
+      }
+
+      .tree-diagram .tree-diagram-sub li:first-child .tree-diagram-node {
+        color: #e55753;
+        border-color: #e55753;
+        background-color: rgba(229, 87, 83, 0.1);
+      }
+
+      .tree-diagram .tree-diagram-sub li:nth-child(2) .tree-diagram-node {
+        color: #ba5de5;
+        border-color: #ba5de5;
+        background-color: rgba(186, 93, 229, 0.1);
+      }
+
+      .tree-diagram .tree-diagram-sub li:nth-child(3) .tree-diagram-node {
+        color: #92bd39;
+        border-color: #92bd39;
+        background-color: rgba(146, 189, 57, 0.1);
+      }
+
+      .tree-diagram .tree-diagram-sub li:nth-child(4) .tree-diagram-node {
+        color: #e3ac03;
+        border-color: #e3ac03;
+        background-color: rgba(245, 222, 18, 0.1);
+      }
+
+      .tree-diagram-list {
+        width: 100%;
+        justify-items: start;
+      }
+
+      .tree-diagram-list .list-item {
+        border-left: 2px dashed #514f4f;
+        margin-left: 15px;
+        padding: 10px;
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .tree-diagram-list .list-item:first-child {
+        padding-top: 15px;
+        display: flex;
+        align-items: center;
+      }
+
+      .tree-diagram-list .list-item::before {
+        content: "";
+        border-bottom: 2px dashed #514f4f;
+        width: 21px;
+        display: inline-block;
+        margin-left: -10px;
+        height: 4px;
+        margin-right: 7px;
+        border-radius: 0px 10px;
+      }
+
+      .tree-diagram-list .list-item:last-child {
+        border-left: none;
+      }
+
+      .tree-diagram-list .list-item:last-child::after {
+        content: "";
+        border-left: 2px dashed #514f4f;
+        left: 0px;
+        position: absolute;
+        z-index: 1;
+        width: 2px;
+        height: calc(50% - 3px);
+        top: 2px;
+      }
+
+      /* Fade-in animation */
+      @keyframes fadeIn {
+        0% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+      .fade-in {
+        opacity: 0;
+        animation: fadeIn 0.75s forwards;
+      }
+
+      /* Enlarge root if needed */
+      .tree-diagram div.tree-diagram-root.enlarged {
+        transform: scale(5) translateY(-0.75em);
+        transform-origin: center center;
+        background-color: transparent;
+        border-color: transparent;
+        color: black;
+      }
+      /* Shrink back after a delay */
+      @keyframes shrinkBack {
+        0% {
+          background-color: transparent;
+          border-color: transparent;
+          transform: scale(5) translateY(-0.75em);
+          color: black;
+        }
+        100% {
+          background-color: rgba(72, 72, 72, 0.1);
+          border-color: #484848;
+          transform: scale(1) translateY(0em);
+          color: #484848;
+        }
+      }
+      .shrink-back {
+        animation: shrinkBack 0.75s forwards;
+      }
+
+      .tree-diagram-root i.is_section {
+        pointer-events: none;
+        top: 10px;
+        left: calc(50% - 0.5em);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="tree-diagram" id="FamilyTreeDiv">
+      <ul>
+        <!-- Root is displayed immediately -->
+        <li>
+          <div
+            class="tree-diagram-root {% if is_section %}enlarged shrink-back{% endif %}"
+            {%
+            if
+            is_section
+            %}
+            style="animation-delay: {{ categories[0].title.start_time - 1 }}s;"
+            {%
+            endif
+            %}
+          >
+            <i
+              class="fas fa-{{ root.icon }}{% if is_section %} is_section fade-in{% endif %}"
+              {%
+              if
+              is_section
+              %}
+              style="animation-delay: {{ categories[0].title.start_time - 0.65 }}s; animation-timing-function: cubic-bezier(0.1, 0, 0.9, 1); animation-duration: 0.4s;"
+              {%
+              endif
+              %}
+            ></i>
+            {{ root.title }}
+          </div>
+
+          <!-- Apply fade-in-lines so the "before" on this UL won't show until the first category starts -->
+          <ul
+            class="tree-diagram-sub fade-in"
+            {%
+            if
+            categories
+            %}
+            style="animation-delay: {{ categories[0].title.start_time|default(0) }}s;"
+            {%
+            endif
+            %}
+          >
+            {% for category in categories %}
+            <!-- Fade in the entire <li> (edges + node) at category.title.start_time -->
+            <li class="fade-in" style="animation-delay: {{ category.title.start_time|default(0) }}s;">
+              <div class="tree-diagram-node">
+                <i class="fas fa-{{ category.title.icon }}"></i>
+                {{ category.title.text }}
+              </div>
+              <div class="tree-diagram-list">
+                <!-- Points also fade in at their own times -->
+                {% for point in category.points %}
+                <div class="list-item fade-in" style="animation-delay: {{ point.start_time|default(0) }}s;">
+                  {{ point.text }}
+                </div>
+                {% endfor %}
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>
