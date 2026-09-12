@@ -55,6 +55,25 @@ from stages import (avatar_clips, image_clips, knowledge_graph,  # noqa: E402
 logger = logging.getLogger(__name__)
 
 CONFIG = Path(__file__).parent / "config" / "stages.json"
+VIDEO_TYPES = Path(__file__).parent / "config" / "video_types.json"
+
+# Each layer is a piece of a stage rather than a stage, so none is a config/stages.json entry.
+LAYER_DEFAULTS: Dict[str, bool] = {
+    # Off keeps the ElevenLabs audio and its timings, dropping only the D-ID talking head.
+    "LAYER_AVATAR_VIDEO": True,
+    "LAYER_TEXT_SLIDES": True,
+    # Per-concept diagrams only, never the overviews below.
+    "LAYER_INFOGRAPHICS": True,
+    # The lesson and section overview diagrams, which are per-section, not per-concept.
+    "LAYER_OVERVIEW_DIAGRAMS": True,
+    "LAYER_CONCLUSION_SLIDE": True,
+    # Off skips one O1 call and leaves concept.visual unset, which only the layers above read.
+    "LAYER_PLANNER_VISUAL_TECHNIQUES": True,
+    # Off sends the map clips to the image model too, so nothing is web-sourced.
+    "LAYER_WEB_IMAGES": True,
+    # Gentle ffmpeg camera moves over each still, as an alternative to Kling/Luma AI motion.
+    "LAYER_PROGRAMMATIC_MOTION": False,
+}
 
 # Which callable answers to each config title. This is a lookup table and its order means
 # nothing: the order stages run in comes from config/stages.json. Adding an entry here
@@ -87,21 +106,40 @@ LOCAL_SKIP = {"Video Gen Clips"}
 LOCAL_SWAP = {"ShotStack": "Local Render"}
 
 
-def pipeline() -> List[str]:
-    """The stage titles in the order the config states them.
-
-    Load-bearing, and not obvious: Avatar Clips must precede Text Overlays because it
-    produces the word-level clock the overlays are timed against; Text Overlays must
-    precede Scenes Breakdown because the clip splitter carves around the overlay windows;
-    Image Gen Clips must precede Video Gen Clips because motion starts from the chosen
-    still.
-    """
+def pipeline(skip: set | None = None) -> List[str]:
+    """Stage titles in config order, minus anything in skip."""
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
     titles = [entry["title"] for entry in config["content"]["subsection"]
-              if entry.get("type", "gen-ai") == "custom"]
+              if entry.get("type", "gen-ai") == "custom" and entry["title"] not in (skip or set())]
     if STORAGE == "local":
         return [LOCAL_SWAP.get(title, title) for title in titles if title not in LOCAL_SKIP]
     return titles
+
+
+def video_type(name: str) -> Dict[str, Any]:
+    """One entry of config/video_types.json, validated, stating only what it changes."""
+    config = json.loads(VIDEO_TYPES.read_text(encoding="utf-8"))
+    if name not in config:
+        raise SystemExit(f"No such video type {name!r}; have: {', '.join(sorted(config))}")
+    entry = config[name]
+    if bad := sorted(set(entry) - {"layers", "skip_stages"}):
+        raise SystemExit(f"video type {name!r} has unknown key(s): {', '.join(bad)}")
+    flags, skip = entry.get("layers", {}), entry.get("skip_stages", [])
+    # Refused rather than silently defaulted, so a typo doesn't quietly buy a full set of vendor calls.
+    if bad := sorted(set(flags) - set(LAYER_DEFAULTS)):
+        raise SystemExit(f"video type {name!r} sets unknown layer(s): {', '.join(bad)}\n"
+                         f"known layers: {', '.join(LAYER_DEFAULTS)}")
+    if bad := sorted(k for k, v in flags.items() if not isinstance(v, bool)):
+        raise SystemExit(f"video type {name!r} must give every layer true or false: {', '.join(bad)}")
+    if bad := sorted(set(skip) - set(STAGES)):
+        raise SystemExit(f"video type {name!r} skips unknown stage(s): {', '.join(bad)}\n"
+                         f"known stages: {', '.join(STAGES)}")
+    return {"layers": {**LAYER_DEFAULTS, **flags}, "skip_stages": set(skip)}
+
+
+def video_types() -> List[str]:
+    """Every video type config/video_types.json defines."""
+    return sorted(json.loads(VIDEO_TYPES.read_text(encoding="utf-8")))
 
 
 def load_plan(execution_input: dict) -> dict:
@@ -137,12 +175,9 @@ def artifact_path(context: Context, title: str) -> str:
                             "subsection", f"{title}/{context.key}.json")
 
 
-def placeholders(context: Context, plan: dict, content: dict) -> Dict[str, Any]:
-    """The uppercase input dict every stage receives, rebuilt for each stage.
-
-    Each stage's first act is to turn this back into an APVideoContext, whose root
-    validator maps these names onto its own fields.
-    """
+def placeholders(context: Context, plan: dict, content: dict,
+                 layer_flags: Dict[str, bool]) -> Dict[str, Any]:
+    """The uppercase input dict every stage receives; Context ignores the LAYER_* flags in it."""
     unit = context.get_unit_lesson_plan(plan)
     chapter = context.get_chapter_lesson_plan(plan)
     section = context.get_section_lesson_plan(plan)
@@ -167,6 +202,7 @@ def placeholders(context: Context, plan: dict, content: dict) -> Dict[str, Any]:
         "SUBSECTION_CONCEPTS": json.dumps(subsection.get("ContentPlan", []), indent=4),
         "SUBSECTION_CONTENT": json.dumps(content, indent=4),
         "THINKING_SKILL": subsection.get("Thinking Skill", ""),
+        **layer_flags,
     }
 
 
@@ -194,17 +230,13 @@ def run_stage(title: str, context: Context, inputs: dict, force: bool = False) -
 
 
 def run_lesson(execution_input: dict, lesson: dict, plan: dict, titles: List[str],
-               force: bool = False) -> dict:
-    """Every stage for one subsection, in order.
-
-    No per-stage try/except, deliberately: a stage that raises after its retries stops the
-    rest of this lesson, because everything downstream reads what it did not write. The
-    batch keeps going; main() catches per lesson.
-    """
+               layer_flags: Dict[str, bool] | None = None, force: bool = False) -> dict:
+    """Every stage for one subsection in order; no per-stage try/except since a later stage reads what an earlier one wrote."""
     context = Context(**execution_input, **lesson)
     content: Dict[str, Any] = {}
     for title in titles:
-        content.update(run_stage(title, context, placeholders(context, plan, content), force))
+        content.update(run_stage(
+            title, context, placeholders(context, plan, content, layer_flags or LAYER_DEFAULTS), force))
     content["title"] = context.subsection
     return content
 
@@ -241,6 +273,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--section", action="append", default=[], metavar="TITLE")
     parser.add_argument("--subsection", action="append", default=[], metavar="TITLE",
                         help="repeatable; the usual way to name one lesson")
+    parser.add_argument("--video-type", choices=video_types(), default="history",
+                        help="which layers run, from config/video_types/ (default history, "
+                             "every layer on)")
     parser.add_argument("--until", metavar="STAGE",
                         help="stop after this stage instead of running the rest")
     parser.add_argument("--force", action="store_true",
@@ -261,14 +296,21 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
 
-    titles = pipeline()
+    selection = video_type(args.video_type)
+    layer_flags, skip_stages = selection["layers"], selection["skip_stages"]
+    titles = pipeline(skip_stages)
     if args.list_stages:
         for number, title in enumerate(titles, 1):
             print(f"{number}. {title}")
-        for title in sorted(LOCAL_SKIP) if STORAGE == "local" else []:
+        for title in sorted(skip_stages):
+            print(f"-. {title} (skipped: video type {args.video_type})")
+        for title in sorted(LOCAL_SKIP - skip_stages) if STORAGE == "local" else []:
             print(f"-. {title} (skipped: STORAGE=local)")
         for old, new in sorted(LOCAL_SWAP.items()) if STORAGE == "local" else []:
             print(f"-. {old} (replaced by {new}: STORAGE=local)")
+        print(f"\nvideo type: {args.video_type}")
+        for flag, on in layer_flags.items():
+            print(f"  {'on ' if on else 'off'}  {flag}")
         return 0
     if args.until:
         if args.until not in titles:
@@ -289,6 +331,10 @@ def main() -> int:
         print(f"subject: {execution_input['subject']}")
         print(f"storage: {STORAGE}")
         print(f"stages : {len(titles)} of {len(pipeline())}")
+        print(f"type   : {args.video_type}"
+              + (f" (skips {', '.join(sorted(skip_stages))})" if skip_stages else ""))
+        for flag, on in layer_flags.items():
+            print(f"  {'on ' if on else 'off'}  {flag}")
         for key, lesson in keys.items():
             context = Context(**execution_input, **lesson)
             print(f"\n{key}  {lesson['subsection']}")
@@ -308,6 +354,10 @@ def main() -> int:
 
     logger.info(f"STARTING GENERATION IN SUBJECT: {execution_input['subject']}")
     logger.info(f"{len(keys)} lesson(s), {len(titles)} stage(s) each")
+    off = [flag for flag, on in layer_flags.items() if not on]
+    logger.info(f"Video type '{args.video_type}': "
+                + (f"layers off: {', '.join(off)}" if off else "every layer on")
+                + (f"; stages skipped: {', '.join(sorted(skip_stages))}" if skip_stages else ""))
     if STORAGE == "local":
         swaps = ', '.join(f"{old} -> {new}" for old, new in sorted(LOCAL_SWAP.items()))
         logger.info(f"STORAGE=local: skipping {', '.join(sorted(LOCAL_SKIP))} and the D-ID "
@@ -325,7 +375,8 @@ def main() -> int:
         for key, lesson in keys.items():
             logger.info(f"GENERATING SUBSECTION: {lesson['subsection']}")
             work = with_logging_context(lesson_id=key)(run_lesson)
-            futures[pool.submit(work, execution_input, lesson, plan, titles, args.force)] = key
+            futures[pool.submit(work, execution_input, lesson, plan, titles,
+                                layer_flags, args.force)] = key
 
         for future in as_completed(futures):
             key = futures[future]

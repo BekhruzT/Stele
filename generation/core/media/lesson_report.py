@@ -272,7 +272,8 @@ def get_lesson_report(context: Context):
         length_of_longest_title = max(length_of_longest_title, len(section["section_title"].split()))
         for concept in section["concepts"]:
 
-            visual = concept["visual"]["type"]
+            # Runs after the render succeeded, so an unassigned visual is counted, not raised on
+            visual = (concept.get("visual") or {}).get("type", "none")
             if visual == "diagram":
                 visual = concept["visual"]["diagram_type"]
             if visual not in visuals_count:
@@ -296,10 +297,14 @@ def get_lesson_report(context: Context):
     # All Diagram generated or not
     text_slides_generated = len([slide for slide in overlays_json["text_slides"] if slide["src"] != ""])
     diagrams_generated = len([slide for slide in overlays_json["diagrams"] if slide["src"] != ""])
-    conclusion_generated = 1 if overlays_json["conclusion_slide"]["src"] != "" else 0
-    required_diagrams = sum(visuals_count.values()) + len(video_plan_json["video_plan"]["sections"]) + 1 #1 for conclusion
-    if len(video_plan_json["video_plan"]["sections"]) > 1:
-        required_diagrams += 1  #1 for lesson overview
+    conclusion_slide = overlays_json.get("conclusion_slide")
+    conclusion_generated = 1 if conclusion_slide and conclusion_slide["src"] != "" else 0
+    # What's required follows what the plan and overlay record actually asked for, not one of each.
+    required_diagrams = sum(count for visual, count in visuals_count.items() if visual != "none")
+    if any(diagram["type"] in ("lesson_organizer", "mind_map") for diagram in overlays_json["diagrams"]):
+        required_diagrams += len(video_plan_json["video_plan"]["sections"])
+        required_diagrams += 1 if len(video_plan_json["video_plan"]["sections"]) > 1 else 0
+    required_diagrams += 1 if conclusion_slide else 0
     diagrams_flag = required_diagrams != (text_slides_generated + diagrams_generated + conclusion_generated)
 
     # MAP present or not if requied
@@ -325,7 +330,8 @@ def get_lesson_report(context: Context):
         if item['type']=="lesson_organizer" or (item['type']=="mind_map" and len(item['data']['categories'][0]['points'])==0):
             continue
         all_visuals.append({'start': item['start_time'], 'end': item['end_time']})
-    all_visuals.append({'start': overlays_json['conclusion_slide']['start_time'], 'end': overlays_json['conclusion_slide']['end_time']})
+    if conclusion_slide:
+        all_visuals.append({'start': conclusion_slide['start_time'], 'end': conclusion_slide['end_time']})
 
     all_visuals.sort(key=lambda x: x['start'])
     for i in range(len(all_visuals) - 1):

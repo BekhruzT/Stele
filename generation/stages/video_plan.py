@@ -189,20 +189,22 @@ def plan_teaching_techniques(context: Context, knowledge_graph: LessonKnowledgeG
                          postprocess = lambda text: ensure_json(text))
 
 # @qc_llm_call("VideoPlan", "VISUAL TECHNIQUES")
-def plan_visual_techniques(context: Context, knowledge_graph: LessonKnowledgeGraph, video_plan: VideoPlan, teaching_techniques: dict) -> VideoPlan:
-
-    _, visual_organizers = llm_call(
+def plan_visual_techniques(context: Context, knowledge_graph: LessonKnowledgeGraph, video_plan: VideoPlan, teaching_techniques: dict, generate_visuals: bool = True) -> VideoPlan:
+    """Merge the teaching techniques onto every concept, and unless told otherwise a visual too."""
+    if not generate_visuals:
+        logger.info("LAYER_PLANNER_VISUAL_TECHNIQUES off: not assigning per-concept visuals")
+    visual_organizers = generate_visuals and llm_call(
         system_prompt=VISUAL_ORGANIZER_SYSTEM_PROMPT.format(subject=context.subject),
         user_prompt=VISUAL_ORGANIZER_USER_PROMPT.format(structure=format_syllabus_grouping(knowledge_graph, video_plan.model_dump(), teaching_techniques)),
         model=LLM.O1,
         is_json=True
-    )
+    )[1]
 
     for i, sec in enumerate(video_plan.sections):
         for j, con in enumerate(sec.concepts):
-            sec.concepts[j] = con.copy(update={
+            sec.concepts[j] = con.model_copy(update={
                 "teaching_techniques": [TeachingTechniqueInfo(**t) for t in teaching_techniques["sections"][i]["concepts"][j]["teaching_techniques"]],
-                "visual": Visual(**visual_organizers["sections"][i]["concepts"][j]["visual"])
+                **({"visual": Visual(**visual_organizers["sections"][i]["concepts"][j]["visual"])} if generate_visuals else {})
             })
 
     return video_plan
@@ -222,7 +224,8 @@ def generate_lesson_video_plan(output_path: str, output_type: str, inputs: Dict[
     video_plan = VideoPlan(**structure, **parse_fact_relationships(KGinput))
 
     teaching_techniques = plan_teaching_techniques(context, KGinput, video_plan)
-    video_plan = plan_visual_techniques(context, KGinput, video_plan, teaching_techniques)
+    video_plan = plan_visual_techniques(context, KGinput, video_plan, teaching_techniques,
+                                        generate_visuals=inputs.get("LAYER_PLANNER_VISUAL_TECHNIQUES", True))
 
     # Third call: Get historical figures for each section
     logger.info("Getting historical figures")

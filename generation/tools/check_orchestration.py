@@ -11,14 +11,24 @@ Needs no credentials and buys nothing. Run it after any change to run.py.
 
 from __future__ import annotations
 
+import json
 import sys
+import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from tenacity import RetryError  # noqa: E402
 
 import run  # noqa: E402
+
+
+def _tmp_video_types(config: dict) -> Path:
+    """A throwaway video_types.json holding the given config, for the rejection cases."""
+    path = Path(tempfile.mkdtemp()) / "video_types.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    return path
 
 # install() replaces run.STAGES with stubs, so the real dispatch map has to be captured now
 # or the "every title is dispatchable" check compares the stubs against themselves.
@@ -109,7 +119,7 @@ EXPECTED_PLACEHOLDERS = {
     "SECTION_TITLE", "SECTION_LESSON_PLAN", "SECTION_OBJECTIVE",
     "SUBSECTION_TITLE", "SUBSECTION_OBJECTIVE", "SUBSECTION_CONCEPTS",
     "SUBSECTION_CONTENT", "THINKING_SKILL",
-}
+} | set(run.LAYER_DEFAULTS)
 
 TITLES = ["Knowledge Graph", "Video Plan", "Video Transcript", "Avatar Clips",
           "Text Overlays", "Scenes Breakdown", "Image Gen Clips", "Video Gen Clips",
@@ -261,6 +271,71 @@ def check_failure_stops_lesson():
     print("  failure    retried 3x, raised RetryError, downstream never ran")
 
 
+def check_layer_flags():
+    """Every stage sees the video type's flags, and an absent layer_flags means every layer on."""
+    lesson = {"unit": "Period 3: 1754-1800", "chapter": "The American Revolution",
+              "section": "Causes", "subsection": "Taxation Without Representation"}
+    general = run.video_type("general")["layers"]
+    assert set(general) == set(run.LAYER_DEFAULTS), general
+    # general drops the per-concept visuals and the talking head; everything else is default.
+    assert general == {**run.LAYER_DEFAULTS,
+                       "LAYER_AVATAR_VIDEO": False, "LAYER_TEXT_SLIDES": False,
+                       "LAYER_INFOGRAPHICS": False,
+                       "LAYER_PLANNER_VISUAL_TECHNIQUES": False}, general
+
+    calls = install(FakeS3())
+    run.run_lesson(EXECUTION_INPUT, lesson, LESSON_PLAN, run.pipeline(), general)
+    for title, inputs in calls:
+        assert {k: inputs[k] for k in general} == general, (title, general)
+
+    # No flags at all is the pre-video-type contract: every stage sees exactly the defaults.
+    calls = install(FakeS3())
+    run.run_lesson(EXECUTION_INPUT, lesson, LESSON_PLAN, run.pipeline())
+    for title, inputs in calls:
+        assert {k: inputs[k] for k in run.LAYER_DEFAULTS} == run.LAYER_DEFAULTS, title
+
+    assert run.video_type("history") == {"layers": run.LAYER_DEFAULTS, "skip_stages": set()}
+    print(f"  layers     {len(run.LAYER_DEFAULTS)} flags reach all 9 stages; "
+          f"types {', '.join(run.video_types())}; no flags means the defaults")
+
+
+def check_video_type_stage_skips():
+    """A video type can drop a whole stage, and only the stages it names."""
+    lore = run.video_type("lore")
+    assert lore["skip_stages"] == {"Video Gen Clips"}, lore["skip_stages"]
+    assert not lore["layers"]["LAYER_CONCLUSION_SLIDE"], "lore is expected to drop the conclusion"
+    assert not lore["layers"]["LAYER_OVERVIEW_DIAGRAMS"], "lore is expected to drop the overviews"
+    # Every image model-generated, and the motion it loses with Video Gen Clips added back by ffmpeg.
+    assert not lore["layers"]["LAYER_WEB_IMAGES"], "lore is expected to generate every image"
+    assert lore["layers"]["LAYER_PROGRAMMATIC_MOTION"], "lore is expected to animate its stills"
+
+    titles = run.pipeline(lore["skip_stages"])
+    assert "Video Gen Clips" not in titles, titles
+    assert titles == [t for t in TITLES if t != "Video Gen Clips"], titles
+    assert run.pipeline() == TITLES, "an unskipped pipeline must be unchanged"
+
+    # The skipped stage must not merely be absent from the list; it must never be dispatched.
+    calls = install(FakeS3())
+    run.run_lesson(EXECUTION_INPUT, {"unit": "Period 3: 1754-1800",
+                                     "chapter": "The American Revolution", "section": "Causes",
+                                     "subsection": "Taxation Without Representation"},
+                   LESSON_PLAN, titles, lore["layers"])
+    assert [t for t, _ in calls] == titles, [t for t, _ in calls]
+
+    for bad, expect in [({"layers": {"LAYER_NOPE": True}}, "unknown layer"),
+                        ({"layers": {"LAYER_TEXT_SLIDES": "false"}}, "true or false"),
+                        ({"skip_stages": ["Nonexistent Stage"]}, "unknown stage"),
+                        ({"nonsense": 1}, "unknown key")]:
+        with patch.object(run, "VIDEO_TYPES", _tmp_video_types({"t": bad})):
+            try:
+                run.video_type("t")
+                raise AssertionError(f"expected SystemExit for {bad}")
+            except SystemExit as error:
+                assert expect in str(error), (bad, str(error))
+    print(f"  types      lore skips Video Gen Clips ({len(titles)} stages dispatched); "
+          f"bad layer, value, stage and key all refused")
+
+
 def main() -> int:
     print("run.py orchestration:")
     # These checks are about the machinery, not the backend, so pin the mode instead of
@@ -274,6 +349,8 @@ def main() -> int:
     check_full_run(key)
     check_skip_and_force(key)
     check_until()
+    check_layer_flags()
+    check_video_type_stage_skips()
     check_failure_stops_lesson()
     print("\nAll orchestration checks passed.")
     return 0

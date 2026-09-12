@@ -53,7 +53,8 @@ def get_diagram_last_frames(shotstack_path: str) -> List[Dict]:
         shotstack_path.replace("/ShotStack/", "/Text Overlays/"))
     )
     overlays = sorted(
-        [*overlays.text_slides, *overlays.diagrams, overlays.conclusion_slide],
+        [*overlays.text_slides, *overlays.diagrams,
+         *([overlays.conclusion_slide] if overlays.conclusion_slide else [])],
         key=lambda x: x.start_time
     )
 
