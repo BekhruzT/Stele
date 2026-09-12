@@ -455,13 +455,11 @@ def generate_avatar_assets(output_path: str, output_type: str, inputs: dict):
 
     all_avatar_assets, avatar_introductions = generate_avatar_introductions(context, all_avatar_assets)
 
-    # The only part of this stage D-ID touches, and the only part that needs a presigned URL
-    # a vendor can fetch. Skipping it leaves avatar_clip and image unset on each asset, which
-    # only ShotStack reads, and ShotStack is skipped under STORAGE=local too. Everything the
-    # rest of the pipeline depends on -- the ElevenLabs audio above and the lesson_timings
-    # built from it below -- is produced either way, so Text Overlays onward still run.
+    # Skipping leaves avatar_clip unset; the audio and lesson_timings below are produced either way.
     if is_local():
         logger.info("STORAGE=local: skipping D-ID avatar video generation, keeping audio")
+    elif not inputs.get("LAYER_AVATAR_VIDEO", True):
+        logger.info("LAYER_AVATAR_VIDEO off: skipping D-ID avatar video generation, keeping audio")
     else:
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor: # Video Gen
             updated_avatar_assets = list(executor.map(

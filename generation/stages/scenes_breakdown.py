@@ -73,13 +73,13 @@ def split_segment_into_paragraphs(word_timings: List[WordTiming]) -> List[List[W
     return sub_paragraphs
 
 def split_transcript_into_video_segments(transcript: List[WordTiming], overlays: OverlaysData) -> Tuple[List[Dict[str, Any]], List[Tuple[float, float]]]:
-    # Collect all overlays with their time ranges
-    overlay_intervals = []
-    overlays  = [*overlays.text_slides, *overlays.diagrams, overlays.conclusion_slide]
-    for overlay in overlays:
-        overlay_intervals.append((overlay.start_time, overlay.end_time)) 
+    # conclusion_slide is optional, so drop it when a video type turned it off.
+    overlays = [*overlays.text_slides, *overlays.diagrams, *([overlays.conclusion_slide] if overlays.conclusion_slide else [])]
+    overlay_intervals = sorted((o.start_time, o.end_time) for o in overlays)
 
-    overlay_intervals.sort(key=lambda x: x[0])
+    # With no overlays at all the whole lesson is one video span, split into paragraph clips.
+    if not overlay_intervals:
+        return [{'word_timings': p, 'is_video_clip': True} for p in split_segment_into_paragraphs(transcript)], []
 
     intervals = [overlay_intervals[0]]
     for s, e in overlay_intervals[1:]:

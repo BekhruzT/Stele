@@ -109,13 +109,23 @@ def generate_text_overlays(output_path: str, output_type: str, inputs: dict):
     # section_title_overlays = create_transition_canvases(transcript_timings, transcript, video_plan)
 
     # create text slides
-    text_slides = create_text_slides(context, video_plan, transcript, transcript_timings)
+    if inputs.get("LAYER_TEXT_SLIDES", True):
+        text_slides = create_text_slides(context, video_plan, transcript, transcript_timings)
+    else:
+        logger.info("LAYER_TEXT_SLIDES off: no per-concept text slides")
+        text_slides = []
 
-    # create diagrams
-    diagrams = create_diagrams(context, video_plan, transcript, transcript_timings, video_split_times)
+    # create diagrams; each kind has its own flag, per-concept and overview being separate layers
+    diagrams = create_diagrams(context, video_plan, transcript, transcript_timings, video_split_times,
+                               include_concept_diagrams=inputs.get("LAYER_INFOGRAPHICS", True),
+                               include_overviews=inputs.get("LAYER_OVERVIEW_DIAGRAMS", True))
 
     # create the conclusion slide
-    conclusion_slide = create_conclusion_slide(context, transcript, transcript_timings)
+    if inputs.get("LAYER_CONCLUSION_SLIDE", True):
+        conclusion_slide = create_conclusion_slide(context, transcript, transcript_timings)
+    else:
+        logger.info("LAYER_CONCLUSION_SLIDE off: no conclusion slide")
+        conclusion_slide = None
 
     # Create OverlaysData object combining all overlays
     text_overlays_data = OverlaysData(
@@ -264,7 +274,8 @@ def get_text_slide_concepts(video_plan: VideoPlan, transcript_json: TranscriptOu
     text_slide_concepts = []
     for section in video_plan.sections:
         for concept in section.concepts:
-            if concept.visual.type == VisualType.TEXT_SLIDE:
+            # visual is unset when the planner's visual pass was skipped for this video type
+            if concept.visual and concept.visual.type == VisualType.TEXT_SLIDE:
                 # Create a copy of the concept and add section title for context
                 concept_data = concept.model_dump(mode='json')
                 concept_data['section_title'] = section.section_title
@@ -552,7 +563,8 @@ def get_diagram_concepts(video_plan: VideoPlan, transcript_json: TranscriptOutpu
     diagram_concepts = []
     for section in video_plan.sections:
         for concept in section.concepts:
-            if concept.visual.type == VisualType.DIAGRAM:
+            # visual is unset when the planner's visual pass was skipped for this video type
+            if concept.visual and concept.visual.type == VisualType.DIAGRAM:
                 # Create a copy of the concept and add section title for context
                 concept_data = concept.model_dump(mode='json')
                 concept_data['section_title'] = section.section_title
@@ -907,13 +919,20 @@ def render_diagrams(context: Context, diagrams: List[Diagram]) -> List[Diagram]:
     return diagrams
 
 
-def create_diagrams(context: Context, video_plan: VideoPlan, transcript_json: TranscriptOutput, transcript_timings: TranscriptTiming, video_split_times: Dict[str, float]) -> List[Diagram]:
-    
+def create_diagrams(context: Context, video_plan: VideoPlan, transcript_json: TranscriptOutput, transcript_timings: TranscriptTiming, video_split_times: Dict[str, float], include_concept_diagrams: bool = True, include_overviews: bool = True) -> List[Diagram]:
+    """Every rendered diagram the enabled layers ask for: per-concept ones and/or the overviews."""
     logger.info("Creating Diagrams")
 
-    diagram_concepts = get_diagram_concepts(video_plan, transcript_json)
+    if include_concept_diagrams:
+        diagram_concepts = get_diagram_concepts(video_plan, transcript_json)
+        diagrams = get_diagram_content(diagram_concepts, transcript_timings)
+    else:
+        logger.info("LAYER_INFOGRAPHICS off: no per-concept diagrams")
+        diagrams = []
 
-    diagrams = get_diagram_content(diagram_concepts, transcript_timings)
+    if not include_overviews:
+        logger.info("LAYER_OVERVIEW_DIAGRAMS off: no lesson or section overview diagrams")
+        return render_diagrams(context, diagrams) if diagrams else []
 
     if len(video_plan.sections)>1:
         lesson_overview_diagram = get_lesson_overview_diagram_contents(video_plan, transcript_json, transcript_timings)

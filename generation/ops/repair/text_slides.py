@@ -88,7 +88,7 @@ def identify_section_concept(video_plan: VideoPlan, slide: TextSlide):
     plan = [
         {k: v if k == "section_title" else 
             [{kk: vv for kk, vv in concept.items() if kk in ['concept_name', 'facts']} 
-            for concept in v if concept.get('visual', {}).get('type') == "text_slide"] if k == "concepts" else v
+            for concept in v if (concept.get('visual') or {}).get('type') == "text_slide"] if k == "concepts" else v
         for k, v in section.items() if k in ["section_title", "concepts"]}
         for section in video_plan.model_dump()['sections']
     ]

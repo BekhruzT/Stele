@@ -175,7 +175,7 @@ This is the inventory of what the pipeline uses, by role. If a module is not her
 | Folder | Holds |
 | --- | --- |
 | `run.py` | the orchestrator: stage order, the dispatch table, skip, retry, the CLI, the worker pool |
-| `config/` | `config/stages.json`, the nine-entry stage list, and `config/courses.py`, the course and curriculum presets |
+| `config/` | `config/stages.json`, the nine-entry stage list; `config/courses.py`, the course and curriculum presets; and `config/video_types.json`, the layer flags and stage skips per video type |
 | `stages/` | the nine stages, one module each, plus `stages/local_render.py` |
 | `prompts/` | every prompt string, one module per stage |
 | `templates/` | the Jinja2 HTML that becomes overlay video, and `templates/diagrams/` for the five diagram types |

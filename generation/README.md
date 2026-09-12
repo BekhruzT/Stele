@@ -47,6 +47,7 @@ Useful flags:
 | --- | --- |
 | `--subsection TITLE` | repeatable; the usual way to name one lesson |
 | `--unit`, `--chapter`, `--section` | coarser filters, also repeatable |
+| `--video-type NAME` | which layers and stages run, from `config/video_types.json`, default `history` |
 | `--until STAGE` | stop after a stage instead of running the rest |
 | `--force` | run a stage even where its JSON already exists |
 | `--dry-run` | print keys, artifact paths and which already exist; touch nothing |
@@ -55,7 +56,53 @@ Useful flags:
 
 `--dry-run` is worth using first every time: it shows the `{key}` each lesson hashes to and
 marks each of the nine artifacts `HAVE` or `MISS`, so you can see what a real run would
-actually buy.
+actually buy. It also prints the resolved video type and which layers it turns off.
+
+## Video types
+
+A video type selects which *layers* of a lesson get built. All of them live in one file,
+`config/video_types.json`, keyed by type name; each entry states only what it changes, so an
+empty entry is "every layer on". Two optional keys per type:
+
+- `layers` — the `LAYER_*` flags (see `LAYER_DEFAULTS` in `run.py`), each `true` or `false`.
+  A layer is a piece of a stage, so switching one off never changes the stage list.
+- `skip_stages` — whole stages to drop, by their `config/stages.json` title.
+
+| type | what it produces |
+| --- | --- |
+| `history` | the default: every layer, every stage |
+| `general` | voiceover + synced image clips, keeping the lesson/section overview diagrams and the conclusion slide; no talking head, no per-concept bullet slides or infographics |
+| `lore` | voiceover + imagery only: no talking head, no overlays of any kind, every image model-generated rather than web-sourced, and Video Gen Clips skipped in favour of programmatic camera moves |
+
+Two of the flags are not about overlays:
+
+- `LAYER_WEB_IMAGES` (default on) — off sends the map clips to the image model as well, so nothing
+  in the lesson is web-sourced. It works by forcing `generate_image_wrapper`'s existing `type`
+  override to FLUX, bypassing the `media.type == 'IMAGE'` branch that would otherwise search the
+  maps DB and then Google.
+- `LAYER_PROGRAMMATIC_MOTION` (default off) — on gives every still a gentle ffmpeg camera move in
+  the local renderer, as an alternative to the Kling/Luma AI motion that Video Gen Clips buys. One
+  move per still, chosen from zoom in/out and pan left/right/up/down, seeded from the clip's media
+  id so a re-render of a lesson is identical rather than different every time. The motion is
+  deliberately small (6-12% magnification over the whole clip, linear, slightly off-centre) and
+  zoom never drops below 1.0, so a zoom-out settles into the frame instead of needing image that
+  is not there. Animated stills are scaled to cover the frame rather than letterboxed, since
+  panning a letterboxed still would drag its bars into view.
+
+`LAYER_PROGRAMMATIC_MOTION` currently only affects `Local Render`. A lesson rendered through
+ShotStack on S3 still has static images; ShotStack's own `Clip(effect=...)` field
+(`zoomInSlow`, `slideLeftSlow`, ...) is the place to extend it.
+
+Unknown layer names, non-boolean values, unknown stage names and unknown keys are all rejected
+with a message naming the offender, because a config that reads as configured but runs as
+default would quietly buy a full set of vendor calls.
+
+Avatar Clips and Text Overlays always run even when every layer they own is off, because they
+also produce the voiceover audio and the word-level timing clock every later stage syncs
+against. `lore` therefore still has narration; it just has nothing drawn over it.
+
+Because the video type is not part of a lesson's artifact `{key}`, re-running one lesson under
+a different type reuses the cached artifacts unless you pass `--force`.
 
 ## Running against a local folder
 

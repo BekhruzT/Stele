@@ -1,0 +1,24 @@
+{
+    "history": {},
+    "general": {
+        "layers": {
+            "LAYER_AVATAR_VIDEO": false,
+            "LAYER_TEXT_SLIDES": false,
+            "LAYER_INFOGRAPHICS": false,
+            "LAYER_PLANNER_VISUAL_TECHNIQUES": false
+        }
+    },
+    "lore": {
+        "layers": {
+            "LAYER_AVATAR_VIDEO": false,
+            "LAYER_TEXT_SLIDES": false,
+            "LAYER_INFOGRAPHICS": false,
+            "LAYER_PLANNER_VISUAL_TECHNIQUES": false,
+            "LAYER_OVERVIEW_DIAGRAMS": false,
+            "LAYER_CONCLUSION_SLIDE": false,
+            "LAYER_WEB_IMAGES": false,
+            "LAYER_PROGRAMMATIC_MOTION": true
+        },
+        "skip_stages": ["Video Gen Clips"]
+    }
+}

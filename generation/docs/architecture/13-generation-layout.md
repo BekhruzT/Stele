@@ -23,7 +23,8 @@ Everything here is either **pipeline** or **ops**, and the split is about who st
 - **The pipeline layer is the nine stages and what they lean on.**
   - `run.py::STAGES` maps a config title to a callable. It is a lookup table and its order means nothing.
   - `config/stages.json` under `content.subsection` is the running order. Adding a stage means adding a config entry and a map entry; nothing else knows the list exists.
-  - `run.py::run_stage` is the only place skip and retry live. It tests the canonical `{key}.json` only, never the `-edited.json` sidecar.
+  - `config/video_types.json` holds every video type in one file. `run.py::video_type` validates one entry and returns its `LAYER_*` flags, merged over `LAYER_DEFAULTS` and threaded into every stage's `inputs`, plus the `skip_stages` set `pipeline()` filters the running order by. A layer is a piece of a stage; `skip_stages` is the only way a type drops a whole one.
+  - `run.py::run_stage` is the only place skip and retry live. It tests the canonical `{key}.json` only, never the `-edited.json` sidecar. The video type is not in `{key}`, so switching type on the same lesson needs `--force`.
 - **The ops layer is everything a human does around a lesson.**
   - Review, the SME feedback loop, repair, course authoring, delivery, presenter setup.
   - Nothing under `ops/` is imported by any stage, and nothing in it is wired into `run.py`. Deleting the whole folder would not change what a run produces.
