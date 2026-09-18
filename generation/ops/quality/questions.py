@@ -14,7 +14,9 @@ from core.clients.s3 import does_file_exist, download, delete_file_from_s3, load
 from core.clients.sheets import upload_csv_to_gsheet
 from core.context import APVideoContext as Context, prep_content_gen_input, get_lesson_context
 from core.clients.sheets import write_to_cell
-from prompts.prompts import content_guidelines, QC_FINDER_SYSTEM_PROMPT, QC_FINDER_USER_PROMPT, MCQ_PER_CONCEPT_SYSTEM_PROMPT, MCQ_FIXER_USER_PROMPT, MCQ_PER_CONCEPT_USER_PROMPT
+from prompts.prompts import MCQ_PER_CONCEPT_SYSTEM_PROMPT, MCQ_PER_CONCEPT_USER_PROMPT
+from prompts.qc_prompts import (
+    content_guidelines, MCQ_FIXER_USER_PROMPT, QC_FINDER_SYSTEM_PROMPT, QC_FINDER_USER_PROMPT)
 from core.helpers import (
     exception_handler, extract_tag_content, llm_call, print_json,
     replace_spaces, retrieve_markdown_element)
@@ -310,7 +312,7 @@ def qc_mcqs(mcqs: dict, concept: Concept, transcript: str, perform_fix: bool = T
             transcript_segment=f"<mcqs>\n{json.dumps(mcqs, indent=2)}\n</mcqs>",
             context=qc_context
         ),
-        model=LLM.CLAUDE_3_7_SONNET
+        model=LLM.CLAUDE_5_SONNET
     )
     any_fail = any(x.lower() == 'fail' for x in re.findall(r'<evaluation>(.*?)</evaluation>', finder_output, flags=re.DOTALL))
     
@@ -324,7 +326,7 @@ def qc_mcqs(mcqs: dict, concept: Concept, transcript: str, perform_fix: bool = T
         _, corrected_mcqs = llm_call(
             system_prompt='',
             user_prompt=main_guidelines['fixer'].format(finder=finder_output),
-            model=LLM.CLAUDE_3_7_SONNET_THINKING,
+            model=LLM.CLAUDE_5_OPUS,
             history=history,
             tag='mcq_set',
             is_json=True
@@ -383,7 +385,7 @@ def filter_mcqs(mcqs: List[dict], concept: Concept) -> Tuple[List[dict], List[di
             total=total,
             n=remove_n
         ),
-        model=LLM.CLAUDE_3_7_SONNET_THINKING,
+        model=LLM.CLAUDE_5_OPUS,
         tag="final_questions",
         is_json=True
     )
@@ -445,10 +447,10 @@ def update_question_timings_overlay(transcript_key: str) -> None:
         print(f"Error processing file {transcript_key}: {str(e)}")
 
 def update_question_in_fresh_gen(transcript_key: str) -> None:
-    shotstack_key = transcript_key.replace('Video Transcript', 'ShotStack')
+    render_key = transcript_key.replace('Video Transcript', 'Local Render')
     overlays_key = transcript_key.replace('Video Transcript', 'Text Overlays')
 
-    sheet_link = load_json_from_s3(shotstack_key)['lesson_video']['output_data']['sheet_link']
+    sheet_link = load_json_from_s3(render_key)['lesson_video']['output_data']['sheet_link']
     start_row, end_row = [int(row) for row in sheet_link.split('range=')[1].split(':')]
     print(start_row, end_row)
     overlays = OverlaysData(**load_json_from_s3(overlays_key))

@@ -5,11 +5,11 @@ from typing import List, Tuple
 from core.helpers import extract_tag_content, print_json
 from core.log import setup_logging
 from core.clients.s3 import does_file_exist, load_json_from_s3, save_json_to_s3
-from prompts.metadata_promptss import KEY_CONCEPTS_TITLE_GENERATION_SYSTEM_PROMPT, get_lesson_title_prompt, get_perspective_guidance_prompt,get_key_phrases_comprehensiveness_check_prompt, get_key_phrases_distinctness_check_prompt, get_key_phrases_prompt, get_key_phrases_qc_prompt, get_key_phrases_relevancy_and_terms_check_prompt, get_key_phrases_specificity_check_prompt, get_key_concepts_generation_system_prompt, get_key_concepts_qc_system_prompt
+from prompts.metadata_prompts import KEY_CONCEPTS_TITLE_GENERATION_SYSTEM_PROMPT, get_lesson_title_prompt, get_perspective_guidance_prompt,get_key_phrases_comprehensiveness_check_prompt, get_key_phrases_distinctness_check_prompt, get_key_phrases_prompt, get_key_phrases_qc_prompt, get_key_phrases_relevancy_and_terms_check_prompt, get_key_phrases_specificity_check_prompt, get_key_concepts_generation_system_prompt, get_key_concepts_qc_system_prompt
 from core.context import APVideoContext as Context
 from core.clients.openai import chat_complete, ensure_json, llm_complete, system_message, user_message
-from core.typess import Feedback, KeyConcept, LessonContextPack, LessonMetadata
-from core.stage_constantss import NUMBER_OF_QC_ITERATIONS
+from core.types import Feedback, KeyConcept, LessonContextPack, LessonMetadata
+from core.stage_constants import NUMBER_OF_QC_ITERATIONS
 
 from core.logger import Logger
 # logger = Logger("MetadataGenerator", logging.DEBUG)
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 from core.clients.openai import LLM
 
 
-METADATA_MODEL = LLM.O1_PREVIEW
+METADATA_MODEL = LLM.GPT_5
 
 
 def generate_key_concepts(context: Context, lesson_title: str, boundaries_and_purpose: str, content_plan: dict, lesson_context_pack: LessonContextPack) -> Tuple[List[KeyConcept], List[Feedback]]:
@@ -82,7 +82,7 @@ def get_key_concepts_by_l3(context: Context, content_plan: dict) -> Tuple[List[K
         system_message(KEY_CONCEPTS_TITLE_GENERATION_SYSTEM_PROMPT),
         user_message(f"Suggest {len(key_concepts)} titles for these {len(key_concepts)} L3s\n```json\n{json.dumps([c.dict() for c in key_concepts], indent=2)}\n```")
     ]
-    titles = ensure_json(extract_tag_content('titles', llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET)))['titles'] # type: ignore
+    titles = ensure_json(extract_tag_content('titles', llm_complete(messages, LLM.CLAUDE_5_SONNET)))['titles'] # type: ignore
 
     key_concepts = [KeyConcept(**{**concept.dict(), 'title':title}) for title, concept in zip(titles, key_concepts)]
 
