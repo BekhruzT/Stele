@@ -1,4 +1,4 @@
-"""Composite a finished lesson MP4 with ffmpeg; the local-mode stand-in for ShotStack."""
+"""Composite a finished lesson MP4 with ffmpeg over the artifacts on local disk."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 WIDTH, HEIGHT, FPS = 1280, 720, 30
 
-# ShotStack's avatar placement, from generate_avatar_tracks.
+# Talking-head inset, as fractions of the output frame, measured from its centre.
 AVATAR_SCALE, AVATAR_X, AVATAR_Y = 0.148, 0.41, -0.24
 
 # The camera moves a still can carry; no vertical pan since 720px of height quantises first.
@@ -35,56 +35,57 @@ PAN_DRIFT = 0.08
 # How far off centre a zoom may sit, as a fraction of the slack. 0.5 is dead centre.
 BIAS_MIN, BIAS_MAX = 0.35, 0.65
 
-# Stills are pre-scaled above output so zoompan's pixel-rounding doesn't stall slow moves.
-SOURCE_W, SOURCE_H = WIDTH * 6, HEIGHT * 6
+# Keep enough source detail for the largest zoom, then resample fractional camera coordinates.
+SOURCE_W, SOURCE_H = 1536, 864
 
 # The longest scene the clip splitter produces, the worst case for the rounding above.
 MAX_CLIP_SECONDS = 20
 
 
 def place(scale: float, x: float, y: float, w: int = WIDTH, h: int = HEIGHT):
-    """Convert one ShotStack asset placement into ffmpeg overlay arguments."""
+    """Convert a centre-anchored fractional placement into ffmpeg overlay arguments."""
     cw, ch = round(w * scale), round(h * scale)
     cx, cy = (0.5 + x) * w, (0.5 - y) * h
     return cw, ch, round(cx - cw / 2), round(cy - ch / 2)
 
 
-def motion_for(media_id: str, duration: float) -> dict:
-    """Pick a deterministic camera move for a still, seeded from its media id."""
+def motion_for(media_id: str, duration: float, params: dict | None = None) -> dict:
+    """Pick a deterministic camera move for a still, seeded from its media id; params override the defaults."""
+    p = params or {}
     rng = random.Random(media_id)
-    kind = rng.choice(MOTIONS)
-    a = rng.uniform(ZOOM_MIN, ZOOM_MAX)
-    bx = rng.uniform(BIAS_MIN, BIAS_MAX)
-    by = rng.uniform(BIAS_MIN, BIAS_MAX)
+    motions = p.get("motions", list(MOTIONS))
+    kind = rng.choice(motions)
+    a = rng.uniform(p.get("zoom_min", ZOOM_MIN), p.get("zoom_max", ZOOM_MAX))
+    bx = rng.uniform(p.get("bias_min", BIAS_MIN), p.get("bias_max", BIAS_MAX))
+    by = rng.uniform(p.get("bias_min", BIAS_MIN), p.get("bias_max", BIAS_MAX))
     n = max(1, round(duration * FPS))
-    return {"kind": kind, "a": a, "bx": bx, "by": by, "n": n}
+    return {"kind": kind, "a": a, "bx": bx, "by": by, "n": n,
+            "pan_drift": p.get("pan_drift", PAN_DRIFT)}
 
 
-def zoompan(move: dict) -> str:
-    """One zoompan filter for a still, as linear expressions over zoompan's output frame index."""
+def camera_motion(move: dict) -> str:
+    """Build fractional-coordinate camera motion with cubic resampling."""
     kind, a, bx, by, n = move["kind"], move["a"], move["bx"], move["by"], move["n"]
+    pan_drift = move.get("pan_drift", PAN_DRIFT)
     denom = max(1, n - 1)
     if kind == "zoom_in":
-        z = f"1+{a}*on/{denom}"
-        x = f"(iw-iw/zoom)*{bx}"
-        y = f"(ih-ih/zoom)*{by}"
+        extra, x_bias, y_bias = f"{a}*on/{denom}", bx, by
     elif kind == "zoom_out":
-        z = f"1+{a}-{a}*on/{denom}"
-        x = f"(iw-iw/zoom)*{bx}"
-        y = f"(ih-ih/zoom)*{by}"
+        extra, x_bias, y_bias = f"{a}-{a}*on/{denom}", bx, by
     elif kind == "pan_right":
-        z = f"1+{PAN_DRIFT}"
-        x = f"(iw-iw/zoom)*on/{denom}"
-        y = f"(ih-ih/zoom)*0.5"
+        extra, x_bias, y_bias = str(pan_drift), f"on/{denom}", 0.5
     elif kind == "pan_left":
-        z = f"1+{PAN_DRIFT}"
-        x = f"(iw-iw/zoom)*(1-on/{denom})"
-        y = f"(ih-ih/zoom)*0.5"
+        extra, x_bias, y_bias = str(pan_drift), f"1-on/{denom}", 0.5
     else:
         raise ValueError(kind)
-    return (f"scale={SOURCE_W}:{SOURCE_H}:force_original_aspect_ratio=increase,"
-            f"crop={SOURCE_W}:{SOURCE_H},setsar=1,"
-            f"zoompan=z='{z}':x='{x}':y='{y}':d={n}:s={WIDTH}x{HEIGHT}:fps={FPS}")
+    left, right = f"-({x_bias})*({extra})*W", f"W+(1-({x_bias}))*({extra})*W"
+    top, bottom = f"-({y_bias})*({extra})*H", f"H+(1-({y_bias}))*({extra})*H"
+    return (
+        f"scale={SOURCE_W}:{SOURCE_H}:force_original_aspect_ratio=increase,"
+        f"crop={SOURCE_W}:{SOURCE_H},setsar=1,fps={FPS},"
+        f"perspective=x0='{left}':y0='{top}':x1='{right}':y1='{top}':"
+        f"x2='{left}':y2='{bottom}':x3='{right}':y3='{bottom}':"
+        f"interpolation=cubic:sense=destination:eval=frame,scale={WIDTH}:{HEIGHT}")
 
 
 def ffmpeg(args: list[str], label: str) -> None:
@@ -117,10 +118,10 @@ def scene_segments(clips: list[dict]) -> list[tuple[str | None, float, str | Non
 
 
 def build_base(segments: list[tuple[str | None, float, str | None]], out: Path,
-               animate: bool = False) -> None:
+               animate: bool = False, motion_params: dict | None = None) -> None:
     """Concatenate the stills into the bottom visual track, optionally with a camera move on each."""
     if animate:
-        build_base_animated(segments, out)
+        build_base_animated(segments, out, motion_params)
         return
     inputs: list[str] = []
     graph, labels = [], []
@@ -147,7 +148,7 @@ ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "y
 
 
 def build_base_animated(segments: list[tuple[str | None, float, str | None]],
-                        out: Path) -> None:
+                        out: Path, motion_params: dict | None = None) -> None:
     """Render each segment on its own, then join them, rather than holding every still in one graph."""
     with tempfile.TemporaryDirectory(prefix="lr_anim_") as tmp:
         parts: list[str] = []
@@ -160,8 +161,10 @@ def build_base_animated(segments: list[tuple[str | None, float, str | None]],
                         *ENCODE, str(part)],
                        f"filler segment {i}")
             else:
-                move = motion_for(media_id, duration)
-                ffmpeg(["-i", image, "-vf", zoompan(move), *ENCODE, str(part)],
+                move = motion_for(media_id, duration, motion_params)
+                ffmpeg(["-loop", "1", "-t", f"{duration:.3f}", "-i", image,
+                        "-vf", camera_motion(move), "-frames:v", str(move["n"]),
+                        *ENCODE, str(part)],
                        f"animated segment {i} ({move['kind']})")
             parts.append(f"file '{part.as_posix()}'\n")
         listing.write_text("".join(parts), encoding="utf-8")
@@ -232,7 +235,7 @@ def collect(context: Context) -> dict:
     clips = []
     for clip in load_json_from_s3(context.clips_path)["clips"]:
         media_id = clip["media"]["id"]
-        # Video Gen Clips is skipped locally; ShotStack picks images/ vs videos/, nothing to pick.
+        # Video Gen Clips is skipped locally, so there is no videos/ alternative to choose.
         metadata_path = f"{context.media_path}images/{media_id}/{media_id}.json"
         if not does_file_exist(metadata_path):
             logger.warning(f"No image metadata for scene {media_id}; leaving it black")
@@ -247,7 +250,7 @@ def collect(context: Context) -> dict:
 
     overlays = load_json_from_s3(context.text_overlays_path)
     cards = []
-    # Text slides, then diagrams, then the conclusion: ShotStack's own stacking order.
+    # Text slides, then diagrams, then the conclusion: later entries stack over earlier ones.
     for group in ("text_slides", "diagrams"):
         for item in sorted(overlays.get(group) or [], key=lambda s: s["start_time"]):
             path = local(item.get("src", ""))
@@ -274,15 +277,16 @@ def collect(context: Context) -> dict:
             "total": assets[-1]["end_time"] if assets else 0.0}
 
 
-@with_logging_context(layer=LayerName.SHOTSTACK)
+@with_logging_context(layer=LayerName.RENDER)
 @exception_handler
 def render_lesson(output_path: str, output_type: str, inputs: dict) -> dict:
     context = Context(**inputs)
     if not is_local():
-        # On S3 the ShotStack stage already runs; downloading every asset to composite locally is not worth it.
-        raise RuntimeError("Local Render only runs under STORAGE=local; use ShotStack on s3")
+        # ffmpeg reads paths, not presigned URLs, so every asset would have to come down first.
+        raise RuntimeError("Local Render only runs under STORAGE=local")
 
     animate = bool(inputs.get("LAYER_PROGRAMMATIC_MOTION", False))
+    motion_params = inputs.get("LAYER_PROGRAMMATIC_MOTION_PARAMS") or {}
     logger.info(f"Rendering locally: {context.subsection}")
     assets = collect(context)
     if not assets["audio"]:
@@ -297,14 +301,14 @@ def render_lesson(output_path: str, output_type: str, inputs: dict) -> dict:
         # Pad so -shortest doesn't cut the lesson off before the narration ends.
         segments.append((None, assets["total"] - covered, None))
 
-    # The same media path and filename the ShotStack stage writes.
+    # The media path and filename the delivery tooling looks for.
     key = f"{context.media_path}{sanitize_path(context.subsection)}.mp4"
 
     with tempfile.TemporaryDirectory(prefix="local_render_") as tmp:
         base = Path(tmp) / "base.mp4"
         audio = Path(tmp) / "narration.m4a"
         video = Path(tmp) / "lesson.mp4"
-        build_base(segments, base, animate=animate)
+        build_base(segments, base, animate=animate, motion_params=motion_params)
         build_audio(assets["audio"], audio)
         build_final(base, audio, assets["cards"], assets["avatars"], video)
         duration = probe_duration(video)
@@ -330,7 +334,7 @@ def _selfcheck() -> None:
     assert cx + cw <= WIDTH and cy + ch <= HEIGHT, (cx, cy)
     assert cx > WIDTH / 2 and cy > HEIGHT / 2, (cx, cy)
     assert place(1.0, 0.0, 0.0) == (WIDTH, HEIGHT, 0, 0)
-    # +y is up for ShotStack, down for ffmpeg.
+    # +y is up in the placement convention, down in ffmpeg.
     assert place(0.5, 0.0, 0.25)[3] < place(0.5, 0.0, -0.25)[3]
 
     # scene_segments must produce 3-tuples with correct durations and filler gaps.
@@ -346,12 +350,12 @@ def _selfcheck() -> None:
     assert [s[0] for s in tight] == ["a.png", "b.png"], tight
     assert abs(sum(d for _, d, _ in tight) - 9.0) < 1e-6, tight
 
-    # The slowest move must still travel; zoompan() must produce a valid filter string.
+    # Camera motion must use per-frame fractional sampling rather than integer crop coordinates.
     for kind in MOTIONS:
         for dur in (1.0, MAX_CLIP_SECONDS):
             n = max(1, round(dur * FPS))
-            expr = zoompan({"kind": kind, "a": ZOOM_MIN, "bx": 0.5, "by": 0.5, "n": n})
-            assert "zoompan=" in expr, expr
+            expr = camera_motion({"kind": kind, "a": ZOOM_MIN, "bx": 0.5, "by": 0.5, "n": n})
+            assert "perspective=" in expr and "eval=frame" in expr and "zoompan=" not in expr, expr
 
     # No move may hold constant zoom across a clip, or frames come back bit-identical.
     assert ZOOM_MIN > 0 and ZOOM_MAX > ZOOM_MIN and PAN_DRIFT > 0
