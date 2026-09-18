@@ -23,8 +23,8 @@ This script can be used to fill the delivery sheet with the video links and the 
 It also copies the source data from the dump sheet to the video resource sheet.
 
 How to use:
-- set the folders to check in the `folders_to_check` list. it will search for all successful shotstack jsons in the given folders.
-- for each successful shotstack, it will find the subsection cell in delivery sheet and check if the cell is empty.
+- set the folders to check in the `folders_to_check` list. it will search for all successful render jsons in the given folders.
+- for each successful render, it will find the subsection cell in delivery sheet and check if the cell is empty.
 - if cell is empty, it will fill the cell with the video link and the video resource sheet. (copy + link)
 
 So basically, it will try to fill all empty cells in delivery sheet if it's possible from the given folders. (if the subsections are present in the given folders)
@@ -48,9 +48,9 @@ def capture_last_frame(input_path: str, output_path: str) -> None:
     subprocess.run(cmd, check=True)
 
 
-def get_diagram_last_frames(shotstack_path: str) -> List[Dict]:
+def get_diagram_last_frames(render_path: str) -> List[Dict]:
     overlays = OverlaysData(**load_json_from_s3(
-        shotstack_path.replace("/ShotStack/", "/Text Overlays/"))
+        render_path.replace("/Local Render/", "/Text Overlays/"))
     )
     overlays = sorted(
         [*overlays.text_slides, *overlays.diagrams,
@@ -71,7 +71,7 @@ def get_diagram_last_frames(shotstack_path: str) -> List[Dict]:
 
         s3_key = (
             f"SCREENSHOTS/"
-            f"{os.path.splitext(os.path.basename(shotstack_path))[0]}/"
+            f"{os.path.splitext(os.path.basename(render_path))[0]}/"
             f"{timestamp_folder}/"
             f"{overlay_id}.png"
         )
@@ -86,7 +86,7 @@ sheet_data_cache = {}
 sheet_header_to_col_cache = {}
 
 
-def fill_video_resources(sheets_info, shotstack_path, generations_sheet_link, main_sheet_row, main_sheet_header_to_col):
+def fill_video_resources(sheets_info, render_path, generations_sheet_link, main_sheet_row, main_sheet_header_to_col):
     video_resource_sheet_gid = get_worksheet_id(sheets_info['Delivery Sheet']['sheet_id'], sheets_info['Delivery Sheet']['video_resource_sheet_name'])
     start_row = (main_sheet_row - 3) * 10 + 2
     end_row = start_row + 9
@@ -107,7 +107,7 @@ def fill_video_resources(sheets_info, shotstack_path, generations_sheet_link, ma
     
     if source_values:   
         # Get screenshot URLs
-        screenshots = get_diagram_last_frames(shotstack_path)
+        screenshots = get_diagram_last_frames(render_path)
         screenshot_urls = [f'=IMAGE("{scr["url"]}")' for scr in screenshots]
         captions = [f"{datetime.utcfromtimestamp(scr['start_time']).strftime('%M:%S')} - {datetime.utcfromtimestamp(scr['end_time']).strftime('%M:%S')}" for scr in screenshots]
         # Extend first row of source_values with screenshot URLs
@@ -143,7 +143,7 @@ def fill_video_resources(sheets_info, shotstack_path, generations_sheet_link, ma
             )
 
 
-def fill_thumbnails(sheets_info, shotstack_json, main_sheet_row, main_sheet_header_to_col):
+def fill_thumbnails(sheets_info, render_json, main_sheet_row, main_sheet_header_to_col):
     # link to the thumbnails sheet
     video_thumbnails_sheet_gid = get_worksheet_id(sheets_info['Delivery Sheet']['sheet_id'], sheets_info['Delivery Sheet']['video_thumbnails_sheet_name'])
     thumbnails_start_row = (main_sheet_row - 3) * 5 + 2
@@ -158,7 +158,7 @@ def fill_thumbnails(sheets_info, shotstack_json, main_sheet_row, main_sheet_head
     if (5 - len(metadata_values)) > 0:
         metadata_values += [[""] * (len(metadata_values[0]) if metadata_values else 0) for _ in range(5 - len(metadata_values))]
     # adding the names and thumbnail images
-    thumbnails = shotstack_json['lesson_video']['output_data'].get('thumbnails', None)
+    thumbnails = render_json['lesson_video']['output_data'].get('thumbnails', None)
     if thumbnails:
         metadata_values[0].append("Lesson Thumbnail")
         metadata_values[1].append(f'=IMAGE("{thumbnails["lesson_thumbnail"]}")')
@@ -189,7 +189,7 @@ def fill_thumbnails(sheets_info, shotstack_json, main_sheet_row, main_sheet_head
     )
 
 
-def fill_lesson(key: str, shotstack_path: str, subject: str):
+def fill_lesson(key: str, render_path: str, subject: str):
     sheets_info = get_sheet_info_by_subject(subject)
 
     if sheets_info['Delivery Sheet']['sheet_id'] not in sheet_data_cache:
@@ -198,12 +198,12 @@ def fill_lesson(key: str, shotstack_path: str, subject: str):
         sheet_data_cache[sheets_info['Delivery Sheet']['sheet_id']] = sheet_data
         sheet_header_to_col_cache[sheets_info['Delivery Sheet']['sheet_id']] = sheet_header_to_col
     
-    # extract the data from the shotstack json
-    shotstack_json = load_json_from_s3(shotstack_path)
-    subsection = shotstack_json['lesson_video']['output_data'].get('title', None)
-    video_url = shotstack_json['lesson_video']['output_data'].get('url', None)
-    lesson_report = shotstack_json['lesson_video'].get('lesson_report', None)
-    generations_sheet_link = shotstack_json['lesson_video']['output_data'].get('sheet_link', None)
+    # extract the data from the render json
+    render_json = load_json_from_s3(render_path)
+    subsection = render_json['lesson_video']['output_data'].get('title', None)
+    video_url = render_json['lesson_video']['output_data'].get('url', None)
+    lesson_report = render_json['lesson_video'].get('lesson_report', None)
+    generations_sheet_link = render_json['lesson_video']['output_data'].get('sheet_link', None)
 
     if (not video_url) or (not generations_sheet_link):
         print(f"Could not find video url or generations sheet link for {key}")
@@ -231,10 +231,10 @@ def fill_lesson(key: str, shotstack_path: str, subject: str):
     write_to_cell(sheets_info['Delivery Sheet']['sheet_id'], sheets_info['Delivery Sheet']['main_sheet_name'], video_url, row, sheet_header_to_col['Video Link'])
 
     # VIDEO RESOURCES
-    fill_video_resources(sheets_info, shotstack_path, generations_sheet_link, row, sheet_header_to_col)
+    fill_video_resources(sheets_info, render_path, generations_sheet_link, row, sheet_header_to_col)
 
     # VIDEO THUMBNAILS
-    fill_thumbnails(sheets_info, shotstack_json, row, sheet_header_to_col)
+    fill_thumbnails(sheets_info, render_json, row, sheet_header_to_col)
 
     # Write lesson report if present
     if lesson_report:
@@ -258,7 +258,7 @@ def fill_lesson(key: str, shotstack_path: str, subject: str):
 if __name__ == "__main__":
     # ====================================== FETCHING SUCCESSFUL LESSONS ======================================
 
-    successful_shotstacks = {}
+    successful_renders = {}
 
     folders_to_check = [
         "AP US History - vUnit_1_new",
@@ -275,14 +275,14 @@ if __name__ == "__main__":
         # "AP World History - vUnit_9_new",
     ]
     
-    for folder in tqdm(folders_to_check, desc="Fetching successful shotstack jsons"):
+    for folder in tqdm(folders_to_check, desc="Fetching successful render jsons"):
         exec_input = get_execution_input(folder)['ExecutionInput']
 
-        shotstack_folder_path = f"{exec_input['curriculum']}/{exec_input['course']}/{exec_input['subject']}/contents/subsection/ShotStack"
-        successful_keys = list_files_in_directory(shotstack_folder_path, return_type="basename")
+        render_folder_path = f"{exec_input['curriculum']}/{exec_input['course']}/{exec_input['subject']}/contents/subsection/Local Render"
+        successful_keys = list_files_in_directory(render_folder_path, return_type="basename")
         for key in successful_keys:
-            successful_shotstacks[key.split('.')[0]] = {
-                "shotstack_path": f"{shotstack_folder_path}/{key}",
+            successful_renders[key.split('.')[0]] = {
+                "render_path": f"{render_folder_path}/{key}",
                 "exec_input": exec_input
             }
 
@@ -292,8 +292,8 @@ if __name__ == "__main__":
     # Use ThreadPoolExecutor for concurrent execution
     with ThreadPoolExecutor(max_workers=10) as executor:
         futures = [
-            executor.submit(fill_lesson, key, item["shotstack_path"], item["exec_input"]["subject"])
-            for key, item in successful_shotstacks.items()
+            executor.submit(fill_lesson, key, item["render_path"], item["exec_input"]["subject"])
+            for key, item in successful_renders.items()
         ]
         
         # This will update the progress bar as tasks complete

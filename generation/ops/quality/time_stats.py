@@ -134,14 +134,14 @@ if __name__ == "__main__":
         transcript_path = get_layer_path("Video Transcript", context.key)
         avatar_path = get_layer_path("Avatar Clips", context.key)
         text_overlays_path = get_layer_path("Text Overlays", context.key)
-        shotstack_path = get_layer_path("ShotStack", context.key)
-        if transcript_path and avatar_path and text_overlays_path and shotstack_path:
+        render_path = get_layer_path("Local Render", context.key)
+        if transcript_path and avatar_path and text_overlays_path and render_path:
             return {
                 "key": context.key,
                 "transcript_path": transcript_path,
                 "avatar_path": avatar_path,
                 "text_overlays_path": text_overlays_path,
-                "shotstack_path": shotstack_path
+                "render_path": render_path
             }
         return None
     with ThreadPoolExecutor(max_workers=10) as executor:

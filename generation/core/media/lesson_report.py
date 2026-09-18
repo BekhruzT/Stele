@@ -135,7 +135,7 @@ def process_coverage_llm_call(concept_name, transcript, facts, figure_name, prev
             FIGURE=figure_name, 
             PREVIOUS_EXPLANATIONS=json.dumps(previous_explanations, indent=2)
         ),
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
         is_json=True,
     )
     return {
@@ -400,8 +400,8 @@ def fetch_lesson_data(execution_input:Dict):
 
 def fetch_generated_lesson_ctx(lesson_datas:Dict):
 
-    shotstack_folder_path = f"{exec_input['curriculum']}/{exec_input['course']}/{exec_input['subject']}/contents/subsection/ShotStack"
-    successful_keys = list_files_in_directory(shotstack_folder_path, return_type="basename")
+    render_folder_path = f"{exec_input['curriculum']}/{exec_input['course']}/{exec_input['subject']}/contents/subsection/Local Render"
+    successful_keys = list_files_in_directory(render_folder_path, return_type="basename")
     successful_keys = [os.path.basename(key).split(".")[0] for key in successful_keys if key.endswith(".json")]
     lesson_datas = {k: v for k, v in lesson_datas.items() if k in successful_keys}
 
@@ -454,9 +454,9 @@ if __name__ == "__main__":
 
     def generate_and_save_report(lesson_ctx:Context):
         report = get_lesson_report(lesson_ctx)
-        shotstack_json = load_json_from_s3(lesson_ctx.shotstack_json_path)
-        shotstack_json["lesson_video"]["lesson_report"] = report
-        save_json_to_s3(shotstack_json, lesson_ctx.shotstack_json_path)
+        render_json = load_json_from_s3(lesson_ctx.lesson_video_path)
+        render_json["lesson_video"]["lesson_report"] = report
+        save_json_to_s3(render_json, lesson_ctx.lesson_video_path)
 
     with ThreadPoolExecutor(max_workers=10) as executor:
         list(tqdm(

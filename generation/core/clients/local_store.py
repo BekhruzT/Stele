@@ -127,8 +127,8 @@ def create_presigned_url(key, bucket='gen-ai-textbooks-dev', expiration=3600, ur
     if not content_type.startswith('image/'):
         raise ValueError(
             f"STORAGE=local can only presign images, not {content_type or 'unknown type'} "
-            f"({key}). Audio and video are presigned only by the D-ID, Video Gen Clips and "
-            f"ShotStack steps, which local mode skips because vendors must fetch the URL."
+            f"({key}). Audio and video are presigned only by the D-ID and Video Gen Clips "
+            f"steps, which local mode skips because vendors must fetch the URL."
         )
 
     size = path.stat().st_size

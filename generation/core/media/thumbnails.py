@@ -38,7 +38,7 @@ def get_thumbnails(context:Context):
         user_prompt=THUMBNAIL_IMAGE_LESSON_USER_PROMPT.format(
             description=f"Title: {video_plan_json['video_plan']['lesson_title']}\n\nTranscript:\n{transcript.lesson_transcript}"
         ),
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
     )
 
     # getting section thumbnails
@@ -49,7 +49,7 @@ def get_thumbnails(context:Context):
         user_prompt=THUMBNAIL_IMAGE_SECTION_USER_PROMPT.format(
             description=f"Lesson Title: {video_plan_json['video_plan']['lesson_title']}\n\nSection: Introduction\n\nIntroduction Transcript:\n{transcript.lesson_transcript_breakdown.introduction}"
         ),
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
     )
     section_prompts["Introduction"] = intro_thumbnail_prompt
 
@@ -59,7 +59,7 @@ def get_thumbnails(context:Context):
             user_prompt=THUMBNAIL_IMAGE_SECTION_USER_PROMPT.format(
                 description=f"Lesson Title: {video_plan_json['video_plan']['lesson_title']}\n\nSection: {section}\n\nSection Details:\n{section_details}"
             ),
-            model=LLM.CLAUDE_3_7_SONNET,
+            model=LLM.CLAUDE_5_SONNET,
         )
         section_prompts[section] = section_thumbnail_prompt
     
@@ -68,7 +68,7 @@ def get_thumbnails(context:Context):
         user_prompt=THUMBNAIL_IMAGE_SECTION_USER_PROMPT.format(
             description=f"Lesson Title: {video_plan_json['video_plan']['lesson_title']}\n\nSection: Conclusion\n\nConclusion Transcript:\n{transcript.lesson_transcript_breakdown.conclusion}"
         ),
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
     )
     section_prompts["Conclusion"] = conclusion_thumbnail_prompt
 
@@ -87,10 +87,10 @@ def get_thumbnails(context:Context):
 
 def get_and_save_thumbnails(context:Context):
     thumbnails = get_thumbnails(context)
-    shotstack_json = load_json_from_s3(context.shotstack_json_path)
+    render_json = load_json_from_s3(context.lesson_video_path)
 
-    video_url = shotstack_json['lesson_video']['output_data']['url']
-    segment_urls = shotstack_json['lesson_video']['output_data']['segment_urls']
+    video_url = render_json['lesson_video']['output_data']['url']
+    segment_urls = render_json['lesson_video']['output_data']['segment_urls']
 
     output_dir = f"/tmp/{context.key}"
     os.makedirs(output_dir, exist_ok=True)
@@ -106,8 +106,8 @@ def get_and_save_thumbnails(context:Context):
         section_thumbnail_s3_path = '/'.join(segment_urls[section].replace('.mp4', '.jpg').split('/')[3:])
         thumbnails['section_thumbnails'][section] = upload_file_to_s3(local_img_path, section_thumbnail_s3_path, S3_VIEWER_BUCKET)
 
-    shotstack_json['lesson_video']['output_data']['thumbnails'] = thumbnails
-    save_json_to_s3(shotstack_json, context.shotstack_json_path)
+    render_json['lesson_video']['output_data']['thumbnails'] = thumbnails
+    save_json_to_s3(render_json, context.lesson_video_path)
 
 def fetch_lesson_data(execution_input:Dict):
     lesson_datas = {}
@@ -131,8 +131,8 @@ def fetch_lesson_data(execution_input:Dict):
 
 def fetch_generated_lesson_ctx(lesson_datas:Dict):
 
-    shotstack_folder_path = f"{exec_input['curriculum']}/{exec_input['course']}/{exec_input['subject']}/contents/subsection/ShotStack"
-    successful_keys = list_files_in_directory(shotstack_folder_path, return_type="basename")
+    render_folder_path = f"{exec_input['curriculum']}/{exec_input['course']}/{exec_input['subject']}/contents/subsection/Local Render"
+    successful_keys = list_files_in_directory(render_folder_path, return_type="basename")
     successful_keys = [os.path.basename(key).split(".")[0] for key in successful_keys if key.endswith(".json")]
     lesson_datas = {k: v for k, v in lesson_datas.items() if k in successful_keys}
 

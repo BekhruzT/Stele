@@ -242,8 +242,8 @@ class APVideoContext(Context):
         return f"{self.curriculum}/{self.course}/{self.subject}/contents/subsection/Video Gen Clips/{self.key}.json"
 
     @property
-    def shotstack_json_path(self):
-        return f"{self.curriculum}/{self.course}/{self.subject}/contents/subsection/ShotStack/{self.key}.json"
+    def lesson_video_path(self):
+        return f"{self.curriculum}/{self.course}/{self.subject}/contents/subsection/Local Render/{self.key}.json"
 
     @property
     def context_pack_path(self):

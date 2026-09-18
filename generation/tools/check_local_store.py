@@ -167,9 +167,8 @@ def check_pipeline_skips_vendor_stages():
     # reads, and only the D-ID block inside it is skipped.
     assert "Avatar Clips" in titles
     assert titles.index("Avatar Clips") < titles.index("Text Overlays") < titles.index("Scenes Breakdown")
-    # ShotStack is substituted, not dropped, so local mode still ends in a rendered video.
-    assert run.LOCAL_SWAP == {"ShotStack": "Local Render"}, run.LOCAL_SWAP
-    assert "ShotStack" not in titles and titles[-1] == "Local Render", titles
+    # ffmpeg is the only renderer, so local mode still ends in a rendered video.
+    assert titles[-1] == "Local Render", titles
     assert callable(run.STAGES["Local Render"])
 
 

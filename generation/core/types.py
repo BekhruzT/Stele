@@ -27,7 +27,7 @@ class LayerName(str, Enum):
     CLIPS = "clips"
     IMAGES = "images"
     VIDEOS = "videos"
-    SHOTSTACK = "shotstack"
+    RENDER = "render"
 
 
 class KGEdge(BaseModel):
@@ -547,7 +547,7 @@ class ImagesMetadata(BaseModel):
             return GeneratedImageTypes.FLUX
         return value
 
-# =========================== SHOTSTACK TYPES ===========================
+# =========================== RENDER TYPES ==============================
 class ClipTypes(Enum):
     VIDEO='VIDEO'
     IMAGE='IMAGE'
@@ -1125,7 +1125,7 @@ class TranscriptOutput(BaseModel):
     lesson_transcript_breakdown: TranscriptLesson
     supplementary_content: Optional[TranscriptSupplements] = None
 
-# =========================== SHOTSTACK =========================================================
+# =========================== RENDER ============================================================
 class QuestionOverlay(BaseModel):
     time: float
     questions: List[MCQ]

@@ -35,7 +35,7 @@ def match_point_timings(slide, concept_transcript, transcript_timings)-> TextSli
             points=json.dumps(slide_content["points"], indent=2),
             transcript=concept_transcript
         ),
-        model=LLM.CLAUDE_3_7_SONNET_THINKING,
+        model=LLM.CLAUDE_5_OPUS,
         history=[system_message(TEXT_SLIDE_TIMINGS_SYSTEM_PROMPT), *text_slides_timings_examples],
         is_json=True
     )
@@ -49,7 +49,7 @@ def match_point_timings(slide, concept_transcript, transcript_timings)-> TextSli
         _, point_matches = llm_call(
             system_prompt='',
             user_prompt=f"Some identified phrases did not exactly match the text in the transcript. Remember, each identified phrase must match a substring in the transcript exactly. You may need to slightly adjust these mismatches to align with the transcript verbatim. If the match was completely incorrect, try to identify the closest semantic match in the transcript.\n<unmatched_phrases>\n{failed_matches}\n</unmatched_phrases>\nPlease correct only these phrases, leaving the rest of the JSON as it is. Without asking any further questions, return the best JSON you can.",
-            model=LLM.CLAUDE_3_7_SONNET,
+            model=LLM.CLAUDE_5_SONNET,
             history=history,
             tag='answer',
             is_json=True
@@ -114,7 +114,7 @@ The slide you will need to match:
 {json.dumps(slide.model_dump(), indent=2)}
 </slide>
 """,
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
         tag="match",
         is_json=True
     )
@@ -148,7 +148,7 @@ def fix_diagram(transcript: str, concept_data: dict, slide: TextSlide, slide_cha
 Trim just the necessary amount do not overdo and risk :
  - losing key learnings from the syllabus
  - causing significant mismatch between transcript and bullet point contents, by removing partial phrases from the bullets.""",
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
         tag="answer",
         is_json=True
     )
@@ -227,7 +227,7 @@ def fix_text_slides(context: Context) -> None:
         overlays.text_slides[int(ii)] = TextSlide(**slide)
         
         save_json_to_s3(overlays.model_dump(), transcript_key.replace('Video Transcript', 'Text Overlays'))
-    delete_file_from_s3(transcript_key.replace('Video Transcript', 'ShotStack'))
+    delete_file_from_s3(transcript_key.replace('Video Transcript', 'Local Render'))
 
 if __name__ == "__main__":
     from core.context import prep_content_gen_input

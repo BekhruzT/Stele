@@ -29,8 +29,8 @@ from stages.scenes_breakdown import \
     generate_clips
 from stages.image_clips import (
     generate_all_images, regenerate_image, set_best_image_qc_choice)
-from stages.shotstack import \
-    generate_lesson_video
+from stages.local_render import \
+    render_lesson as generate_lesson_video
 from stages.text_overlays import \
     generate_text_overlays
 from stages.transcript import generate_lesson_transcript
@@ -1022,33 +1022,33 @@ class VideoValidationLayer(BaseLayer):
     def process(self, inputs: List[Tuple[int, Clip, VideoMetadata]]):
         return
 
-@with_logging_context(layer=LayerName.SHOTSTACK)
-class ShotStackIntegrationLayer(BaseLayer):
+@with_logging_context(layer=LayerName.RENDER)
+class LocalRenderLayer(BaseLayer):
     @st.cache_data
     def get_inputs(_self):
-        if does_file_exist(_self.context.shotstack_json_path):
-            logger.info(f"ShotStackIntegrationLayer: ShotStack file found. LOADING: {_self.context.shotstack_json_path}")
-            shotstack_json = load_json_from_s3(_self.context.shotstack_json_path)
+        if does_file_exist(_self.context.lesson_video_path):
+            logger.info(f"LocalRenderLayer: render found. LOADING: {_self.context.lesson_video_path}")
+            render_json = load_json_from_s3(_self.context.lesson_video_path)
         else:
-            logger.info("ShotStackIntegrationLayer: Assembling ShotStack")
-            shotstack_json = generate_lesson_video('', '', _self.context.dict())
-            save_json_to_s3(shotstack_json, _self.context.shotstack_json_path)
+            logger.info("LocalRenderLayer: rendering the lesson video")
+            render_json = generate_lesson_video('', '', _self.context.dict())
+            save_json_to_s3(render_json, _self.context.lesson_video_path)
 
-        s3_path = shotstack_json['lesson_video']['src']
-        public_url = shotstack_json['lesson_video']['output_data']['url']
+        s3_path = render_json['lesson_video']['src']
+        public_url = render_json['lesson_video']['output_data']['url']
         local_path = f'/tmp/{os.path.basename(s3_path)}'
         download(s3_path, local_path)
         return local_path, public_url
 
     def display(self):
-        st.header('ShotStack Integration')
+        st.header('Local Render')
 
         video_url, public_url = self.get_inputs()
         
         if video_url:
             st.video(video_url)
         else:
-            st.error("Failed to retrieve the Shotstack video.")
+            st.error("Failed to retrieve the rendered video.")
         
         st.markdown(f"**Video URL:** [{public_url}]({public_url.replace(' ', '%20')})")
 
@@ -1076,7 +1076,7 @@ pipeline_layers = [
     'Validate Clip Definitions',
     'Validate Images',
     'Validate Videos',
-    'ShotStack Integration'
+    'Local Render'
 ]
 
 def get_clickable_layers(context: Context):
@@ -1087,7 +1087,7 @@ def get_clickable_layers(context: Context):
         'Validate Clip Definitions': does_file_exist(context.clips_path),
         'Validate Images': does_file_exist(context.image_json_path),
         'Validate Videos': does_file_exist(context.video_json_path),
-        'ShotStack Integration': does_file_exist(context.shotstack_json_path)
+        'Local Render': does_file_exist(context.lesson_video_path)
     }
 
 def main(context: Context):
@@ -1106,7 +1106,7 @@ def main(context: Context):
         4: ClipsValidationLayer,
         5: ImagesValidationLayer,
         6: VideoValidationLayer,
-        7: ShotStackIntegrationLayer
+        7: LocalRenderLayer
     }
 
     current_layer_class = layer_classes.get(st.session_state.current_layer)

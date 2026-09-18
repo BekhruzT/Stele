@@ -36,8 +36,8 @@ from ops.repair.text_slides import \
 from stages.avatar_clips import (
     create_avatar, find_best_match, find_best_voice, load_speaker,
     synthesize_speech)
-from stages.shotstack import \
-    generate_lesson_video as generate_shotstack
+from stages.local_render import \
+    render_lesson
 from stages.text_overlays import (
     identify_diagram_timings, identify_question_timings,
     identify_video_split_times, models, process_diagram_concept,
@@ -112,7 +112,7 @@ def determine_change_type(asset_type: str, change_context: str, asset: Optional[
             change_context=change_context,
             asset="" if asset is None else f"Also here is the {asset_type}, identify whether it needs updating"
         ),
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
+        model=LLM.CLAUDE_5_SONNET,
         tag="output",
         is_json=True
     )
@@ -125,7 +125,7 @@ def update_transcript_content(transcript_content: str, change_request: str) -> s
             transcript_content=transcript_content,
             change_request=change_request
         ),
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
         tag="transcript"
     )
     
@@ -175,7 +175,7 @@ def update_mcqs_for_concept(concept: Concept, original_mcqs: List[MCQ], original
             user_message(MCQ_PER_CONCEPT_USER_PROMPT.format(concept_transcript=original_explanation, concept_syllabus=format_concept(concept))),
             assistant_message(f"<mcq_set>\n{json.dumps([mcq.model_dump() for mcq in original_mcqs], indent=2)}\n<mcq_set>")
         ],
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
         tag="mcq_set",
         is_json=True
     )
@@ -587,14 +587,13 @@ def regenerate_clips(context: Context, concept_time: float, delta_time: float):
     update_intermediate_outputs(f"./intermediate-results.json", "Clips", "DONE")
     return clips
 
-def regenerate_shotstack(context: Context):
-
-    output = generate_shotstack('', '', context.model_dump())
-    save_json_to_s3(output, get_edited_path(context.shotstack_json_path))
+def regenerate_render(context: Context):
+    output = render_lesson('', '', context.model_dump())
+    save_json_to_s3(output, get_edited_path(context.lesson_video_path))
 
     return output
 
-def regenerate_concept(context: Context, section_name: str, concept_name: str, change_requested: str, do_shotstack: bool = True):
+def regenerate_concept(context: Context, section_name: str, concept_name: str, change_requested: str, do_render: bool = True):
     if os.path.exists(f"./intermediate-results.json"):
         intermediate_results = json.load(open(f"./intermediate-results.json", 'r')).get(context.key, {}).get(section_name, {}).get(concept_name, {})
     else:
@@ -621,8 +620,8 @@ def regenerate_concept(context: Context, section_name: str, concept_name: str, c
     else:
         regenerate_clips(context, concept_time, delta_time)
     
-    if do_shotstack:
-        regenerate_shotstack(context)
+    if do_render:
+        regenerate_render(context)
 
 
 if __name__=="__main__":
@@ -633,22 +632,4 @@ if __name__=="__main__":
     context = Context(**prep_content_gen_input(exec_input))
     section_name = "Origins of the Gunpowder Empires"
     concept_name = "Defining Gunpowder Empires"
-    # # regenerate_shotstack(context)
-    # # aasa
-    video_plan = VideoPlan(**load_json_from_s3(context.video_plan_path)['video_plan'])
-    video_transcript = TranscriptOutput(**load_json_from_s3(context.transcripts_path))
-    # video_plan.fill_lesson_artifacts(context)
-    # save_json_to_s3({'video_plan': video_plan.model_dump()}, get_edited_path(context.video_plan_path))
-    # for section in video_plan.sections:
-    #     section_name = section.section_title
-    #     for concept in section.concepts:
-    #         concept_name = concept.concept_name
-    #         print(f"CONCEPT: {concept_name}")
-    #         # if concept.artifact_images:
-    #             regenerate_concept(context, section_name, concept_name, list(concept.artifact_images.values()), False)
-    # regenerate_shotstack(context)
-
-    # print(video_plan.model_dump_json(indent=4))
-    # print(video_transcript.model_dump_json(indent=4))
-
     regenerate_concept(context, section_name, concept_name, "Simplify the wording for the explanation", False)

@@ -84,7 +84,7 @@ if 'CommonPrefixes' in response:
     "Scenes Breakdown",
     "Image Gen Clips",
     "Video Gen Clips",
-    "ShotStack",
+    "Local Render",
         ]
         if folder.split('/')[-2] not in folders_1:
             print(f"{folder.split('/')[-2]} not in folders {folders_1}")

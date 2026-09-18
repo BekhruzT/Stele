@@ -101,7 +101,7 @@ class NotificationSystem:
         # Get video URL for the completed subsection
         video_json = load_json_from_s3(
             f"{self.event['ExecutionInput']['curriculum']}/{self.event['ExecutionInput']['course']}/"
-            f"{self.event['ExecutionInput']['subject']}/contents/subsection/ShotStack/{key}.json"
+            f"{self.event['ExecutionInput']['subject']}/contents/subsection/Local Render/{key}.json"
         )
         video_url = video_json['lesson_video']['output_data'].get('url', None)
         sheet_link = video_json['lesson_video']['output_data'].get('sheet_link', None)

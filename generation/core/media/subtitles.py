@@ -8,7 +8,7 @@ from core.helpers import (
     get_topics_list, sanitize_path)
 from core.stage_constants import \
     get_sheet_info_by_subject
-from stages.shotstack import (
+from core.media.clip_timings import (
     identify_video_split_indexes, reset_timings)
 from core.clients.sheets import get_range_values, write_to_cell
 from tqdm import tqdm
@@ -27,7 +27,7 @@ def get_section_subtitles(context:Context):
     # load jsons
     transcript = TranscriptOutput(**load_json_from_s3(context.transcripts_path))
     transcript_timings = TranscriptTiming(timings=load_json_from_s3(context.avatar_assets_path)['lesson_timings'])
-    shotstack_json = load_json_from_s3(context.shotstack_json_path)
+    render_json = load_json_from_s3(context.lesson_video_path)
 
     # identify video split indexes
     split_times = identify_video_split_indexes(transcript, transcript_timings)
@@ -43,7 +43,7 @@ def get_section_subtitles(context:Context):
     output_dir = f"/tmp/{context.key}"
     os.makedirs(output_dir, exist_ok=True)
 
-    segment_urls = shotstack_json['lesson_video']['output_data']['segment_urls']
+    segment_urls = render_json['lesson_video']['output_data']['segment_urls']
     
     # generating subtitles for each section and uploading to s3
     subtitle_urls = {}
@@ -57,7 +57,7 @@ def get_section_subtitles(context:Context):
     
     # getting fresh generations sheet info and updating the sheet
     sheets_info = get_sheet_info_by_subject(context.subject)
-    generations_sheet_link = shotstack_json['lesson_video']['output_data']['sheet_link']
+    generations_sheet_link = render_json['lesson_video']['output_data']['sheet_link']
 
     generations_sheet_headers = get_range_values(sheets_info['Fresh Generations']['sheet_id'], sheets_info['Fresh Generations']['sheet_name'], 1, 1)
     generations_sheet_header_to_col = {header: i for i, header in enumerate(generations_sheet_headers[0])}
@@ -94,8 +94,8 @@ def fetch_lesson_data(execution_input:Dict):
 
 def fetch_generated_lesson_ctx(lesson_datas:Dict):
 
-    shotstack_folder_path = f"{exec_input['curriculum']}/{exec_input['course']}/{exec_input['subject']}/contents/subsection/ShotStack"
-    successful_keys = list_files_in_directory(shotstack_folder_path, return_type="basename")
+    render_folder_path = f"{exec_input['curriculum']}/{exec_input['course']}/{exec_input['subject']}/contents/subsection/Local Render"
+    successful_keys = list_files_in_directory(render_folder_path, return_type="basename")
     successful_keys = [os.path.basename(key).split(".")[0] for key in successful_keys if key.endswith(".json")]
     lesson_datas = {k: v for k, v in lesson_datas.items() if k in successful_keys}
 

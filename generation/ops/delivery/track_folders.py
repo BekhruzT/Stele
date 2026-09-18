@@ -21,7 +21,7 @@ layer_index = {
     "Scenes Breakdown": 5,
     "Image Gen Clips": 6,
     "Video Gen Clips": 7,
-    "ShotStack": 8,
+    "Local Render": 8,
 }
 
 def update_folder_tracking_sheet(folder):
