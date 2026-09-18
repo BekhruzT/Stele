@@ -123,7 +123,7 @@ EXPECTED_PLACEHOLDERS = {
 
 TITLES = ["Knowledge Graph", "Video Plan", "Video Transcript", "Avatar Clips",
           "Text Overlays", "Scenes Breakdown", "Image Gen Clips", "Video Gen Clips",
-          "ShotStack"]
+          "Local Render"]
 
 
 def check_pipeline_order():
@@ -136,17 +136,15 @@ def check_pipeline_order():
         assert run.pipeline() == TITLES, run.pipeline()
         run.STORAGE = "local"
         local = run.pipeline()
-        expected = [run.LOCAL_SWAP.get(t, t) for t in TITLES if t not in run.LOCAL_SKIP]
+        expected = [t for t in TITLES if t not in run.LOCAL_SKIP]
         assert local == expected, local
-        # ShotStack is replaced in place, not dropped, so the render stays last and the local
-        # pipeline is only shorter by what LOCAL_SKIP drops.
-        assert "ShotStack" not in local and local[-1] == "Local Render", local
+        # The render is only ever dropped by LOCAL_SKIP, so it stays last in both modes.
+        assert local[-1] == "Local Render", local
         assert len(local) == len(TITLES) - len(run.LOCAL_SKIP), local
     finally:
         run.STORAGE = original
     # the dispatch map must answer to every title either mode schedules
-    scheduled = set(TITLES) | set(run.LOCAL_SWAP.values())
-    assert not scheduled - set(REAL_STAGES), scheduled - set(REAL_STAGES)
+    assert not set(TITLES) - set(REAL_STAGES), set(TITLES) - set(REAL_STAGES)
     print(f"  order      {len(TITLES)} stages on s3, {len(expected)} on local, "
           f"config order, all dispatchable")
 
@@ -294,9 +292,24 @@ def check_layer_flags():
     for title, inputs in calls:
         assert {k: inputs[k] for k in run.LAYER_DEFAULTS} == run.LAYER_DEFAULTS, title
 
-    assert run.video_type("history") == {"layers": run.LAYER_DEFAULTS, "skip_stages": set()}
+    assert run.video_type("history") == {"layers": run.LAYER_DEFAULTS, "skip_stages": set(),
+                                         "params": {}, "unsupported": True}
     print(f"  layers     {len(run.LAYER_DEFAULTS)} flags reach all 9 stages; "
           f"types {', '.join(run.video_types())}; no flags means the defaults")
+
+
+def check_unsupported_types():
+    """The AP exam-prep types stay wired but are refused unless the operator opts in."""
+    assert run.video_type("history")["unsupported"], "history is the AP flow and is unsupported"
+    assert run.video_type("general")["unsupported"], "general is the AP flow and is unsupported"
+    assert not run.video_type("lore")["unsupported"], "lore is the supported flow"
+
+    parser = run.build_parser()
+    assert parser.get_default("video_type") == "lore", parser.get_default("video_type")
+    # Every stage still has to be reachable: unsupported means unmaintained, not deleted.
+    for name in run.video_types():
+        assert set(run.video_type(name)["layers"]) == set(run.LAYER_DEFAULTS), name
+    print(f"  unsupported history and general refused by default, every layer still wired")
 
 
 def check_video_type_stage_skips():
@@ -322,10 +335,17 @@ def check_video_type_stage_skips():
                    LESSON_PLAN, titles, lore["layers"])
     assert [t for t, _ in calls] == titles, [t for t, _ in calls]
 
+    # lore should expose its per-stage param blocks via the params contract.
+    assert isinstance(lore["params"], dict), lore["params"]
+    assert "LAYER_PROGRAMMATIC_MOTION" in lore["params"], "lore should override motion params"
+    assert "NARRATION" in lore["params"], "lore should declare narration config"
+    assert lore["params"]["NARRATION"].get("style") == "lore_sleep", lore["params"]
+
     for bad, expect in [({"layers": {"LAYER_NOPE": True}}, "unknown layer"),
                         ({"layers": {"LAYER_TEXT_SLIDES": "false"}}, "true or false"),
                         ({"skip_stages": ["Nonexistent Stage"]}, "unknown stage"),
-                        ({"nonsense": 1}, "unknown key")]:
+                        ({"nonsense": 1}, "unknown key"),
+                        ({"params": {"x": "not-a-dict"}}, "param block an object")]:
         with patch.object(run, "VIDEO_TYPES", _tmp_video_types({"t": bad})):
             try:
                 run.video_type("t")
@@ -350,6 +370,7 @@ def main() -> int:
     check_skip_and_force(key)
     check_until()
     check_layer_flags()
+    check_unsupported_types()
     check_video_type_stage_skips()
     check_failure_stops_lesson()
     print("\nAll orchestration checks passed.")

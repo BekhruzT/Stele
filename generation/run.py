@@ -49,7 +49,7 @@ from core.log import (ContextAwareThreadPoolExecutor, setup_logging,  # noqa: E4
 from core.notification_system import NotificationSystem  # noqa: E402
 from core.path import get_content_path, get_lesson_plan_path  # noqa: E402
 from stages import (avatar_clips, image_clips, knowledge_graph,  # noqa: E402
-                    local_render, scenes_breakdown, shotstack, text_overlays,
+                    local_render, scenes_breakdown, text_overlays,
                     transcript, video_clips, video_plan)
 
 logger = logging.getLogger(__name__)
@@ -87,7 +87,6 @@ STAGES: Dict[str, Callable] = {
     "Scenes Breakdown": scenes_breakdown.generate_clips,
     "Image Gen Clips": image_clips.generate_all_images,
     "Video Gen Clips": video_clips.generate_all_videos,
-    "ShotStack": shotstack.generate_lesson_video,
     "Local Render": local_render.render_lesson,
 }
 
@@ -98,13 +97,6 @@ STAGES: Dict[str, Callable] = {
 # is skipped in place by stages/avatar_clips.py and the ElevenLabs audio around it still runs.
 LOCAL_SKIP = {"Video Gen Clips"}
 
-# Substituted rather than skipped. ShotStack composites from presigned URLs, so it cannot run
-# locally, but the compositing itself is not the part that needs a vendor: stages/local_render
-# does it with ffmpeg over local paths, writes the MP4 to the same media path and returns the
-# same 'lesson_video' shape. Keeping it a swap rather than an extra entry means it inherits
-# ShotStack's position in config/stages.json, which is last.
-LOCAL_SWAP = {"ShotStack": "Local Render"}
-
 
 def pipeline(skip: set | None = None) -> List[str]:
     """Stage titles in config order, minus anything in skip."""
@@ -112,7 +104,7 @@ def pipeline(skip: set | None = None) -> List[str]:
     titles = [entry["title"] for entry in config["content"]["subsection"]
               if entry.get("type", "gen-ai") == "custom" and entry["title"] not in (skip or set())]
     if STORAGE == "local":
-        return [LOCAL_SWAP.get(title, title) for title in titles if title not in LOCAL_SKIP]
+        return [title for title in titles if title not in LOCAL_SKIP]
     return titles
 
 
@@ -122,9 +114,9 @@ def video_type(name: str) -> Dict[str, Any]:
     if name not in config:
         raise SystemExit(f"No such video type {name!r}; have: {', '.join(sorted(config))}")
     entry = config[name]
-    if bad := sorted(set(entry) - {"layers", "skip_stages"}):
+    if bad := sorted(set(entry) - {"layers", "skip_stages", "params", "unsupported"}):
         raise SystemExit(f"video type {name!r} has unknown key(s): {', '.join(bad)}")
-    flags, skip = entry.get("layers", {}), entry.get("skip_stages", [])
+    flags, skip, params = entry.get("layers", {}), entry.get("skip_stages", []), entry.get("params", {})
     # Refused rather than silently defaulted, so a typo doesn't quietly buy a full set of vendor calls.
     if bad := sorted(set(flags) - set(LAYER_DEFAULTS)):
         raise SystemExit(f"video type {name!r} sets unknown layer(s): {', '.join(bad)}\n"
@@ -134,7 +126,11 @@ def video_type(name: str) -> Dict[str, Any]:
     if bad := sorted(set(skip) - set(STAGES)):
         raise SystemExit(f"video type {name!r} skips unknown stage(s): {', '.join(bad)}\n"
                          f"known stages: {', '.join(STAGES)}")
-    return {"layers": {**LAYER_DEFAULTS, **flags}, "skip_stages": set(skip)}
+    # Only shape-checked here; each stage owns and defaults the contents of its own block.
+    if bad := sorted(k for k, v in params.items() if not isinstance(v, dict)):
+        raise SystemExit(f"video type {name!r} must give every param block an object: {', '.join(bad)}")
+    return {"layers": {**LAYER_DEFAULTS, **flags}, "skip_stages": set(skip), "params": params,
+            "unsupported": bool(entry.get("unsupported", False))}
 
 
 def video_types() -> List[str]:
@@ -175,9 +171,9 @@ def artifact_path(context: Context, title: str) -> str:
                             "subsection", f"{title}/{context.key}.json")
 
 
-def placeholders(context: Context, plan: dict, content: dict,
-                 layer_flags: Dict[str, bool]) -> Dict[str, Any]:
-    """The uppercase input dict every stage receives; Context ignores the LAYER_* flags in it."""
+def placeholders(context: Context, plan: dict, content: dict, layer_flags: Dict[str, bool],
+                 params: Dict[str, Dict[str, Any]] | None = None) -> Dict[str, Any]:
+    """The uppercase input dict every stage receives; Context ignores the LAYER_*/*_PARAMS in it."""
     unit = context.get_unit_lesson_plan(plan)
     chapter = context.get_chapter_lesson_plan(plan)
     section = context.get_section_lesson_plan(plan)
@@ -203,6 +199,8 @@ def placeholders(context: Context, plan: dict, content: dict,
         "SUBSECTION_CONTENT": json.dumps(content, indent=4),
         "THINKING_SKILL": subsection.get("Thinking Skill", ""),
         **layer_flags,
+        # One block becomes one "<name>_PARAMS" key, so a stage asks by a name it already knows.
+        **{f"{name}_PARAMS": block for name, block in (params or {}).items()},
     }
 
 
@@ -230,13 +228,15 @@ def run_stage(title: str, context: Context, inputs: dict, force: bool = False) -
 
 
 def run_lesson(execution_input: dict, lesson: dict, plan: dict, titles: List[str],
-               layer_flags: Dict[str, bool] | None = None, force: bool = False) -> dict:
+               layer_flags: Dict[str, bool] | None = None, force: bool = False,
+               params: Dict[str, Dict[str, Any]] | None = None) -> dict:
     """Every stage for one subsection in order; no per-stage try/except since a later stage reads what an earlier one wrote."""
     context = Context(**execution_input, **lesson)
     content: Dict[str, Any] = {}
     for title in titles:
         content.update(run_stage(
-            title, context, placeholders(context, plan, content, layer_flags or LAYER_DEFAULTS), force))
+            title, context,
+            placeholders(context, plan, content, layer_flags or LAYER_DEFAULTS, params), force))
     content["title"] = context.subsection
     return content
 
@@ -273,9 +273,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--section", action="append", default=[], metavar="TITLE")
     parser.add_argument("--subsection", action="append", default=[], metavar="TITLE",
                         help="repeatable; the usual way to name one lesson")
-    parser.add_argument("--video-type", choices=video_types(), default="history",
-                        help="which layers run, from config/video_types/ (default history, "
-                             "every layer on)")
+    parser.add_argument("--video-type", choices=video_types(), default="lore",
+                        help="which layers run, from config/video_types.json (default lore)")
+    parser.add_argument("--allow-unsupported", action="store_true",
+                        help="run a video type marked unsupported in config/video_types.json")
     parser.add_argument("--until", metavar="STAGE",
                         help="stop after this stage instead of running the rest")
     parser.add_argument("--force", action="store_true",
@@ -285,7 +286,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--storage", choices=("s3", "local"), default=STORAGE,
                         help="where artifacts live; local skips the stages whose vendors must "
                              f"fetch a URL ({', '.join(sorted(LOCAL_SKIP))}, and D-ID inside "
-                             "Avatar Clips) and renders with ffmpeg instead of ShotStack")
+                             "Avatar Clips). Local Render needs local, so s3 has no renderer")
     parser.add_argument("--list-stages", action="store_true", help="print the pipeline and exit")
     parser.add_argument("--dry-run", action="store_true",
                         help="print the lessons, keys and artifact paths, touch nothing")
@@ -297,7 +298,11 @@ def main() -> int:
     args = parser.parse_args()
 
     selection = video_type(args.video_type)
-    layer_flags, skip_stages = selection["layers"], selection["skip_stages"]
+    # AP stays wired but unmaintained: prompts, models and pacing were all retuned for lore.
+    if selection["unsupported"] and not args.allow_unsupported:
+        raise SystemExit(f"video type {args.video_type!r} is unsupported and untested; "
+                         f"pass --allow-unsupported to run it anyway")
+    layer_flags, skip_stages, params = selection["layers"], selection["skip_stages"], selection["params"]
     titles = pipeline(skip_stages)
     if args.list_stages:
         for number, title in enumerate(titles, 1):
@@ -311,6 +316,8 @@ def main() -> int:
         print(f"\nvideo type: {args.video_type}")
         for flag, on in layer_flags.items():
             print(f"  {'on ' if on else 'off'}  {flag}")
+        for key, block in params.items():
+            print(f"  param  {key}: {block}")
         return 0
     if args.until:
         if args.until not in titles:
@@ -335,6 +342,8 @@ def main() -> int:
               + (f" (skips {', '.join(sorted(skip_stages))})" if skip_stages else ""))
         for flag, on in layer_flags.items():
             print(f"  {'on ' if on else 'off'}  {flag}")
+        for key, block in params.items():
+            print(f"  param  {key}: {block}")
         for key, lesson in keys.items():
             context = Context(**execution_input, **lesson)
             print(f"\n{key}  {lesson['subsection']}")
@@ -376,7 +385,7 @@ def main() -> int:
             logger.info(f"GENERATING SUBSECTION: {lesson['subsection']}")
             work = with_logging_context(lesson_id=key)(run_lesson)
             futures[pool.submit(work, execution_input, lesson, plan, titles,
-                                layer_flags, args.force)] = key
+                                layer_flags, args.force, params)] = key
 
         for future in as_completed(futures):
             key = futures[future]

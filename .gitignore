@@ -10,6 +10,16 @@ venv
 # Local artifact store, when LOCAL_STORAGE_ROOT is left at its default
 generation/artifacts/
 
+# Rendered lore previews. All reproducible from a plan, none belongs in review.
+generation/tools/lore_images/
+generation/tools/*.html
+generation/tools/*.mp3
+generation/tools/*.mp4
+generation/tools/*.png
+
+# Agent-local editor state, per-machine and never shared
+.claude/settings.local.json
+
 # Every prompt and response, appended by core/clients/openai.py::log_llm_message into
 # whatever directory the run started from. Grows without bound and contains model output.
 prompts.txt
