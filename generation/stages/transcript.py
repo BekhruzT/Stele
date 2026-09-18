@@ -17,7 +17,6 @@ from core.stage_constants import \
 from prompts import \
     video_planner_prompts
 from prompts.prompts import (
-    ADD_TRANSCRIPT_PAUSES_SYSTEM_PROMPT, ADD_TRANSCRIPT_PAUSES_USER_PROMPT,
     CONCLUSION_SLIDE_BULLETS_SYSTEM_PROMPT,
     CONCLUSION_TRANSCRIPT_SYSTEM_PROMPT, CONCLUSION_TRANSCRIPT_USER_PROMPT,
     EXPLANATION_TECHNIQUE_PER_CONCEPT_SYSTEM_PROMPT,
@@ -32,7 +31,11 @@ from prompts.prompts import (
     MCQ_PER_CONCEPT_USER_PROMPT, RECAP_PLAN_SYSTEM_PROMPT, RECAP_PLAN_USER_PROMPT,
     SYNTHESIZE_RELATIONSHIPS_SYSTEM_PROMPT, SYNTHESIZE_RELATIONSHIPS_USER_PROMPT,
     get_explanation_base_system_prompt, get_explanation_base_system_prompt, get_explanation_base_user_prompt,
-    introduce_historic_figure_sub_prompt, language_guidelines)
+    introduce_historic_figure_sub_prompt, language_guidelines,
+    get_lore_cold_open_system_prompt, LORE_COLD_OPEN_USER_PROMPT,
+    get_lore_segment_system_prompt, LORE_SEGMENT_USER_PROMPT,
+    get_lore_bridge_system_prompt, LORE_BRIDGE_USER_PROMPT,
+    get_lore_close_system_prompt, LORE_CLOSE_USER_PROMPT)
 from core.parsers import str_2_json
 from elevenlabs import HistoryAlignmentResponseModel
 from pydantic import BaseModel
@@ -40,6 +43,7 @@ from core.context import APVideoContext as Context
 from core.clients.openai import (LLM, chat_complete, llm_complete, system_message,
                           user_message, ensure_json)
 from core.clients.s3 import load_json_from_s3
+from core.clients.speech import add_narration_pauses
 
 logger = logging.getLogger(__name__)
    
@@ -67,7 +71,7 @@ def generate_questions_per_concept(concept: Concept, concept_trancript: str) -> 
             concept_transcript=concept_trancript, 
             concept_syllabus=format_concept(concept)
         ),
-        model=LLM.CLAUDE_3_7_SONNET_THINKING,
+        model=LLM.CLAUDE_5_OPUS,
         tag="mcq_set",
         is_json=True
     )
@@ -83,7 +87,7 @@ def generate_questions_per_concept(concept: Concept, concept_trancript: str) -> 
     else: 
         qc_context += "\n\nSkip evaluation of Answer Length Balance."
 
-    return LLMCallOutput(content=mcqs, model=LLM.CLAUDE_3_7_SONNET_THINKING, history=history, 
+    return LLMCallOutput(content=mcqs, model=LLM.CLAUDE_5_OPUS, history=history, 
                         postprocess = lambda text: [mcq if isinstance(mcq, dict) else ensure_json(mcq) for mcq in json.loads(extract_tag_content('mcq_set', text))],
                         context=qc_context)
 
@@ -127,44 +131,15 @@ def choose_concept_explanation_technique(concept: str) -> str:
     _, chosen_technique = llm_call(
         system_prompt=EXPLANATION_TECHNIQUE_PER_CONCEPT_SYSTEM_PROMPT,
         user_prompt=EXPLANATION_TECHNIQUE_PER_CONCEPT_USER_PROMPT.format(concept=concept),
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
+        model=LLM.CLAUDE_5_SONNET,
         tag="decision"
     )
 
     return chosen_technique
 
 def add_transcript_pauses(transcript: str, comment: str = '') -> str:
-    paragraphs = transcript.split('\n\n')
-    processed_segments = []
-    
-    for i in range(0, len(paragraphs), 4):
-        segment = '\n\n'.join(paragraphs[i:i+4])
-        history, processed_segment = llm_call(
-            system_prompt=ADD_TRANSCRIPT_PAUSES_SYSTEM_PROMPT,
-            user_prompt=ADD_TRANSCRIPT_PAUSES_USER_PROMPT.format(transcript=segment) + comment,
-            model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
-            tag="modified_transcript"
-        )
-
-        processed_segment_cleaned = re.sub(r'\W+', '', re.sub(r'<\s*pause\s*=\s*"[^"]*"\s*>', '', processed_segment)).lower()
-        unmatched_sentences = [
-            sentence for sentence in re.split(r'(?<=[.!?]) +', segment)
-            if re.sub(r'\W+', '', sentence).lower() not in processed_segment_cleaned
-        ]
-        if unmatched_sentences:
-            print(f"Pauses introduced phrase mismatches: {unmatched_sentences}. Fixing")
-            _, processed_segment = llm_call(
-                system_prompt='',
-                user_prompt=f"The modified transcript did not match the original one exactly. Please ensure that, apart from added pauses, the modified transcript is identical to the original. The sentences that were not included in the modified transcript are listed below:\n\n<unmatched_sentences>\n{json.dumps(unmatched_sentences, indent=2)}\n</unmatched sentences>\n\nPlease rewrite the entire transcript within the same <modified_transcript> tag, making sure to correct the discrepancies and ensure that the modified transcript matches the original one exactly.",
-                model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
-                tag="modified_transcript",
-                history=history
-            )
-
-        processed_segments.append(processed_segment)
-    
-    paused_transcript = '\n\n'.join(processed_segments)
-    return re.sub(r'<\s*pause\s*=\s*"', '<break time="', paused_transcript)
+    """Add deterministic pauses without rewriting any narration."""
+    return add_narration_pauses(transcript)
 
 @qc_llm_call('Transcript', 'LESSON INTRODUCTION')
 def generate_introduction_transcript(context: Context, video_plan: VideoPlan) -> LLMCallOutput:
@@ -179,10 +154,10 @@ def generate_introduction_transcript(context: Context, video_plan: VideoPlan) ->
             unit=get_unit_from_chapter(context.subject, context.chapter),
             sections=lesson_plan
         ),
-        model=LLM.CLAUDE_3_7_SONNET_THINKING,
+        model=LLM.CLAUDE_5_OPUS,
         tag="introduction"
     )
-    return LLMCallOutput(content=introduction, model=LLM.CLAUDE_3_7_SONNET, history=history, 
+    return LLMCallOutput(content=introduction, model=LLM.CLAUDE_5_SONNET, history=history, 
                          postprocess = lambda text: extract_tag_content('introduction', text))
 
 @qc_llm_call('Transcript', 'SECTION OVERVIEW')
@@ -199,10 +174,10 @@ def generate_section_overview(context: Context, video_plan: VideoPlan, sections:
             section_n=section_n + 1,
             concepts="\n".join([" - " + concept.concept_name for concept in current_section.concepts])
         ),
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
         tag="section_overview"
     )
-    return LLMCallOutput(content=section_overview, model=LLM.CLAUDE_3_7_SONNET, history=history, 
+    return LLMCallOutput(content=section_overview, model=LLM.CLAUDE_5_SONNET, history=history, 
                         postprocess = lambda text: extract_tag_content('section_overview', text))
 
 
@@ -223,7 +198,7 @@ def generate_section_conclusions(context: Context, video_plan: VideoPlan, main_t
     _, conclusion_bullets = llm_call(
         system_prompt=CONCLUSION_SLIDE_BULLETS_SYSTEM_PROMPT.format(subject=context.subject),
         user_prompt=f"```json\n{json.dumps(lesson_plan, indent=2)}\n```",
-        model=LLM.O1,
+        model=LLM.GPT_5,
         is_json=True
     )
     print_json(conclusion_bullets)
@@ -238,7 +213,7 @@ def generate_section_conclusions(context: Context, video_plan: VideoPlan, main_t
         _, conclusion_transcript = llm_call(
             system_prompt=CONCLUSION_TRANSCRIPT_SYSTEM_PROMPT.format(subject=context.subject),
             user_prompt=json.dumps(conclusion_info, indent=2),
-            model=LLM.O1,
+            model=LLM.GPT_5,
             tag="conclusion_transcript"
         )
         section_conclusions[section_title] = conclusion_transcript
@@ -250,10 +225,10 @@ def generate_lesson_conclusion_transcript(context: Context, video_plan: VideoPla
     history, conclusion_transcript = llm_call(
         system_prompt=CONCLUSION_TRANSCRIPT_SYSTEM_PROMPT.format(subject=context.subject),
         user_prompt=CONCLUSION_TRANSCRIPT_USER_PROMPT.format(title=video_plan.lesson_title, bullets=json.dumps(conclusion_bullets, indent=2)),
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
         tag="conclusion_transcript"
     )
-    return LLMCallOutput(content=conclusion_transcript, model=LLM.CLAUDE_3_7_SONNET, history=history, 
+    return LLMCallOutput(content=conclusion_transcript, model=LLM.CLAUDE_5_SONNET, history=history, 
                         postprocess = lambda text: extract_tag_content('conclusion_transcript', text))
 
 def generate_lesson_conclusion(context: Context, video_plan: VideoPlan) -> Tuple[ConclusionSlideNew, str]:
@@ -270,7 +245,7 @@ def generate_lesson_conclusion(context: Context, video_plan: VideoPlan) -> Tuple
     _, conclusion_bullets = llm_call(
         system_prompt=CONCLUSION_SLIDE_BULLETS_SYSTEM_PROMPT.format(subject=context.subject),
         user_prompt=f"There are {len(lesson_plan[video_plan.lesson_title]['sections'])} sections. Ensure that there is only one main-bullet and one sub-bullet for each section, no more.\n```json\n{json.dumps(lesson_plan, indent=2)}\n```",
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
+        model=LLM.CLAUDE_5_SONNET,
         is_json=True
     )
 
@@ -316,7 +291,7 @@ def generate_question(
             topic=context.subsection,
             concept=format_concept(concept)
         ),
-        model=LLM.O1,
+        model=LLM.GPT_5,
         tag="best_connection"
     )
 
@@ -329,7 +304,7 @@ def generate_question(
             historic_figure_intro=introduce_historic_figure_sub_prompt.format(figure_name=concept.figure_name, upcoming_concepts=upcoming_concepts) if is_figure_intro else "",
             historic_figure_part="\n  - Character introduction (1 sentence)" if is_figure_intro else "",
         ),
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
+        model=LLM.CLAUDE_5_SONNET,
         history=history
     )
 
@@ -341,7 +316,7 @@ def generate_question(
 
     postprocessor = lambda text: (lambda s: (' '.join(s[:-1]), s[-1] if s else ''))(re.split( r'(?<!\b(?:Dr|Mr)\.)(?<=[.!?])\s+', extract_tag_content("paragraph", text)))
 
-    return LLMCallOutput(content=postprocessor(paragraph), model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2, history=history, postprocess=postprocessor, context=context)
+    return LLMCallOutput(content=postprocessor(paragraph), model=LLM.CLAUDE_5_SONNET, history=history, postprocess=postprocessor, context=context)
 
 @qc_llm_call('Transcript', 'CONCEPT EXPLANATION')
 def generate_explanation(
@@ -379,7 +354,7 @@ def generate_explanation(
                 intra_unit_concepts=f"\nIf a concept has its field \"intra_unit\" set to True, add the marker \"(INTRA UNIT)\" at the end of the relationship statement, just before the period.\n" if prior_lessons_relationships else ""
             ),
             tag="relationship_statement",
-            model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2
+            model=LLM.CLAUDE_5_SONNET
         )
     else:
         logger.warning(f"No relationships found for concept {concept.concept_name}")
@@ -403,12 +378,12 @@ def generate_explanation(
             ask_question=concept.includes_question
         ),
         tag="answer",
-        model=LLM.O1
+        model=LLM.GPT_5
     )
 
     syllabus = f"Concept: {concept.concept_name}.\nConcept Details:\n  - " + "\n  - ".join(concept.facts)
     context = f"The syllabus for this concept is provided below, verify that the transcript fully covers all the details mentioned in the syllabus:\n<syllabus>\n{syllabus}\n</syllabus>"
-    return LLMCallOutput(content=explanations, model=LLM.O1, history=history, context=context,
+    return LLMCallOutput(content=explanations, model=LLM.GPT_5, history=history, context=context,
                         postprocess = lambda text: extract_tag_content('answer', text))
 
 # @with_logging_context
@@ -428,7 +403,7 @@ def generate_recap(
             concept_explanation=explanation
         ),
         tag="recap",
-        model=LLM.O1
+        model=LLM.GPT_5
     )
 
     return recap.strip()
@@ -510,12 +485,215 @@ def generate_main_transcript(
 
     return section_overview, transcript_data
 
+# ==================== LORE / SLEEP NARRATION ================================================
+
+def _tail_words(text: str, n: int = 600) -> str:
+    words = text.split()
+    return " ".join(words[-n:])
+
+
+def generate_lore_cold_open(context: Context, video_plan: VideoPlan, target_minutes: int) -> str:
+    sections_summary = "\n".join(
+        f"- {section.simple_title}: " + "; ".join(c.concept_name for c in section.concepts)
+        for section in video_plan.sections
+    )
+    _, response = llm_call(
+        system_prompt=get_lore_cold_open_system_prompt(context.subject, target_minutes),
+        user_prompt=LORE_COLD_OPEN_USER_PROMPT.format(
+            topic=video_plan.simple_title,
+            sections=sections_summary
+        ),
+        model=LLM.CLAUDE_5_OPUS,
+        tag="cold_open"
+    )
+    return response.strip()
+
+
+def generate_lore_segment(
+    context: Context,
+    topic: str,
+    concept,
+    narrative_so_far: str,
+    upcoming_note: str,
+    progress_pct: int
+) -> str:
+    _, response = llm_call(
+        system_prompt=get_lore_segment_system_prompt(progress_pct),
+        user_prompt=LORE_SEGMENT_USER_PROMPT.format(
+            topic=topic,
+            narrative_so_far=narrative_so_far or "This is the very beginning of the story.",
+            concept=format_concept(concept),
+            upcoming=upcoming_note
+        ),
+        model=LLM.CLAUDE_5_OPUS,
+        tag="segment"
+    )
+    return response.strip()
+
+
+def generate_lore_bridge(previous_ending: str, next_opening_note: str) -> str:
+    _, response = llm_call(
+        system_prompt=get_lore_bridge_system_prompt(),
+        user_prompt=LORE_BRIDGE_USER_PROMPT.format(
+            previous_ending=previous_ending,
+            next_opening_note=next_opening_note
+        ),
+        model=LLM.CLAUDE_5_SONNET,
+        tag="bridge"
+    )
+    return response.strip()
+
+
+def generate_lore_close(topic: str, opening_note: str, narrative_so_far: str, target_words: int) -> str:
+    _, response = llm_call(
+        system_prompt=get_lore_close_system_prompt(target_words),
+        user_prompt=LORE_CLOSE_USER_PROMPT.format(
+            topic=topic,
+            opening_note=opening_note,
+            narrative_so_far=narrative_so_far
+        ),
+        model=LLM.CLAUDE_5_OPUS,
+        tag="close"
+    )
+    return response.strip()
+
+
+def get_lore_transcript_string(lesson_transcript: TranscriptLesson) -> str:
+    blocks = [lesson_transcript.introduction]
+    for section in lesson_transcript.sections.values():
+        if section.overview:
+            blocks.append(section.overview)
+        for concept in section.explanations.values():
+            if concept.question:
+                blocks.append(concept.question)
+            blocks.append(concept.explanation)
+            if concept.recap:
+                blocks.append(concept.recap)
+    if lesson_transcript.conclusion:
+        blocks.append(lesson_transcript.conclusion)
+    return "\n\n".join(f"[Host]: {block}" for block in blocks if block)
+
+
+def generate_lore_lesson_transcript(
+    context: Context,
+    video_plan: VideoPlan,
+    narration_params: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Single-host 'sleep lore' narration: one continuous story, no Q&A, no MCQs, built to run 60+ min."""
+    target_minutes = narration_params.get("target_minutes", 60)
+    wpm = narration_params.get("words_per_minute", 135)
+    total_words = target_minutes * wpm
+
+    concepts = [(section, concept) for section in video_plan.sections for concept in section.concepts]
+    n = len(concepts)
+    if n == 0:
+        raise ValueError("Lore narration needs at least one concept in the video plan")
+
+    cold_open_words = min(450, max(250, round(total_words * 0.05)))
+    close_words = min(300, max(150, round(total_words * 0.04)))
+    bridge_words_total = max(0, n - 1) * 60
+    segment_words = max(150, round(
+        max(total_words - cold_open_words - close_words - bridge_words_total, n * 150) / n
+    ))
+
+    logger.info(f"Lore narration: {n} concepts, ~{segment_words} words each, target {total_words} total")
+
+    logger.info("Generating lore cold open")
+    cold_open = generate_lore_cold_open(context, video_plan, target_minutes)
+
+    lesson_transcript = TranscriptLesson(introduction=cold_open, sections={}, conclusion='')
+    narrative_so_far = cold_open
+    opening_note = cold_open[:800]
+
+    concept_global_index = 0
+    for section_index, section in enumerate(video_plan.sections):
+        section_overview = ""
+        if section_index > 0:
+            next_concept = section.concepts[0]
+            logger.info(f"Generating lore bridge into section {section_index}")
+            section_overview = generate_lore_bridge(
+                previous_ending=_tail_words(narrative_so_far, 150),
+                next_opening_note=f"{section.simple_title}: {format_concept(next_concept)}"
+            )
+            narrative_so_far += "\n\n" + section_overview
+
+        explanations: Dict[str, TranscriptConcept] = {}
+        for local_index, concept in enumerate(section.concepts):
+            progress_pct = round(100 * concept_global_index / max(1, n - 1)) if n > 1 else 0
+            next_global = concept_global_index + 1
+            upcoming_note = (format_concept(concepts[next_global][1]) if next_global < n
+                            else "This is the final substory; the piece closes after it.")
+
+            logger.info(f"Generating lore segment {concept_global_index + 1}/{n}: {concept.concept_name}")
+            segment = generate_lore_segment(
+                context=context,
+                topic=video_plan.simple_title,
+                concept=concept,
+                narrative_so_far=_tail_words(narrative_so_far),
+                upcoming_note=upcoming_note,
+                progress_pct=progress_pct
+            )
+            narrative_so_far += "\n\n" + segment
+
+            bridge = ""
+            is_last_in_section = local_index == len(section.concepts) - 1
+            is_last_overall = concept_global_index == n - 1
+            if not is_last_overall and not is_last_in_section:
+                next_concept = section.concepts[local_index + 1]
+                logger.info(f"Generating lore bridge after segment {concept_global_index + 1}")
+                bridge = generate_lore_bridge(
+                    previous_ending=_tail_words(segment, 150),
+                    next_opening_note=format_concept(next_concept)
+                )
+                narrative_so_far += "\n\n" + bridge
+
+            explanations[concept.concept_name] = TranscriptConcept(
+                concept=concept.concept,
+                question="",
+                explanation=segment,
+                recap=bridge,
+                figure_name="Host"
+            )
+            concept_global_index += 1
+
+        lesson_transcript.sections[section.section_title] = TranscriptSection(
+            overview=section_overview,
+            explanations=explanations,
+            conclusion=''
+        )
+
+    logger.info("Generating lore closing passage")
+    lesson_transcript.conclusion = generate_lore_close(
+        topic=video_plan.simple_title,
+        opening_note=opening_note,
+        narrative_so_far=_tail_words(narrative_so_far, 500),
+        target_words=close_words
+    )
+
+    transcript_string = get_lore_transcript_string(lesson_transcript)
+    paused_transcript = add_transcript_pauses(transcript_string)
+    logger.info("Lore transcript generated.")
+    return TranscriptOutput(
+        lesson_transcript=transcript_string,
+        lesson_transcript_paused=paused_transcript,
+        lesson_transcript_breakdown=lesson_transcript,
+        supplementary_content=None
+    ).model_dump()
+
+
+# ==================== LESSON TRANSCRIPT (exam-prep Q&A style) ==================================
+
 @with_logging_context(layer=LayerName.TRANSCRIPT)
 @exception_handler
 def generate_lesson_transcript(output_path: str, output_type: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"Generating Iterative Lesson Transcript")
     context = Context(**inputs)
     video_plan = VideoPlan(**load_json_from_s3(context.video_plan_path)['video_plan'])
+
+    narration_params = inputs.get("NARRATION_PARAMS", {})
+    if narration_params.get("style") == "lore_sleep":
+        return generate_lore_lesson_transcript(context, video_plan, narration_params)
+
     knowledge_graph = LessonKnowledgeGraph(**load_json_from_s3(context.kg_path))
 
     logger.info("Generating introduction transcript")

@@ -2123,7 +2123,7 @@ If method is Direct Reference:
 ```"""
 
 TRANSCRIPT_INSERT_VISUAL_REFERENCE_USER_PROMPT = """Pick the method to incorporating the image. The image to be added is of the {artifact}.
-  
+
 <transcript>
 {transcript}
 </transcript>
@@ -2131,3 +2131,303 @@ TRANSCRIPT_INSERT_VISUAL_REFERENCE_USER_PROMPT = """Pick the method to incorpora
 <diagram>
 {diagram}
 </diagram>"""
+
+
+# =========================== LORE / SLEEP NARRATION =============================================
+# Sentence and pacing targets below are measured off the channels that own this format, not invented.
+
+lore_language_guidelines = """
+**Voice for a Sleep-Lore Narration**
+One host, read aloud, for someone lying in the dark with their eyes closed. Follow these rules;
+check the examples to stay calibrated.
+
+1) SENTENCE LENGTH AND RHYTHM. Aim for 22-26 words on average. Most sentences belong in the
+   14-32 word range; 38 words is a hard ceiling. Split before a second subordinate clause starts
+   carrying a second fact. After one long sentence, let the next land at 12-20 words. A sentence
+   under nine words is a rare landing point, no more than once per paragraph. Continuity belongs
+   between paragraphs and scenes; an individual sentence may finish cleanly without dragging the
+   next sentence behind it with "and," "but," or another dependent clause.
+2) PLAIN, NOT ORNATE. Plainness comes from word choice and syntax, never from brevity -- a long
+   sentence is fine, an ornate one is not. Write like a knowledgeable friend talking quietly, not
+   like a novelist: everyday vocabulary, contractions, ordinary syntax. Avoid clause-folding that
+   unspools for four lines, literary imagery, and stacked figures of speech -- at most one plain
+   simile every few paragraphs, and no more than one sensory clause at a time before you move on.
+   Ornateness is the most common failure mode here; if a sentence sounds like printed-book prose,
+   rewrite it with plainer words, not fewer of them. Technical and period terms are ornateness
+   too: any term a tired non-specialist may not know (sextant, escapement, interdict, caravel)
+   either gets a plain gloss folded into the same sentence on first use, set off with commas
+   ("a sextant, the handheld instrument sailors used to measure how high the sun sat") or is
+   replaced outright by the plain description. Never let a term stand in for an explanation.
+   Ration em-dashes to at most one per paragraph — dash-heavy prose is itself a tell; commas,
+   parentheses, and "called X," do the same work more quietly.
+3) DENSITY, NOT PADDING. Every paragraph is anchored by a verifiable specific — a named person,
+   real date, real number, real mechanism. One or two plain connective sentences may carry no
+   proper noun; a tired listener needs room between names. Give separate facts separate sentences
+   instead of packing them into one comma chain. For the single largest number in a segment, one
+   human-scale comparison may help. Draw it from the story's own world or from plain
+   universal measures — never from a modern object the material doesn't mention (no smartphones,
+   no tennis courts), and never state a comparison you can't verify: a wrong analogy is worse
+   than a bare number. Do not write standalone announcement sentences ("Here's where
+   it gets strange.") — fold anticipation into the sentence that carries the fact. Brief
+   atmospheric passages (the physical world the actors moved through: weather, terrain, light,
+   texture, sound) are valid substance, not filler; they give the listener density respite and are
+   distinct from empty commentary.
+4) CONFIDENT IGNORANCE. When sources are silent, say exactly what is unknown and why, then return
+   to the known facts. Do not manufacture a lesson from every silence, call the gap revealing, or
+   turn missing records into a profound-sounding conclusion.
+5) Quote primary sources. Wherever a real document, chronicle, letter, inscription or traveller's
+   account appears in the facts you were given, quote it directly and say who wrote it and roughly
+   when. This is the strongest texture available here and it costs nothing.
+6) SIGNPOST SPARINGLY. At most one orienting phrase per segment may help a listener who drifted
+   and rejoined. Keep it brief and inside the factual movement. Do not open a paragraph with
+   "To understand that, we need to look at..." or turn orientation into a repeated template.
+7) CURIOUS, NEVER GRIPPING, AND FLAT IN ENERGY. The listener should stay mildly interested but must
+   never NEED to know what happens next: no cliffhangers, no withheld reveals, no "what happened
+   next would change everything" -- resolve things as you go. Keep the energy even start to finish,
+   with no build to a climax and nothing a narrator would raise their voice for. Minute 80 should
+   be about as engaging as minute 5. Viewers of this format complain specifically when an episode
+   turns out too interesting to fall asleep to.
+8) One narrator throughout. If a historical figure's words matter, quote them inside the narration
+   ("He wrote that...", "According to the chronicle...") rather than performing them as a second
+   speaker. Never write a dialogue tag for a second character.
+9) A correction can be useful once in an opening when the supplied facts establish the mistaken
+   belief. Do not make myth-busting a repeating structure or invent what "most people assume."
+10) Avoid AI-giveaway phrasing: "these interconnected aspects," "revolutionary transformation,"
+   "unprecedented," "groundbreaking," "let's dive in," "buckle up," "fascinating," "stay tuned,"
+   "little did they know," "stands as a testament."
+11) AUDIO-HOSTILE FORMATS. Never deliver a correspondence table or enumerated mapping as a list
+   ("A means X, B means Y, C means Z, D means W"). A listener cannot track a memorisation list
+   while drifting. If information requires mapping several items to their equivalents, embed the
+   most important one or two naturally in prose and let the rest go: "Sogdian families took
+   Chinese surnames keyed to their home cities — Kang for Samarkand, An for Bukhara" is enough;
+   listing all five is audio-hostile. The same applies to any list of more than two items that
+   requires active retention to use.
+12) Stay inside the facts. Names, dates, numbers, events and decisions must come from the facts you
+    were given. Modest scene-setting (weather, the look of a room) may be filled in, but keep it
+    light and never invent a specific claim.
+13) NEVER SELL THE STORY. Do not tell the listener a fact is important, surprising, or the reason
+    the story exists ("that number is the reason this story gets told at all", "this is what
+    matters most") — and write no aphoristic pivot lines that dress a fact up as a clever reversal
+    ("It was, more precisely, a clock that did not exist yet"). Both read as a narrator pushing an
+    agenda, and the listener hears the push. State the fact in plain order and move on; if it is
+    interesting, it will be interesting on its own.
+14) SAY IT ONCE. A fact, definition, or gloss appears in full exactly once in the whole piece.
+    If it has already been narrated, touch it in half a sentence at most, naming the thing itself
+    ("the wreck off Scilly", "the £20,000 prize") — never a second retelling, never a second gloss
+    of a term already explained, and never a citation of your own narration ("as already covered
+    in this account", "already described earlier"): the listener was asleep for half of it and
+    the reference must read naturally either way. A person gets full name and title on first
+    mention only; after that, surname alone.
+15) EXACT AND CONSISTENT. Spell every name and place exactly as the material spells them, and keep
+    every number and date identical each time it recurs. Never drift to a variant spelling, a
+    different county, or a differently rounded figure for the same fact.
+16) BANNED RHETORIC — each of these patterns reads as generated text, and one instance is enough
+    to break the spell:
+    - negation-first drama: "was not an abstraction", "This was not X. It was Y.", "Nobody had
+      rescinded the Act — no clerk had misfiled it."
+    - echo repetition: "It killed men, and it killed them in large numbers"; two consecutive
+      sentences opening on the same negation ("No storm... No instrument...").
+    - narration about the narration: "a gap worth naming plainly", "is where this story goes
+      next", "a thread this account picks up later", "a separate thread we'll pick up".
+    - referring to your source or your own narration: "the material", "the concepts you were
+      given", "the record before us", "this account", "this telling", "as already noted", "as
+      mentioned earlier", "already described", "that will be covered later". The listener must
+      never sense a document behind the voice — refer back by naming the thing itself ("the
+      wreck off Scilly"), and say "no ship's log names him", never "the material doesn't say".
+    - profundity that doesn't parse: "outlasted him by only two days short of nothing at all".
+    - stock thesis pivots: "At its heart", "crucially", "it is worth noting", "The picture most
+      of us have", "And so we come to", "To understand that, we need to look at".
+    Say the plain version instead, or cut the sentence.
+17) HOW WE KNOW IS PART OF THE STORY. When the facts name a source — a chronicler, a signed
+    certificate, an archive, a modern researcher — spend at most one paragraph on who recorded
+    the fact and whether they witnessed it. Most segments need no archive paragraph. Never repeat
+    that records are incomplete merely because the subject changed.
+18) DO NOT KEEP RESTATING THE THESIS. A framing claim gets one full statement in the opening and
+    may return briefly in the close. Inside the body, stay with the place and people in front of
+    you. Do not repeatedly announce where power, wealth, knowledge, or the "real center" sat.
+
+<examples>
+AVOID (ornate and clause-folding -- the problem is the literary vocabulary and stacked imagery,
+not the length): "Somewhere north of the Gobi, where the grass runs pale and long under a sky
+that has no edge to it, the old riders gave a name to the wind that comes down off the mountains,
+because it carried the cold that had slept all winter in the stone."
+USE (plain vocabulary, medium-length, flowing -- not chopped into short fragments): "In early
+spring a cold wind comes down off the Khentii mountains, and the riders who lived on that grass
+had a name for it. They called it the grey wind, because it carried the cold that had been sitting
+inside the stone all winter long."
+
+AVOID (choppy -- short sentences stacked, subjects hopping, flat tails; this is the cheap AI
+register): "They'd come from the Black Sea. A Franciscan friar named Michele da Piazza lived in
+the city. He wrote down what happened. And here's the part almost nobody expects. The people who
+lived through it came out better off."
+USE (medium, flowing, dense, no empty announcements): "They had come from the Black Sea, and a
+Franciscan friar named Michele da Piazza watched them dock and wrote down what he saw. What nobody
+expected was that the people who lived through the years ahead would come out better off than
+their parents had ever been."
+
+AVOID (refuses to signpost): "The ships kept coming into port even as the deaths climbed."
+USE (signposts openly): "We'll come back to those ships shortly. But first we need to talk about
+where the sickness had already been, years before it ever reached Italy."
+
+AVOID (suspense that keeps a listener awake): "What happened next would change the empire forever,
+and not for the better..."
+USE (resolves as it goes): "The decision was made that spring, and it turned out badly. We know
+roughly why, because two of the men in the room wrote about it afterwards."
+
+AVOID (no source, no number): "The city was enormous and impressed everyone who saw it."
+USE (quoted source, hard number): "A Portuguese missionary called Antonio da Madalena reached it
+in 1586. He wrote that it was 'of such extraordinary construction that it is not possible to
+describe it with a pen.' The city covered more than a thousand square kilometres. That is larger
+than modern New York."
+
+AVOID (dialogue as a second speaker): "[Advisor]: My lord, the granaries are empty."
+USE (reported in one voice): "His advisors told him the granaries were empty. One of them wrote
+later that the king already knew."
+</examples>
+"""
+
+
+LORE_COLD_OPEN_SYSTEM_PROMPT = """You are writing the opening of a long-form (about {target_minutes} minutes) "sleep-lore" history video: one continuous host narrating a true story from history, meant to run as background listening for someone falling asleep. The subject area is {subject}.
+
+This opening is the most important passage in the piece, and for a reason specific to this format: listeners replay these videos many times and almost never reach the end, so the opening is the part actually heard.
+
+It has to excite and intrigue. But the excitement comes from SCALE, PARADOX and WONDER -- never from suspense, threat, or withholding an answer. "Half of Europe died in four years, and the survivors came out richer" is the right kind of hook: it is startling, and it resolves rather than teases. A cliffhanger is the wrong kind.
+
+Write it as four short movements, in one continuous flow. Do not label them or number them.
+
+1. THE BIG PICTURE. Open wide. Before any specific scene, give the listener the whole subject at a glance and a reason to care about the next hour: the scale of the thing, the stakes, and the central paradox or surprise at the heart of it. Lead with your single most striking true fact or comparison drawn from the material you were given — do not reach outside it for a bigger statistic — stated in short plain sentences. A myth-bust is the strongest form -- name what most people assume, then say the evidence points somewhere else. This movement is what makes someone stay, and it must come FIRST. Do not open on a named individual on a particular afternoon; that is movement 2. Three to six short sentences.
+2. THE SCENE. Now descend from the wide view into one specific, documented moment: a named person, a real date, a real place, drawn from the material you were given. The strongest version -- the device Fall of Civilizations uses in nearly every episode -- is a traveller from a LATER era stumbling on the remains of the thing this video is about: a missionary reaching ruins in the jungle, a scholar finding a buried library -- but use it only when the material supplies that traveller and their words. Quote a written source only if the material contains the quote; never invent one, recall one from memory, or introduce a person the material does not mention. Keep sensory description to a clause or two -- this is a factual scene, not a mood piece. Make the descent explicit if it helps ("But it starts with twelve ships.").
+3. THE PROMISE. Tell the listener, in plain language, three or four specific and genuinely odd things they will hear about later. Name them concretely -- a lost legion, a letter that was never delivered, a king buried under a car park. Strange and specific is what makes this work. Do not write an abstract table of contents, and do not say "in this video we will explore."
+4. THE SETTLE-IN. Close the opening by inviting the listener to get comfortable, in plain conversational words, as its own short beat. This is a genre convention and it is spoken directly, not woven into the historical scene: something in the spirit of "So get comfortable, dim the lights, and let's take this slowly." Then begin the story proper.
+
+Do NOT end the opening on a cliffhanger or an unresolved threat. End it by simply starting.
+
+{lore_language_guidelines}
+
+Write only the opening passage itself, inside <cold_open>...</cold_open> tags -- no preamble, no meta-commentary, nothing outside the tags. Target length: {target_words} words."""
+
+LORE_COLD_OPEN_USER_PROMPT = """The full story this video will tell is: "{topic}", covering:
+<sections>
+{sections}
+</sections>
+
+Use these to choose a documented opening scene, and to pick the three or four strangest, most specific details to name in the promise. Name those details concretely; do not restate the section list as an outline.
+"""
+
+def get_lore_cold_open_system_prompt(subject: str, target_minutes: int, target_words: int = 400) -> str:
+    return LORE_COLD_OPEN_SYSTEM_PROMPT.format(
+        subject=subject, target_minutes=target_minutes, target_words=target_words,
+        lore_language_guidelines=lore_language_guidelines)
+
+
+LORE_SEGMENT_SYSTEM_PROMPT = """You are the sole narrator of a long-form "sleep-lore" history video, continuing a story already in progress. You are about {progress_pct}% of the way through the piece; {pacing_note}
+
+Your task is to turn one concept from the syllabus into its own self-contained segment that also advances the larger story. Getting the depth right is the entire craft here:
+
+- BEGIN IN THE MATERIAL. Never open with "So let's", "Let's now look at", "Let's take X", or any sentence that announces what you are about to do. Never restate the topic as an opening line. The bridge before this segment has already set the direction — enter the content directly: open on a fact, a person, a date, or a place. The reader will follow without being told they are about to follow.
+- Go deep — CONCRETE AND PROCEDURAL, not lyrical. Walk through the real mechanics step by step: how a ritual was performed, how a ship was loaded, how a law was enforced, who did which job and in what sequence. Name the people, dates, and numbers the listener needs, then allow a plain sentence between dense clusters. Use at most one human-scale comparison in the segment, for the single measurement that most needs it. Quote a source only when the supplied facts contain its words.
+- Every 500-700 words of entity-dense narration, insert one 40-80 word atmospheric passage with near-zero proper nouns: the physical world the actors moved through — the weather, the terrain, the sounds, the texture of the place. These are not filler; they lower listener entity density and give the mind space to drift. Example register: "The road ran through flat country here, past fields that had been worked for centuries. The air in summer was thick with dust from the caravans, and it settled on everything within a mile of the main track." Then return to the facts.
+- Keep the energy flat throughout. This segment must not be more dramatic than its neighbours; bring it to a plain resting point. END ON A FACT: the last sentence states a fact, plainly, and stops — never end by announcing what the account covers next ("What the Board made of that is where this story goes next"); the bridge handles the handoff. If a thread genuinely must wait, one plain mid-segment sentence ("We'll come back to the prize money.") is enough, and at most once every few segments.
+- Write as much as this concept genuinely warrants — no more, no less. A concept with many specific documented facts may need 500-800 words; a genuinely narrower one may need 300. The test: would a new reader understand both what happened and why it mattered? Stop when yes.
+
+{lore_language_guidelines}
+
+Write only the substory itself, inside <segment>...</segment> tags -- no headers, no labels, no meta-commentary."""
+
+LORE_SEGMENT_USER_PROMPT = """Topic of the overall piece: "{topic}"
+
+What has happened in the narration so far (a compressed summary, not verbatim -- do not repeat it, just stay consistent with it and build from where it left off):
+```
+{narrative_so_far}
+```
+
+The concept to turn into this substory:
+```
+{concept}
+```
+
+What comes immediately after this substory, for your own awareness only (do not preview or mention it directly -- just make sure your ending thread points naturally toward it):
+```
+{upcoming}
+```
+"""
+
+def get_lore_segment_system_prompt(progress_pct: int) -> str:
+    # Deliberately close to flat: this format does not escalate, and most listeners are asleep.
+    if progress_pct < 25:
+        pacing_note = ("keep the energy level and unhurried. Concrete detail is what holds a "
+                       "listener here, not drama. Place the listener in the world before "
+                       "naming everything in it — keep entity density lighter here.")
+    elif progress_pct < 60:
+        pacing_note = ("hold the same steady register. This is the factual heart of the piece; "
+                       "entity density can rise — listeners who have stayed are calibrated. "
+                       "Do not escalate the emotional register, only the specificity.")
+    else:
+        pacing_note = ("hold the same steady register. Most listeners are already asleep. "
+                       "Begin stepping back from dense proper-noun sequences toward reflective, "
+                       "lower-density prose — the shape of the piece should be widening again, "
+                       "not tightening. If the concept requires many unfamiliar proper nouns, "
+                       "introduce only the two or three most essential ones; let the others "
+                       "stay in the background or be omitted. A late-piece listener has no "
+                       "mental headroom to track a new cast of characters.")
+    return LORE_SEGMENT_SYSTEM_PROMPT.format(
+        progress_pct=progress_pct, pacing_note=pacing_note,
+        lore_language_guidelines=lore_language_guidelines)
+
+
+LORE_BRIDGE_SYSTEM_PROMPT = """You are the sole narrator of a long-form sleep-lore history video, writing a short connective passage between two segments. Use one to three plain sentences.
+
+If the two moments share a real cause, place, person, object, or date, name that connection once and move. If they do not, make a clean geographic or temporal scene cut; do not recap the previous passage merely to manufacture continuity. A bridge may ask a question occasionally, but most should not. Never use a fixed rotation of bridge templates.
+
+Do not end the bridge by naming the next topic, in any phrasing — "X is next", "we turn to X now", "the towns are next", "we'll pick that up next", "we'll come to that next", "more on that shortly". Any sentence whose job is to promise that a topic is coming is the same violation regardless of which verb carries it. The bridge opens the door; the segment walks through it. End on a question, an image, or a pivot phrase — the next segment begins without re-announcement.
+
+Do not use "That's where we'll leave X for now. To understand what happened next, we need to..." — it is a stock template and sounds like one after the third repetition. Do not end on a tease or cliffhanger.
+
+{lore_language_guidelines}
+
+Write only the bridge passage, inside <bridge>...</bridge> tags."""
+
+LORE_BRIDGE_USER_PROMPT = """End of the substory just told:
+```
+{previous_ending}
+```
+
+Where the next substory begins:
+```
+{next_opening_note}
+```
+"""
+
+def get_lore_bridge_system_prompt() -> str:
+    return LORE_BRIDGE_SYSTEM_PROMPT.format(lore_language_guidelines=lore_language_guidelines)
+
+
+LORE_CLOSE_SYSTEM_PROMPT = """You are the sole narrator, writing the closing passage of a long-form sleep-lore history video. By now the listener may well be asleep, and that is a success, not a failure -- write for whichever is true. This passage should:
+
+- Introduce no new information or concepts.
+- Return briefly to the opening question or scene, and give the plainest honest answer. Then let the topic stay larger than the telling: the best closes acknowledge that this subject contains more than one video can hold, without teasing a sequel. A quiet image that carries the open question works better than a neat summary — leave something still standing.
+- In the final paragraph, narrow to one concrete object, place, or physical action already present
+  in the opening. Introduce no comparison, new region, thesis, or historical balancing there.
+- End with "Good night" — two words, on their own, as the last thing spoken. Do not address the listener directly in the final passage ("you don't have to follow the rest of this," "you don't have to stay awake"); direct address at the end risks waking someone who is drifting. Let the image and "Good night" do the releasing work.
+- Do not tease a next episode.
+
+{lore_language_guidelines}
+
+Write only the closing passage, inside <close>...</close> tags. Target length: {target_words} words."""
+
+LORE_CLOSE_USER_PROMPT = """Topic of the piece: "{topic}"
+
+The opening image/question this piece began with:
+```
+{opening_note}
+```
+
+How the story arrived, in brief (for your own continuity -- do not restate it):
+```
+{narrative_so_far}
+```
+"""
+
+def get_lore_close_system_prompt(target_words: int = 250) -> str:
+    return LORE_CLOSE_SYSTEM_PROMPT.format(target_words=target_words,
+                                           lore_language_guidelines=lore_language_guidelines)
