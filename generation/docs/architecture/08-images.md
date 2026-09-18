@@ -40,7 +40,7 @@ Not here:
 
 - What the visual depicts. The description and the prompt came from [07](07-scenes-breakdown.md); this stage may reword a prompt but not change the subject.
 - Motion — [09](09-videos.md).
-- Where the image sits on screen or how long it shows — [10](10-shotstack.md).
+- Where the image sits on screen or how long it shows — [10](10-render.md).
 - Portraits of historical figures, which are a different generation with a different function — [05](05-avatar-clips.md).
 
 ## Flow
@@ -142,8 +142,8 @@ Aggregate, at `image_json_path`: `{"images": [ ...one of the above per clip... ]
 | fal.ai FLUX | `fal-ai/flux-pro/v1.1`, 1280x720 | generated stills | `FAL_KEY` |
 | Google Custom Search | image search on academic domains | maps and sourced imagery | `GCP_API_KEY`, `GCP_SEARCH_CXID` |
 | Lesson map database | `find_lesson_map_from_db` | curated maps | internal |
-| OpenAI | `chatgpt-4o-latest` | prompt rewriting on QC failure | `OPENAI_API_KEY` |
-| Vision QC | `absolute_image_qc`, `image_quality_check` in `core/clients/images.py` | candidate validation and ranking | via the LLM keys |
+| TrueFoundry gateway | `LLM.GPT_5` | prompt rewriting on QC failure | `TFY_API_KEY`, `TFY_BASE_URL` |
+| Vision QC | `absolute_image_qc`, `image_quality_check` in `core/clients/images.py` | candidate validation and ranking | via the gateway |
 | S3 | — | metadata and PNGs | AWS |
 
 ## Boundary
@@ -151,7 +151,7 @@ Aggregate, at `image_json_path`: `{"images": [ ...one of the above per clip... ]
 - **[09](09-videos.md) reads the per-clip JSON, not the aggregate.**
   - It resolves the chosen still by `human_choice` then `qc_choice`, and uses that image as the keyframe for image-to-video.
   - It also reads `type`: a clip whose image was AI-generated gets motion even when `media.type` is `IMAGE`, and a web-sourced map does not.
-- **[10](10-shotstack.md) falls back to this stage's output.**
+- **[10](10-render.md) falls back to this stage's output.**
   - It looks for a clip's video metadata first and uses the still only when no video exists, as an `ImageAsset` on the media track.
 - **`img_prompt` on the clip list may have been rewritten by this stage.**
   - Anything reading `clips_path` after stage 7 is reading a possibly-updated prompt, which is the one case where a later stage edits an earlier stage's artifact.

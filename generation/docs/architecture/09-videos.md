@@ -1,6 +1,6 @@
 # 09 — Video Gen Clips
 
-> Stage 8 of nine ([00](00-overview.md)). It sets each still from [08](08-images.md) in motion; [10](10-shotstack.md) lays the results on the timeline. This is the most expensive stage in the pipeline.
+> Stage 8 of nine ([00](00-overview.md)). It sets each still from [08](08-images.md) in motion; [10](10-render.md) lays the results on the timeline. This is the most expensive stage in the pipeline.
 
 ## What it does
 
@@ -40,7 +40,7 @@ Not here:
 - What the clip depicts, or its prompt — [07](07-scenes-breakdown.md), with the prompt possibly rewritten in [08](08-images.md).
 - The still itself — [08](08-images.md).
 - Talking heads — [05](05-avatar-clips.md). Those are a different vendor and a different track.
-- Placement, trimming or transitions in the finished lesson — [10](10-shotstack.md).
+- Placement, trimming or transitions in the finished lesson — [10](10-render.md).
 
 ## Flow
 
@@ -150,7 +150,7 @@ Aggregate, at `video_json_path`: `{"videos": [ ...one of the above per clip... ]
 | Kling via fal.ai | `fal-ai/kling-video/v1.6/pro/image-to-video` | primary motion | `FAL_KEY` |
 | Luma AI | `ray-1-6` image-to-video plus extensions | fallback and long clips | `LUMAAI_API_KEY` |
 | Google Gemini | `gemini_media_analysis` with `AI_VIDEO_QC_PROMPT` | the discarded verdict | `GEMINI_API_KEY` |
-| Anthropic Claude 3.5 Sonnet v2 | via `::reimagine_image_prompt` | unreachable | `CLAUDE_KEY` |
+| Claude 5 Sonnet | via `::reimagine_image_prompt` | unreachable | `TFY_API_KEY`, `TFY_BASE_URL` |
 | ffmpeg | local | duration fitting | — |
 | S3 | — | stills in, videos out | AWS |
 
@@ -158,7 +158,7 @@ Aggregate, at `video_json_path`: `{"videos": [ ...one of the above per clip... ]
 
 ## Boundary
 
-- **[10](10-shotstack.md) resolves each clip by looking for this stage's per-clip metadata first.**
+- **[10](10-render.md) resolves each clip by looking for this stage's per-clip metadata first.**
   - Found: the clip becomes a `VideoAsset` at volume 0, since the lesson's audio is the avatar track.
   - Not found: the clip falls back to [08](08-images.md)'s still as an `ImageAsset`.
   - So a clip that failed here degrades to a static image rather than breaking the render, which is why a silent QC failure is easy to miss.

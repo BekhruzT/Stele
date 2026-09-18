@@ -133,7 +133,7 @@ The published shape, which is what `segment.py` walks and what every `get_*_less
   - Each is guarded by its own `does_file_exist`, and the method returns early only when both exist.
 - **`generate_lesson_metadata` is the one upstream step that generates rather than copies.**
   - It produces `lesson_metadata`: `lesson_title`, `boundaries_and_purpose`, `perspective_guidance`, and `key_concepts`, alongside `key_concepts_feedback` and `key_phrases_feedback`.
-  - It uses `LLM.O1_PREVIEW` through `core/clients/openai.py`, with the older manual QC loop bounded by `core/stage_constants.py::NUMBER_OF_QC_ITERATIONS`.
+  - It uses `LLM.GPT_5` through `core/clients/openai.py`, with the older manual QC loop bounded by `core/stage_constants.py::NUMBER_OF_QC_ITERATIONS`.
   - It is the only caller of `APVideoContext.metadata_path`, which is versioned: the property walks `{key} - v1.json`, `{key} - v2.json` and so on and returns the highest that exists, so writing a new version is how metadata is superseded rather than replaced.
 - **`ops/authoring/metadata.py` is not a stage**, and it lives in `ops/` rather than `stages/` to say so. `run.py::STAGES` does not list it; `APVideosContentPlanner.generate_content_plan` is its only caller.
 - **`aggregate_content_plan` does not aggregate.**
@@ -162,7 +162,7 @@ The published shape, which is what `segment.py` walks and what every `get_*_less
   - `run.py::placeholders` fills it from `subsection.get("ContentPlan", [])`, but the video lesson plan stores that subtree under `Concepts`.
   - Stages that want the content plan read `APVideoContext.content_plan_path` from S3 instead, which is why the mismatch has never mattered.
 - **`{key}` is fixed here, once, by the four titles this layer chooses.**
-  - Every artifact in [02](02-knowledge-graph.md) through [10](10-shotstack.md) is filed under it.
+  - Every artifact in [02](02-knowledge-graph.md) through [10](10-render.md) is filed under it.
   - Changing a Cluster name or an L1 description in the spreadsheet re-keys every lesson beneath it.
 
 ## Seams

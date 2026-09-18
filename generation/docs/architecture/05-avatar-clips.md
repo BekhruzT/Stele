@@ -40,8 +40,8 @@ Not here:
 
 - Any word. The transcript is voiced as written — [04](04-transcript.md).
 - Any on-screen text besides the introduction cards — [06](06-text-overlays.md).
-- Where the avatar sits in frame or how large it is; that is timeline geometry — [10](10-shotstack.md).
-- Subtitles. They are generated at the end from the transcript, not from these timings — [10](10-shotstack.md).
+- Where the avatar sits in frame or how large it is; that is timeline geometry — [10](10-render.md).
+- Subtitles. They are generated at the end from the transcript, not from these timings — [10](10-render.md).
 
 ## Flow
 
@@ -77,7 +77,7 @@ flowchart TD
   - Host speech is generated at speed 1.1, guests at 1.0.
 
 - **A face is looked up before it is generated, and the lookup is fuzzy plus a model.**
-  - `::find_best_match` takes the top twenty rapidfuzz matches for the speaker's name against the library keys, then asks Claude 3.5 Sonnet whether any of them is actually this person. A name can be spelled several ways in a transcript, and fuzzy distance alone will confidently match the wrong ruler.
+  - `::find_best_match` takes the top twenty rapidfuzz matches for the speaker's name against the library keys, then asks Claude 5 Sonnet whether any of them is actually this person. A name can be spelled several ways in a transcript, and fuzzy distance alone will confidently match the wrong ruler.
   - A hit means a recurring historical figure keeps the same portrait, and the same voice, across every lesson they appear in.
   - Only on a miss does `core/clients/images.py::generate_flux_image_portrait` draw one, with an NSFW re-prompt loop.
   - `::load_speaker` caches per lesson in `loaded_speakers`, so a figure speaking ten times is loaded once.
@@ -158,7 +158,7 @@ In the order `::generate_avatar_assets` walks them:
 | D-ID | `core/clients/did.py::create_avatar`, `::create_listening_avatar` | talking heads | `DID_API_KEY`, basic auth |
 | Microsoft TTS | inside the D-ID payload | the listening animation's voice | via D-ID |
 | fal.ai FLUX | `core/clients/images.py::generate_flux_image_portrait` | a portrait when the bundle has none | `FAL_KEY` |
-| OpenAI / Anthropic | `core/clients/openai.py::llm_complete`, `::ensure_json` | voice matching, speaker identification, introduction copy | standard LLM keys |
+| TrueFoundry gateway | `core/clients/openai.py::llm_complete`, `::ensure_json` | voice matching, speaker identification, introduction copy | `TFY_API_KEY`, `TFY_BASE_URL` |
 | Playwright and ffmpeg | `core/media/html_to_video.py` | the introduction cards | local |
 | S3 | `core/clients/s3.py` | everything | AWS |
 
@@ -170,11 +170,11 @@ In the order `::generate_avatar_assets` walks them:
 - **`lesson_timings` is the contract, and three stages consume it.**
   - [06](06-text-overlays.md) matches an LLM-chosen phrase against it, via `core/media/clip_timings.py::match_segment_timings`, to turn a phrase into a timestamp.
   - [07](07-scenes-breakdown.md) walks it to cut the transcript into clips with real start and end times.
-  - [10](10-shotstack.md) uses the per-asset `start_time` and `end_time` to place audio on the timeline.
+  - [10](10-render.md) uses the per-asset `start_time` and `end_time` to place audio on the timeline.
 - **`avatar_assets[].src` is the lesson's audio.** There is no other audio track; the finished video's sound is these mp3s laid end to end.
 - **`avatar_clip` is optional and its absence is meaningful.**
   - A host segment with no clip is composited as audio only, over whatever visual [07](07-scenes-breakdown.md) chose.
-  - [10](10-shotstack.md) puts the clips that do exist in a picture-in-picture track.
+  - [10](10-render.md) puts the clips that do exist in a picture-in-picture track.
 - **The speaker tag format from [04](04-transcript.md) is what `::split_transcript` parses.** Nothing else validates it.
 
 ## Seams

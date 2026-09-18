@@ -31,7 +31,7 @@ Decides what appears on screen as text — title cards, bullet slides, five kind
 - **Owns everything the viewer reads**, except subtitles and the avatar introduction cards.
 - **Owns the timing of those elements**, down to the individual bullet: a slide's bullets appear one at a time, each on its own word.
 - **Owns the rendering**, from Jinja2 template through headless Chromium to a video file with an alpha channel.
-- **Owns the section split points** that [10](10-shotstack.md) uses to cut the finished lesson into per-section files.
+- **Owns the section split points** that [10](10-render.md) uses to cut the finished lesson into per-section files.
 - **Owns the moment each knowledge check is offered**, though [04](04-transcript.md) wrote the questions.
 
 Not here:
@@ -39,7 +39,7 @@ Not here:
 - Any wording that is not on-screen text. Narration is fixed — [04](04-transcript.md).
 - Which concepts get a diagram at all; that is `visual.type` on the plan — [03](03-video-plan.md).
 - The visuals behind the words — [07](07-scenes-breakdown.md), [08](08-images.md), [09](09-videos.md).
-- Where an overlay sits in frame, or its fade — [10](10-shotstack.md) owns compositing.
+- Where an overlay sits in frame, or its fade — [10](10-render.md) owns compositing.
 - The clock — [05](05-avatar-clips.md).
 
 ## Flow
@@ -191,12 +191,12 @@ flowchart TD
 - **[07](07-scenes-breakdown.md) reads this manifest to know which parts of the lesson are already spoken for.**
   - `stages/scenes_breakdown.py::split_transcript_into_video_segments` takes the overlay windows and splits the transcript around them, so a text slide and a generated visual never compete for the same seconds.
   - This is the ordering dependency that makes Text Overlays stage 5 and Scenes Breakdown stage 6.
-- **[10](10-shotstack.md) reads nearly every field.**
+- **[10](10-render.md) reads nearly every field.**
   - `text_slides[].src`, `diagrams[].src` and `conclusion_slide.src` become their own timeline tracks.
   - `title_overlays` become text assets prepended above everything.
   - `video_splits` drives the ffmpeg section cuts after the render.
   - `questions` is carried into the published output for the player to offer.
-- **`src` is an S3 key**, and [10](10-shotstack.md) presigns it at render time.
+- **`src` is an S3 key**, and [10](10-render.md) presigns it at render time.
 
 ## Seams
 
@@ -208,5 +208,5 @@ flowchart TD
   - `::generate_text_overlays` imports it and never calls it; the live conclusion goes through `::create_conclusion_slide`, which returns a `Diagram` rendered from `templates/diagrams/conclusion_slide_new.html`.
   - Removing the template means also removing the function and the import, or the next caller gets a missing-template error rather than a missing-function one.
 - **`ops/repair/text_slides.py` repairs this stage's output after the fact.**
-  - It re-imports `::identify_question_timings` and `::slides_timings_identifier`, shortens slides over roughly 517 characters, re-renders them, writes the manifest back, and deletes the ShotStack artifact to force a re-compose ([12](12-operator-tooling.md)).
+  - It re-imports `::identify_question_timings` and `::slides_timings_identifier`, shortens slides over roughly 517 characters, re-renders them, writes the manifest back, and deletes the render artifact to force a re-compose ([12](12-operator-tooling.md)).
 - **`ops/review/app.py`'s `OverlayValidationLayer.process` is a `pass` with a TODO.** Overlay edits made in the reviewer are not persisted, which is why no `-edited.json` appears for this stage in practice.

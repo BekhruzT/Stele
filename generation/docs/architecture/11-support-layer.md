@@ -55,17 +55,18 @@ Provides the one implementation of each thing every stage needs: a storage surfa
 
 ## Model access
 
-There is no gateway and no router library. Two clients, and every text generation goes through the first.
+Every chat completion goes to the TrueFoundry gateway. Two clients, and every text generation goes through the first.
 
 - **`core/clients/openai.py` is the only path for text.**
-  - `::llm_complete` accepts `gpt-*` and `o1` and hands them to `::chat_complete`. Anything else raises `ValueError` rather than routing elsewhere, and the guard sits outside the `try` deliberately: the handler below it swallows every exception and returns `None`, so a guard raised inside would become the silent failure it exists to prevent. The retry decorator excludes `ValueError` for the same reason — a bad model name is a config error, and retrying it thirty times with backoff stalls for about twenty-five minutes before giving up.
-  - `::LLM` is the enum every stage names a model from: `gpt-4-0613`, `gpt-4-turbo`, `gpt-4.1`, `gpt-4o`, `gpt-4o-2024-08-06`, `o1`, and `gemini-2.5-pro-preview-03-25`.
-  - **Four members of that enum are named for Anthropic models and carry GPT values.** `CLAUDE_3_7_SONNET` and `CLAUDE_3_7_SONNET_THINKING` are `gpt-4.1`; `ANTHROPIC_CLAUDE_3_5_SONNET` and `ANTHROPIC_CLAUDE_3_5_SONNET_V2` are `gpt-4o`. They are enum aliases, so the roughly fifty-eight call sites that spell `LLM.CLAUDE_3_7_SONNET` need no edit. They must stay declared *below* their targets, because an alias resolves to whichever member was defined first.
-  - The one thing that costs: `CLAUDE_3_7_SONNET_THINKING` used to buy a real extra reasoning tier through a token budget, and now collapses onto the same model as the non-thinking calls. Restoring it means routing that member to a reasoning model, which needs a new branch in `::chat_complete` for `max_completion_tokens` and a fixed temperature.
-  - `::ensure_json` repairs malformed JSON with a `gpt-4o` call, which is how stages tolerate a model that ignored its schema.
-  - Also here: `::call_openai_vision`, `::generate_image_dalle`, `::generate_openai_image`, `::OpenaiAssistantConversation`.
+  - `::gateway_slug` resolves an `::LLM` member to its entry in `::GATEWAY_MODEL_SLUGS` and raises `ValueError` if `TFY_API_KEY` or `TFY_BASE_URL` is missing, or if the model has no mapping. A model absent from that table cannot be called at all, which is the point: there is no direct-to-vendor fallback.
+  - `::llm_complete` resolves the slug before its `try` deliberately: the handler below it swallows every exception and returns `None`, so a guard raised inside would become the silent failure it exists to prevent. The retry decorator excludes `ValueError` for the same reason — a config error retried thirty times with backoff stalls for about twenty-five minutes before giving up.
+  - `::LLM` is the enum every stage names a model from. Three are in live use: `LLM.GPT_5` for the GPT calls, `LLM.CLAUDE_5_SONNET` for most transcript and QC work, and `LLM.CLAUDE_5_OPUS` where a reasoning tier is wanted.
+  - `::chat_complete` splits on the slug's vendor group. `claude-group/` goes to `::claude_complete`, the gateway's native Anthropic route, which wants the system prompt separate from the messages and drops it when it is blank, because `::llm_call` is called with `''` all over the stages. Everything else goes to `::openai_complete`, the OpenAI-compatible route.
+  - **`temperature` is accepted and never sent, and `max_tokens` reaches the Claude route only.** The reasoning models behind the other slugs reject a temperature and count their own thinking against an output cap, so a caller's 4000 truncates them.
+  - `::ensure_json` repairs malformed JSON with an `LLM.GPT_5` call, which is how stages tolerate a model that ignored its schema.
+  - Also here: `::call_openai_vision`, which takes the OpenAI-compatible route and retries once with every image inlined as a data URI, plus `::generate_image_dalle`, `::generate_openai_image` and `::OpenaiAssistantConversation`. Those three are not chat and use `OPENAI_API_KEY` directly.
   - Retries are tenacity, thirty attempts with exponential backoff.
-- **`core/clients/gemini.py`** is `::gemini_media_analysis` for video and image analysis, plus `::delete_old_gemini_files` to clean up uploads older than thirty minutes. It never went through `::llm_complete` and has its own client, which is why it is unaffected by the rule above.
+- **`core/clients/gemini.py`** is `::gemini_media_analysis` for video and image analysis, plus `::delete_old_gemini_files` to clean up uploads older than thirty minutes. It needs Google's file upload API, which the gateway does not carry, so it talks to Google directly with its own client.
 - **Every LLM call is transcribed to a file, and the file is in the working directory.**
   - `core/clients/openai.py::log_llm_message` appends every prompt and response to `./prompts.txt`, tagged with the calling function.
   - It is never rotated or truncated, and on a shared machine it is a plaintext record of everything the pipeline has asked a model.
@@ -109,7 +110,7 @@ There is no gateway and no router library. Two clients, and every text generatio
   - `::send_email` uses SES with `SENDER_EMAIL` and `RECIPIENT_EMAIL`, and is not used by the class below.
 - **`::NotificationSystem` is constructed once per batch in `run.py::main`**, and only under `STORAGE=s3`. A local run gets `run.py::_Silent` instead, which accepts the same calls and does nothing, so no code path has to ask whether notifications are on.
   - `::send_initial_message` opens the thread with the lesson list, a CloudWatch filter link per lesson and an S3 folder link.
-  - `::send_success_message` reads the lesson's ShotStack artifact for the finished video URL and the delivery sheet link ([10](10-shotstack.md)).
+  - `::send_success_message` reads the lesson's render artifact for the finished video URL and the delivery sheet link ([10](10-render.md)). Neither field survives the move to ffmpeg, so this path is AP-only and unsupported.
   - `::send_error_message` posts the error and its traceback in a code block.
 - **`::get_cloudwatch_stream` reads the handler to build those links**, and it reads `AWS_REGION` from the environment, while `core/constants.py::AWS_REGION` reads `AWS_DEFAULT_REGION`. They are two different variable names for the same thing, and setting only one leaves the other empty.
 
@@ -123,7 +124,8 @@ There is no gateway and no router library. Two clients, and every text generatio
 
 | Variable | Read by |
 | --- | --- |
-| `OPENAI_API_KEY`, `OPENAI_ORGANIZATION_ID` | `core/clients/openai.py` |
+| `TFY_API_KEY`, `TFY_BASE_URL` | `core/clients/openai.py`, for every chat completion |
+| `OPENAI_API_KEY`, `OPENAI_ORGANIZATION_ID` | `core/clients/openai.py`, for the image and speech endpoints only |
 | `ELEVENLABS_API_KEY` | [05](05-avatar-clips.md) |
 | `ELEVENLABS_MODEL_ID` | `core/clients/speech.py`, defaulting to `eleven_multilingual_v2` |
 | `FAL_KEY` | [05](05-avatar-clips.md), [08](08-images.md), [09](09-videos.md) |
@@ -136,11 +138,10 @@ There is no gateway and no router library. Two clients, and every text generatio
 | --- | --- |
 | `AWS_DEFAULT_REGION` | `core/constants.py::AWS_REGION` |
 | `AWS_PROFILE`, `ENV` | `core/aws.py` |
-| `S3_BUCKET`, `S3_BUCKET_UI` | `core/constants.py`, and [10](10-shotstack.md) for publication |
+| `S3_BUCKET`, `S3_BUCKET_UI` | `core/constants.py`, and [10](10-render.md) for publication |
 | `S3_MEDIA_BUCKET` | `core/constants.py`, for presenter portraits and character bundles. A separate, publicly readable bucket, because Stele fetches those by URL |
 | `DID_API_KEY` | [05](05-avatar-clips.md), whose D-ID block is skipped locally |
 | `LUMAAI_API_KEY` | [09](09-videos.md), skipped entirely under local |
-| `SHOTSTACK_API_KEY`, `SHOTSTACK_API_KEY_PROD`, `SHOTSTACK_ENVIRONMENT` | [10](10-shotstack.md), replaced locally by `stages/local_render.py` |
 | `DDB_TABLE_NAME` | `core/cost_tracker.py` via `core/clients/ddb.py` |
 | `GOOGLE_CHAT_WEBHOOK_URL`, `SENDER_EMAIL`, `RECIPIENT_EMAIL`, `AWS_REGION` | `core/notification_system.py` |
 | `CLOUDWATCH_LOG_GROUP` | `core/log.py` |
@@ -166,7 +167,7 @@ There is no gateway and no router library. Two clients, and every text generatio
 | --- | --- |
 | Storage and identity | `clients/s3.py`, `clients/local_store.py`, `path.py`, `hash.py`, `context.py`, `local.py` |
 | Models | `clients/openai.py`, `clients/gemini.py`, `clients/image_qc.py`, `helpers.py` |
-| Vendors | `clients/speech.py`, `clients/did.py`, `clients/shotstack.py`, `clients/images.py`, `clients/sheets.py`, `clients/gsheet.py`, `clients/ddb.py` |
+| Vendors | `clients/speech.py`, `clients/did.py`, `clients/images.py`, `clients/sheets.py`, `clients/gsheet.py`, `clients/ddb.py` |
 | Media manufacture | `media/clip_timings.py`, `media/html_to_video.py`, `media/media_assets.py`, `media/thumbnails.py`, `media/subtitles.py`, `media/lesson_report.py` |
 | Plumbing | `types.py`, `stage_constants.py`, `constants.py`, `log.py`, `logger.py`, `misc.py`, `parsers.py`, `aws.py`, `pricing.py`, `cost_tracker.py`, `guidelines.py`, `lesson_plan.py`, `google_api_utils.py`, `notification_system.py`, `content_analysis.py`, `post_evaluations.py` |
 

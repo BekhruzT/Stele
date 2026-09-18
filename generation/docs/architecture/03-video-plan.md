@@ -48,7 +48,7 @@ flowchart TD
   Tech --> Vis["::plan_visual_techniques — O1, no QC"]
   Vis --> Fig["::get_historical_figures — O1"]
   Fig --> Rel["::parse_fact_relationships → ::process_edges"]
-  Rel --> Touch["::final_touchups — Claude 3.5 Sonnet v2"]
+  Rel --> Touch["::final_touchups — Claude 5 Sonnet"]
   DB["find_lesson_map_from_db"] --> Touch
   Touch --> Out["{video_plan, qc_iterations: []}"]
 ```
@@ -75,7 +75,7 @@ flowchart TD
 - **QC is one finder call and at most one fixer call.**
   - `core/helpers.py::qc_llm_call` decorates a pass, runs a finder against the guidelines in `prompts/qc_prompts.py::videoplan_guidelines`, and if any criterion returns `FAIL`, replays one fixer call on the same history.
   - There is no iteration count and no second look. This is a deliberate simplification from the older loop still visible in `generate_transcript.py` ([04](04-transcript.md)).
-  - The finder uses `LLM.CLAUDE_3_7_SONNET_THINKING` for this stage's criteria.
+  - The finder uses `LLM.CLAUDE_5_OPUS` for this stage's criteria.
 
 - **Visual planning is deliberately un-QC'd.**
   - The `@qc_llm_call` decorator on `::plan_visual_techniques` is commented out.
@@ -104,11 +104,11 @@ In the order `::generate_lesson_video_plan` walks them:
 
 | Pass | Model | QC |
 | --- | --- | --- |
-| `::sequencing_and_grouping` | `LLM.O1` | `qc_llm_call("VideoPlan", "SEQUENCING AND GROUPING")` |
-| `::plan_teaching_techniques` | `LLM.O1` | `qc_llm_call("VideoPlan", "TEACHING TECHNIQUES")` |
-| `::plan_visual_techniques` | `LLM.O1` | none — decorator commented out |
-| `::get_historical_figures` | `LLM.O1` | none |
-| `::final_touchups` | `LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2` | none |
+| `::sequencing_and_grouping` | `LLM.GPT_5` | `qc_llm_call("VideoPlan", "SEQUENCING AND GROUPING")` |
+| `::plan_teaching_techniques` | `LLM.GPT_5` | `qc_llm_call("VideoPlan", "TEACHING TECHNIQUES")` |
+| `::plan_visual_techniques` | `LLM.GPT_5` | none — decorator commented out |
+| `::get_historical_figures` | `LLM.GPT_5` | none |
+| `::final_touchups` | `LLM.CLAUDE_5_SONNET` | none |
 
 - **QC can revise but cannot reject.**
   - A failing criterion produces one fixer call. If the fix is also bad, the plan ships.
@@ -156,8 +156,8 @@ In the order `::generate_lesson_video_plan` walks them:
 
 ## External dependencies
 
-- **OpenAI o1** for four of the five passes, and **Anthropic Claude 3.5 Sonnet v2** for the fifth, all through `core/helpers.py::llm_call` onto `core/clients/openai.py::llm_complete`.
-- **Anthropic Claude 3.7 Sonnet Thinking** for the QC finder and fixer, through `::qc_llm_call`.
+- **GPT 5** for four of the five passes, and **Claude 5 Sonnet** for the fifth, all through `core/helpers.py::llm_call` onto `core/clients/openai.py::llm_complete` and the TrueFoundry gateway.
+- **Claude 5 Opus** for the QC finder and fixer, through `::qc_llm_call`.
 - **The lesson map database**, through `core/clients/images.py::find_lesson_map_from_db`.
 - **S3**, for the knowledge graph read and the artifact write.
 

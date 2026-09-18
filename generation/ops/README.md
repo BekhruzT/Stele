@@ -30,7 +30,7 @@ What is not: **anything that needs a network or a credential.** Expect stale spr
 `app.py` is the single most valuable file in this folder, because it is the only writer of the two correction mechanisms the pipeline already honours:
 
 - **A correction is a sidecar, never an in-place edit.** The reviewer writes `{key}-edited.json` beside the canonical `{key}.json`, and the `core/context.py` path properties prefer the sidecar when it exists. So a downstream stage picks up the correction with no coordination.
-- **Images use a different mechanism.** There is no sidecar; the reviewer writes `human_choice` into the per-clip metadata under `media/{key}/images/`, which `stages/local_render.py` and `stages/shotstack.py` read in preference to `qc_choice`.
+- **Images use a different mechanism.** There is no sidecar; the reviewer writes `human_choice` into the per-clip metadata under `media/{key}/images/`, which `stages/local_render.py` reads in preference to `qc_choice`.
 - **Only the canonical file is tested when deciding to skip.** So an edited sidecar does not stop its own stage regenerating, and deleting only the canonical file leaves a stale sidecar that downstream stages still prefer. To genuinely redo an edited stage, delete both.
 
 `app.py` imports `generate_lesson_transcript` from `stages/transcript.py`, the same function the pipeline runs, so the regenerate button and a pipeline run produce the same shape. Keep it that way: a reviewer writing a transcript in a shape the later stages do not expect corrupts everything below it, silently.

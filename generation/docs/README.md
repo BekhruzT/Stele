@@ -26,7 +26,7 @@ Docs 00–12 are the deep reference: one per stage, plus the overview, the upstr
 | [07-scenes-breakdown.md](architecture/07-scenes-breakdown.md) | Stage 6: the transcript cut into timed clips around the overlay windows |
 | [08-images.md](architecture/08-images.md) | Stage 7: one still per clip, generated or sourced, and the QC that picks it |
 | [09-videos.md](architecture/09-videos.md) | Stage 8: motion from each chosen still. Skipped under `STORAGE=local` |
-| [10-shotstack.md](architecture/10-shotstack.md) | Stage 9: the timeline assembled, rendered, split, subtitled and published. Under local mode `stages/local_render.py` reproduces its layer order |
+| [10-render.md](architecture/10-render.md) | Stage 9: every artifact composited into one MP4 with ffmpeg by `stages/local_render.py` |
 | [11-support-layer.md](architecture/11-support-layer.md) | `core/`: storage, the model clients, cost, logging, notifications, and every environment variable |
 | [12-operator-tooling.md](architecture/12-operator-tooling.md) | `ops/`: the reviewer, the `-edited.json` contract, repair and delivery, and what QC actually gates |
 | [13-generation-layout.md](architecture/13-generation-layout.md) | The folder rules, the two storage backends, and the checks that enforce both |

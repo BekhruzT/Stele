@@ -1,7 +1,13 @@
 # generation/
 
-The AP video pipeline, self-contained. Nine stages turn one subsection of a course lesson
-plan into a rendered video, and `run.py` is the only entry point.
+The video pipeline, self-contained. Nine stages turn one subsection of a course lesson plan
+into a rendered video, and `run.py` is the only entry point.
+
+> **`lore` is the supported video type.** The AP exam-prep types, `history` and `general`, are
+> marked `"unsupported": true` in `config/video_types.json` and refused unless you pass
+> `--allow-unsupported`. Their stages, layers and ops tooling are all still wired, but the
+> prompts, models and pacing were retuned for sleep-lore narration and nobody checks the AP
+> output any more. Expect it to run and to produce something nobody has reviewed.
 
 Nothing here imports anything outside this folder. `tools/check_selfcontained.py` enforces
 that, which is what makes the rest of the repository deletable.
@@ -12,7 +18,7 @@ that, which is what makes the rest of the repository deletable.
 | --- | --- |
 | `stages/`, `core/`, `prompts/`, `config/` | the pipeline: what `run.py` runs |
 | `ops/` | human-driven tooling — review, feedback, repair, authoring, delivery. Not wired into `run.py`, and not verified. See [ops/README.md](ops/README.md). |
-| `tools/` | the check suites and the ffmpeg compositing spike |
+| `tools/` | the check suites, and the lore authoring and preview tools |
 | `docs/` | the architecture set. Start at [docs/architecture/13-generation-layout.md](docs/architecture/13-generation-layout.md). |
 
 New to this code, read [13](docs/architecture/13-generation-layout.md) first: it maps this tree,
@@ -47,7 +53,8 @@ Useful flags:
 | --- | --- |
 | `--subsection TITLE` | repeatable; the usual way to name one lesson |
 | `--unit`, `--chapter`, `--section` | coarser filters, also repeatable |
-| `--video-type NAME` | which layers and stages run, from `config/video_types.json`, default `history` |
+| `--video-type NAME` | which layers and stages run, from `config/video_types.json`, default `lore` |
+| `--allow-unsupported` | run a video type marked `unsupported`, i.e. the AP exam-prep flow |
 | `--until STAGE` | stop after a stage instead of running the rest |
 | `--force` | run a stage even where its JSON already exists |
 | `--dry-run` | print keys, artifact paths and which already exist; touch nothing |
@@ -62,16 +69,18 @@ actually buy. It also prints the resolved video type and which layers it turns o
 
 A video type selects which *layers* of a lesson get built. All of them live in one file,
 `config/video_types.json`, keyed by type name; each entry states only what it changes, so an
-empty entry is "every layer on". Two optional keys per type:
+empty entry is "every layer on". Four optional keys per type:
 
 - `layers` — the `LAYER_*` flags (see `LAYER_DEFAULTS` in `run.py`), each `true` or `false`.
   A layer is a piece of a stage, so switching one off never changes the stage list.
 - `skip_stages` — whole stages to drop, by their `config/stages.json` title.
+- `params` — one object per stage that wants tuning, reaching the stage as `<name>_PARAMS`.
+- `unsupported` — refuse the type unless `--allow-unsupported` is passed.
 
 | type | what it produces |
 | --- | --- |
-| `history` | the default: every layer, every stage |
-| `general` | voiceover + synced image clips, keeping the lesson/section overview diagrams and the conclusion slide; no talking head, no per-concept bullet slides or infographics |
+| `history` | **unsupported.** Every layer, every stage: the original AP exam-prep lesson |
+| `general` | **unsupported.** Voiceover + synced image clips, keeping the lesson/section overview diagrams and the conclusion slide; no talking head, no per-concept bullet slides or infographics |
 | `lore` | voiceover + imagery only: no talking head, no overlays of any kind, every image model-generated rather than web-sourced, and Video Gen Clips skipped in favour of programmatic camera moves |
 
 Two of the flags are not about overlays:
@@ -89,9 +98,9 @@ Two of the flags are not about overlays:
   is not there. Animated stills are scaled to cover the frame rather than letterboxed, since
   panning a letterboxed still would drag its bars into view.
 
-`LAYER_PROGRAMMATIC_MOTION` currently only affects `Local Render`. A lesson rendered through
-ShotStack on S3 still has static images; ShotStack's own `Clip(effect=...)` field
-(`zoomInSlow`, `slideLeftSlow`, ...) is the place to extend it.
+`LAYER_PROGRAMMATIC_MOTION` is read by `Local Render`, and its `params` block in
+`config/video_types.json` tunes the zoom range, the pan drift and how far off centre a zoom
+may sit without touching code.
 
 Unknown layer names, non-boolean values, unknown stage names and unknown keys are all rejected
 with a message naming the offender, because a config that reads as configured but runs as
@@ -116,35 +125,23 @@ The switch happens once, at the bottom of `core/clients/s3.py`, which rebinds it
 onto `core/clients/local_store.py`. All 25 modules that do `from core.clients.s3 import ...`
 pick it up untouched.
 
-Local mode cannot run everything, because three vendors fetch an asset from a URL over the
+Local mode cannot run everything, because some vendors fetch an asset from a URL over the
 internet and a folder cannot serve one:
 
-- **Video Gen Clips** (Luma/Kling) and **ShotStack** are dropped from the pipeline.
+- **Video Gen Clips** (Luma/Kling) is dropped from the pipeline by `LOCAL_SKIP`, because Luma
+  and Kling need a URL per still and nothing downstream of them runs locally anyway.
 - **D-ID** is skipped inside Avatar Clips, but the ElevenLabs half still runs. That matters:
   it produces the `lesson_timings` word-level clock that Text Overlays reads, so stages 5
-  through 7 still work. What you get is everything up to the images, never a rendered video.
+  through 7 still work.
 
-`stages/local_render.py` closes that last gap, and it is wired into the pipeline rather than
-being a side tool: in local mode `run.py` substitutes it for ShotStack in place, so a local
-run ends in a watchable MP4 with no bucket and no vendor account. Two different mechanisms do
-that, and the distinction is the point:
+`stages/local_render.py` is stage 9 and the only renderer; it composites with ffmpeg over
+local paths, so a run ends in a watchable MP4 with no bucket and no vendor account. It
+refuses to run under `--storage s3`, where every asset would have to be downloaded first.
 
-- `LOCAL_SKIP` drops a stage entirely. Only Video Gen Clips is in it, because Luma and Kling
-  need a URL per still and nothing downstream of them runs locally anyway.
-- `LOCAL_SWAP` substitutes one. ShotStack is in it, because compositing is not the part that
-  needs a vendor — only the presigned URLs were. Substituting rather than adding an entry
-  means the renderer inherits ShotStack's position in `config/stages.json`, which is last.
-
-The stage writes the MP4 to the same media path and returns the same `lesson_video` shape as
-ShotStack, so a consumer reading `lesson_video.src` does not care which renderer ran. It
-reads its inputs through the same `Context` properties too, which is what picks up the
-`-edited.json` sidecars, and it reads per-image metadata rather than the Image Gen Clips
-aggregate because that is where a `human_choice` override lands.
-
-It reproduces ShotStack's layer order, read off `stages/shotstack.py`, which builds
-`audio + mediaclip + text_slide + diagram + conclusion + avatar_intro + avatar` and then
-reverses — and since track 0 is topmost in a ShotStack timeline, bottom to top the picture is
-stills, text slides, diagrams, conclusion, avatar.
+It reads its inputs through the same `Context` properties as every other stage, which is what
+picks up the `-edited.json` sidecars, and it reads per-image metadata rather than the Image
+Gen Clips aggregate because that is where a `human_choice` override lands. Bottom to top the
+picture is stills, text slides, diagrams, conclusion, avatar.
 
 The one thing to understand before reading that code: the stills are the bottom layer and the
 cards are opaque and full-frame, so an image is visible *between* overlay windows, not
@@ -156,25 +153,16 @@ What it does not do: the avatar inset. D-ID is skipped, so there is no talking h
 Avatar Clips leaves the speaker portrait as a fal.media URL rather than storing it, so the
 slot is usually empty. The geometry is implemented and checked, waiting for an asset.
 
-Section splits, SRTs and the title overlays ShotStack draws as native text assets are also
-not implemented.
+Section splits, SRTs and native text overlays are not implemented. `core/media/subtitles.py`
+still builds subtitles on demand, taking its split indexes from `core/media/clip_timings.py`.
 
 Only the stage's JSON is cached, never its media, so re-running a lesson whose Local Render
 artifact exists is a no-op. To re-render, delete `contents/subsection/Local Render/{key}.json`
 and run again; `--force` would redo every stage and re-buy every vendor asset.
 
-`tools/spike_render.py` is the smaller argument that got there first. ShotStack is a
-compositor, and ffmpeg — already a dependency, already used for the section splits and for
-every template render — can do the same job against local paths. The spike narrates the
-introduction and the conclusion of a generated transcript, renders a text slide and a mind
-map through the existing Playwright path, generates one FLUX still, and composites the lot
-into a watchable MP4 with a single `filter_complex`. `place()` converts ShotStack's
-centre-origin normalised geometry into ffmpeg's top-left pixels, which is the part worth
-getting right.
-
-It also documents what makes a render look broken, because the first version got all three
-wrong. The templates animate off `performance.now()`, which `html_to_mov` overrides and
-steps per frame, so the animation is entirely driven by the numbers in the overlay data:
+Three things make a render look broken, and all of them live in the overlay data rather than
+the renderer. The templates animate off `performance.now()`, which `html_to_mov` overrides
+and steps per frame, so the animation is entirely driven by those numbers:
 
 - `TextSlidePhrase.start_duration` is how long the typewriter takes to reveal a phrase. A
   flat `1.0` types any sentence out in one second and then waits; it has to be the phrase's
@@ -184,7 +172,7 @@ steps per frame, so the animation is entirely driven by the numbers in the overl
 - A diagram's `start_time` values have to span its card. Crammed into the opening seconds,
   the map finishes building and then sits frozen for the rest of the clip.
 - Cards are opaque and full-frame, so an image is only visible where no card covers it, or
-  inside one through `TextSlide.visuals`. The spike does both.
+  inside one through `TextSlide.visuals`.
 
 `--check` covers these; without it the script calls ElevenLabs and fal.ai and takes about
 four minutes.
@@ -215,11 +203,11 @@ core/
   types.py        the pydantic models the stages hand each other
   helpers.py      llm_call, qc_llm_call, exception_handler
   log.py          CloudWatch logging and the context-preserving thread pool
-  clients/        s3 local_store openai gemini speech did shotstack sheets gsheet images
+  clients/        s3 local_store openai gemini speech did sheets gsheet images
   media/          html_to_video clip_timings media_assets thumbnails subtitles lesson_report
 prompts/          the video prompts; prompts/images/ are the ones the image client uses
 templates/        the HTML slides and diagrams, rendered by Playwright
-tools/            the checks, and the ffmpeg compositing spike
+tools/            the checks, and the lore authoring and preview tools
 ```
 
 ## Stage order matters
@@ -234,7 +222,7 @@ tools/            the checks, and the ffmpeg compositing spike
 6. **Scenes Breakdown** — carves clips around the overlay windows
 7. **Image Gen Clips** — a still per clip
 8. **Video Gen Clips** — motion, starting from the chosen still
-9. **ShotStack** — the final render
+9. **Local Render** — ffmpeg composites the lot into one MP4
 
 `run.py`'s `STAGES` dict is a lookup table, not a schedule. Adding an entry there does not
 make it run; the config is what to edit.
@@ -255,15 +243,22 @@ Two things to know before relying on that:
 
 ## Which LLM runs
 
-Everything goes to OpenAI. Anthropic is retired, but the four `LLM.CLAUDE_*` and
-`LLM.ANTHROPIC_CLAUDE_*` names still exist in `core/clients/openai.py` as enum aliases
-carrying `gpt-4.1` and `gpt-4o` values, so the ~58 call sites that spell them keep working
-and nothing reaches the anthropic SDK. `llm_complete` raises on any model that is not
-`gpt-*` or `o1` rather than silently routing elsewhere. Gemini is unaffected; it never went
-through `llm_complete` and has its own client.
+Every chat completion goes to the TrueFoundry gateway, which needs `TFY_API_KEY` and
+`TFY_BASE_URL` in `.env`. `core/clients/openai.py::gateway_slug` resolves an `LLM` member to
+a gateway slug and raises on a missing key or an unmapped model, so there is no
+direct-to-vendor fallback to fall into. `GATEWAY_MODEL_SLUGS` is the whole catalogue:
+`LLM.GPT_5` for the GPT calls, `LLM.CLAUDE_5_SONNET` for most transcript and QC work, and
+`LLM.CLAUDE_5_OPUS` where a reasoning tier is wanted.
 
-The one thing lost: `CLAUDE_3_7_SONNET_THINKING` used to buy an extra reasoning tier and now
-resolves to the same model as the non-thinking calls.
+Claude models take the gateway's native Anthropic route, which wants the system prompt
+separate from the messages; everything else takes the OpenAI-compatible route, vision
+included. `temperature` is still accepted by `chat_complete` and `llm_complete` but is never
+sent, and `max_tokens` reaches the Claude route only, because the reasoning models behind
+the other slugs reject a temperature and count their own thinking against an output cap.
+
+`OPENAI_API_KEY` is still needed, but only for DALL-E, `gpt-image-1`, TTS and Whisper, which
+are not chat and do not go through the gateway. Gemini is unaffected: `core/clients/gemini.py`
+needs Google's file upload API for video QC, so it talks to Google directly.
 
 ## The checks
 
@@ -271,9 +266,10 @@ All of these are offline and free. None needs credentials.
 
 ```bash
 python tools/check_selfcontained.py       # nothing imports out of this folder
+python tools/check_llm_gateway.py         # the gateway slugs, both vendor routes and the refusals
 python tools/check_orchestration.py       # run.py's stage order, skip, retry and filters
 python tools/check_local_store.py         # the local backend, the rebinding and the stage skips
-python tools/spike_render.py --check      # the compositing geometry, reveal timings and staging
+python -m stages.local_render             # the compositing geometry and the camera motion
 python -m stages.local_render             # the layer geometry and the scene-gap filling
 python docs/architecture/check_anchors.py # every code anchor in the docs resolves
 ```

@@ -27,7 +27,7 @@ Not here:
 
 - Any pixel. A clip is a description and a prompt — [08](08-images.md), [09](09-videos.md).
 - Anything that appears over the clip — [06](06-text-overlays.md) already placed those, and this stage works around them.
-- Compositing, transitions or overlap handling in the finished video — [10](10-shotstack.md).
+- Compositing, transitions or overlap handling in the finished video — [10](10-render.md).
 - The clock — [05](05-avatar-clips.md).
 
 ## Flow
@@ -93,7 +93,7 @@ In the order `::generate_clips` walks them:
 
 ## Rules
 
-- **`::define_clips` and `::handle_first_clips` both use `LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2`.**
+- **`::define_clips` and `::handle_first_clips` both use `LLM.CLAUDE_5_SONNET`.**
 - **Concurrency is `ContextAwareThreadPoolExecutor(max_workers=6)`**, one task per non-overlay segment, so the CloudWatch `lesson_id` context survives into the workers ([11](11-support-layer.md)).
 - **Blocking**: a missing avatar, overlay or plan artifact; a model response that will not parse after its retries.
 - **Warn-only**: a clip that stays outside the five-to-nine-second window after the retry rounds ships with `duration_valid: false`.
@@ -130,7 +130,7 @@ In the order `::generate_clips` walks them:
 
 ## External dependencies
 
-- **Anthropic Claude 3.5 Sonnet v2**, through `core/helpers.py::llm_call`.
+- **Claude 5 Sonnet**, through `core/helpers.py::llm_call` and the TrueFoundry gateway.
 - **S3**, for three reads and one write.
 - **No image, video, audio or render service.** This stage produces no media at all.
 
@@ -141,7 +141,7 @@ In the order `::generate_clips` walks them:
   - It reads `img_prompt` as the prompt and `media.type` to decide between generation and web search.
 - **[09](09-videos.md) reads the same list plus each clip's chosen still.**
   - It skips `IMAGE` clips unless the still was AI-generated, and uses `duration` to pick a five or ten second generation.
-- **[10](10-shotstack.md) reads `start_time`, `end_time` and `media.type` to lay the visual track**, and resolves each clip to a video or an image by looking for the video metadata file first.
+- **[10](10-render.md) reads `start_time`, `end_time` and `media.type` to lay the visual track**, and resolves each clip to a video or an image by looking for the video metadata file first.
 - **The overlay windows this stage carved around are not recorded in the artifact.**
   - `overlay_intervals` is internal. Anything downstream that needs to know where overlays sit reads [06](06-text-overlays.md)'s manifest directly.
 

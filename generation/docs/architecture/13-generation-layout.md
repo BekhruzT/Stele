@@ -52,16 +52,15 @@ Everything here is either **pipeline** or **ops**, and the split is about who st
 - **`core/clients/s3.py` is the single choke point.**
   - Under `STORAGE=local` the module rebinds its own functions onto `core/clients/local_store.py` at import time, so every caller keeps working unchanged. `core/clients/s3.py::is_local` reports which backend won.
   - `core/clients/local_store.py::path_for` percent-encodes the characters Windows forbids in a path, which is why the on-disk folder names contain `%3A` where the S3 key had a colon.
-- **`run.py::LOCAL_SKIP` drops a stage. `run.py::LOCAL_SWAP` substitutes one.**
-  - The distinction matters: a vendor that must *fetch a URL* cannot work against a local folder, but compositing was never the part that needed a vendor.
+- **`run.py::LOCAL_SKIP` drops a stage from the local pipeline.**
+  - A vendor that must *fetch a URL* cannot work against a local folder, but compositing was never the part that needed a vendor.
   - `LOCAL_SKIP` holds Video Gen Clips only. Luma and Kling need a public URL per still, and nothing downstream of them runs locally.
-  - `LOCAL_SWAP` maps ShotStack to Local Render. Substituting rather than appending means the renderer inherits ShotStack's position in `config/stages.json`, which is last.
-  - D-ID is the third URL-fetching vendor, but it is one block inside a stage rather than a stage, so it is skipped in place by `stages/avatar_clips.py` and the ElevenLabs audio around it still runs.
-- **`stages/local_render.py` is the local stand-in for ShotStack ([10](10-shotstack.md)).**
-  - It composites with ffmpeg over local paths and reproduces ShotStack's layer order, read off `stages/shotstack.py::generate_lesson_video_edit`: stills at the bottom, then text slides, diagrams, conclusion, avatar.
-  - `stages/local_render.py::place` converts one ShotStack placement to ffmpeg overlay arguments. The two disagree twice: ShotStack sizes as a fraction of the output and positions by an asset's centre with +y up, ffmpeg takes pixels and positions by the top-left corner with +y down.
+    - D-ID is the third URL-fetching vendor, but it is one block inside a stage rather than a stage, so it is skipped in place by `stages/avatar_clips.py` and the ElevenLabs audio around it still runs.
+- **`stages/local_render.py` is the only renderer ([10](10-render.md)).**
+  - It composites with ffmpeg over local paths, bottom to top: stills, then text slides, diagrams, conclusion, avatar.
+  - `stages/local_render.py::place` converts an overlay manifest's placement to ffmpeg overlay arguments. The two disagree twice: the manifests size as a fraction of the output and position by an asset's centre with +y up, ffmpeg takes pixels and positions by the top-left corner with +y down.
   - `stages/local_render.py::scene_segments` fills the gaps in the scene track. The stills are the bottom layer and the cards are opaque and full-frame, so a still shows *between* card windows; anything filling those gaps has to preserve their length or every later overlay lands at the wrong timestamp.
-  - It writes to the same media path and returns the same `lesson_video` shape as the ShotStack stage, so a consumer reading `lesson_video.src` does not care which renderer ran.
+  - It writes the MP4 to the lesson's media path and returns a `lesson_video` block carrying `src`, the duration and the asset counts.
 
 ## The one input the pipeline cannot make
 

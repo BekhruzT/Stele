@@ -19,7 +19,7 @@ Gives a subject-matter expert a way to inspect each stage's output, correct it, 
     - Deleting only the canonical file to force a rerun leaves the sidecar in place, so every downstream stage keeps reading the old edit.
   - To genuinely redo an edited stage, delete both files.
 - **Images and videos use a different mechanism.**
-  - There is no sidecar. The reviewer writes `human_choice` into the per-clip metadata under `media/{key}/`, which [09](09-videos.md) and [10](10-shotstack.md) read in preference to `qc_choice`.
+  - There is no sidecar. The reviewer writes `human_choice` into the per-clip metadata under `media/{key}/`, which [09](09-videos.md) and [10](10-render.md) read in preference to `qc_choice`.
 
 ## The reviewer: `ops/review/app.py`
 
@@ -36,7 +36,7 @@ Gives a subject-matter expert a way to inspect each stage's output, correct it, 
 | `ClipsValidationLayer` | clip snippets and image and video prompts | `Scenes Breakdown/{key}-edited.json` |
 | `ImagesValidationLayer` | image candidates, with regenerate and upload | per-clip metadata under `media/{key}/images/` |
 | `VideoValidationLayer` | generated videos | nothing — `process` is a no-op |
-| `ShotStackIntegrationLayer` | the finished composite | `ShotStack/{key}.json` if absent |
+| `LocalRenderLayer` | the finished composite | `Local Render/{key}.json` if absent |
 
 - **Each layer is wrapped in `core/log.py::with_logging_context`** with its own `LayerName`, and `ImagesValidationLayer` uses `::ContextAwareThreadPoolExecutor` so its parallel QC keeps the lesson id ([11](11-support-layer.md)).
 - **Two of the seven layers cannot save.**
@@ -52,19 +52,19 @@ A Streamlit app for reviewing the knowledge-check questions. It reads the MCQs a
 ## The repair workflow
 
 - **`ops/repair/regenerate_concept.py` is the real edit loop, and the only script that re-enters the pipeline properly.**
-  - It regenerates one concept end to end: transcript, then audio, then overlays, then clips, then ShotStack, with human approval gates between.
+  - It regenerates one concept end to end: transcript, then audio, then overlays, then clips, then the render, with human approval gates between.
   - This is what a subject-matter expert uses after finding a bad concept, rather than deleting artifacts by hand.
   - Its prompts live in `ops/repair/regenerate_concept_prompts.py`.
 - **`ops/repair/delete_lesson.py` is the blunt version**: it deletes a lesson's artifacts outright. Destructive, and the fastest way to lose a lesson's paid media.
 - **`ops/repair/text_slides.py` repairs overlays in place.**
-  - Finds text slides over roughly 517 characters, has a model shorten them, re-derives their timings, re-renders them, writes the manifest back, and deletes the ShotStack artifact so the lesson re-composes ([06](06-text-overlays.md)).
+  - Finds text slides over roughly 517 characters, has a model shorten them, re-derives their timings, re-renders them, writes the manifest back, and deletes the render artifact so the lesson re-composes ([06](06-text-overlays.md)).
 - **`ops/quality/questions.py`** shuffles, QCs and filters MCQs and updates their overlay timings, with an optional fix mode.
 
 ## Delivery
 
-- **`ops/delivery/delivery_sheet.py`** fills empty cells in the delivery sheet with the video and resource links from each lesson's ShotStack artifact.
+- **`ops/delivery/delivery_sheet.py`** fills empty cells in the delivery sheet with the video and resource links from each lesson's render artifact. It reads `lesson_video.output_data`, which ffmpeg does not emit, so it only ever worked against the removed hosted renderer.
 - **`ops/delivery/stele.py`** takes completed delivery-sheet rows and uploads them to the Stele learning platform, keyed by the `DomainId`, `ClusterId` and `StandardId` carried down from [01](01-upstream.md).
-- **`core/media/thumbnails.py`** and **`core/media/subtitles.py`** batch-produce assets that [10](10-shotstack.md) now makes inline, for lessons rendered before it did.
+- **`core/media/thumbnails.py`** and **`core/media/subtitles.py`** batch-produce assets that [10](10-render.md) now makes inline, for lessons rendered before it did.
 - **`ops/delivery/track_folders.py`** maintains a Google Sheet matrix of which pipeline layers exist for which lesson, which is the closest thing the project has to a run dashboard.
 
 ## Evaluation

@@ -103,14 +103,14 @@ In the order `::generate_lesson_transcript` walks them:
 
 | Segment | Model | QC criteria |
 | --- | --- | --- |
-| Introduction | `LLM.CLAUDE_3_7_SONNET_THINKING` | `LESSON INTRODUCTION` |
-| Section overview | `LLM.CLAUDE_3_7_SONNET` | `SECTION OVERVIEW` |
-| Question | `LLM.O1` for connections, Claude 3.5 Sonnet v2 for the final | `CURIOUS QUESTION` |
-| Explanation | `LLM.O1`, plus Claude for relationship synthesis | `CONCEPT EXPLANATION`, finder on Claude 3.7 Thinking |
-| Recap | `LLM.O1` | none |
-| Conclusion | Claude 3.5 Sonnet v2 for bullets, Claude 3.7 Sonnet for prose | `LESSON CONCLUSION` |
-| MCQs | `LLM.CLAUDE_3_7_SONNET_THINKING` | `MCQs` |
-| Pauses | Claude 3.5 Sonnet v2 | deterministic mismatch retry |
+| Introduction | `LLM.CLAUDE_5_OPUS` | `LESSON INTRODUCTION` |
+| Section overview | `LLM.CLAUDE_5_SONNET` | `SECTION OVERVIEW` |
+| Question | `LLM.GPT_5` for connections, Claude 5 Sonnet for the final | `CURIOUS QUESTION` |
+| Explanation | `LLM.GPT_5`, plus Claude for relationship synthesis | `CONCEPT EXPLANATION`, finder on Claude 5 Opus |
+| Recap | `LLM.GPT_5` | none |
+| Conclusion | `LLM.GPT_5` for bullets, Claude 5 Sonnet for prose | `LESSON CONCLUSION` |
+| MCQs | `LLM.CLAUDE_5_OPUS` | `MCQs` |
+| Pauses | Claude 5 Sonnet | deterministic mismatch retry |
 
 - **No content failure blocks.** Every QC path either fixes once or accepts.
 - **The blocking failures are structural**: a missing video plan or knowledge graph, or an unparseable model response.
@@ -161,7 +161,7 @@ In the order `::generate_lesson_transcript` walks them:
 
 ## External dependencies
 
-- **OpenAI o1** and **Anthropic Claude 3.5 / 3.7 Sonnet**, including the Thinking variants, all through `core/helpers.py::llm_call` and `::qc_llm_call` onto `core/clients/openai.py::llm_complete`.
+- **GPT 5**, **Claude 5 Sonnet** and **Claude 5 Opus**, all through `core/helpers.py::llm_call` and `::qc_llm_call` onto `core/clients/openai.py::llm_complete` and the TrueFoundry gateway.
 - **S3**, for two reads and one write.
 - **No audio, image or video service.** This stage is text only.
 
@@ -173,7 +173,7 @@ In the order `::generate_lesson_transcript` walks them:
 - **[06](06-text-overlays.md) reads the breakdown, not the flat text.**
   - It needs per-concept `explanation` to locate slide content, and `conclusion_slide` to render the closer.
   - It also derives MCQ trigger times from the last words of each explanation, so the explanation's ending is load-bearing in a way nothing states.
-- **[10](10-shotstack.md) reads the transcript again for subtitles.**
+- **[10](10-render.md) reads the transcript again for subtitles.**
 - **Nothing downstream rewrites a word.** Every later stage selects, times or renders text that was fixed here.
 
 ## Seams

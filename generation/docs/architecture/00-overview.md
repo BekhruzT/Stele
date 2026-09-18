@@ -24,13 +24,13 @@ This repo turns a curriculum data model into a narrated, animated video lesson: 
   - `run.py::selected` filters the course's subsections by `--unit`, `--chapter`, `--section` and `--subsection`. Asking for nothing that exists is an error, not a silent no-op.
   - A versioned subject starts from the `v0` corpus: `run.py::main` copies the `- v0` prefix into the new version's if it does not exist yet, which is idempotent and skipped otherwise.
 - **`run.py` loads `.env` before it imports anything else**, from `generation/` first and the repository root second. It has to be first, because `core/constants.py` reads the environment at module scope ([11](11-support-layer.md)).
-- **Two storage backends, chosen by `STORAGE`.** Under `s3` every artifact lives in the bucket; under `local` everything lives in a folder, the vendor stages that have no local equivalent are skipped, and ShotStack is swapped for `stages/local_render.py` ([13](13-generation-layout.md)).
+- **Two storage backends, chosen by `STORAGE`.** Under `s3` every artifact lives in the bucket; under `local` everything lives in a folder, and the vendor stages that have no local equivalent are skipped ([13](13-generation-layout.md)). `local` is the only mode the render stage runs in.
 
 ## The pipeline, in order
 
     guidelines.json → lesson_plan.json → content_plan + lesson_metadata
         → Knowledge Graph → Video Plan → Video Transcript → Avatar Clips
-        → Text Overlays → Scenes Breakdown → Image Gen Clips → Video Gen Clips → ShotStack
+        → Text Overlays → Scenes Breakdown → Image Gen Clips → Video Gen Clips → Local Render
 
 - **The first row is upstream prerequisite work and is not part of the nine ([01](01-upstream.md)).**
   - It runs per course or per chapter, not per lesson, and `run.py` does not run it. The scripts live in `ops/authoring/`.
@@ -59,7 +59,7 @@ flowchart TD
   TO -->|"overlay windows"| SB["Scenes Breakdown"]
   SB --> IM["Image Gen Clips"]
   IM -->|"chosen still per clip"| VG["Video Gen Clips"]
-  VG --> SS["ShotStack"]
+  VG --> SS["Local Render"]
   AV --> SS
   TO --> SS
 ```
@@ -102,7 +102,7 @@ flowchart TD
 | 6 | Scenes Breakdown | `stages/scenes_breakdown.py::generate_clips` | `clips_path` | `contents/subsection/Scenes Breakdown/{key}.json` |
 | 7 | Image Gen Clips | `stages/image_clips.py::generate_all_images` | `image_json_path` | `contents/subsection/Image Gen Clips/{key}.json` |
 | 8 | Video Gen Clips | `stages/video_clips.py::generate_all_videos` | `video_json_path` | `contents/subsection/Video Gen Clips/{key}.json` |
-| 9 | ShotStack | `stages/shotstack.py::generate_lesson_video` | `shotstack_json_path` | `contents/subsection/ShotStack/{key}.json` |
+| 9 | Local Render | `stages/local_render.py::render_lesson` | `lesson_video_path` | `contents/subsection/Local Render/{key}.json` |
 
 Upstream, and not owned by any of the nine:
 
@@ -127,9 +127,9 @@ Binary media, all under one prefix:
 | Conclusion slide | Text Overlays | `ConclusionSlides/{id}.mp4` |
 | Per-clip stills | Image Gen Clips | `images/{media.id}/{media.id}.png` and `.json` |
 | Per-clip motion | Video Gen Clips | `videos/{media.id}/{media.id}-v{N}-{retry}.mp4` and `.json` |
-| Finished lesson | ShotStack | `{subsection}.mp4` |
+| Finished lesson | Local Render | `{subsection}.mp4` |
 
-The finished lesson is also copied to the public viewer bucket named by `S3_BUCKET_UI`, with subtitles, per-section splits and thumbnails; that layout is in [10](10-shotstack.md).
+The finished lesson is also copied to the public viewer bucket named by `S3_BUCKET_UI`, with subtitles, per-section splits and thumbnails; that layout is in [10](10-render.md).
 
 ## The key
 
@@ -191,15 +191,15 @@ One lesson touches all of these. Auth is environment variables throughout; the f
 | Service | Used by | For |
 | --- | --- | --- |
 | Google Sheets | [02](02-knowledge-graph.md) | the knowledge graph is read from spreadsheets, not generated |
-| OpenAI o1, GPT-4o, GPT-4.1 | [03](03-video-plan.md), [04](04-transcript.md), [06](06-text-overlays.md), [07](07-scenes-breakdown.md), [08](08-images.md) | planning, narration, QC, overlay content, clip splitting, prompt rewriting |
+| GPT 5, Claude 5 Sonnet, Claude 5 Opus, all through the TrueFoundry gateway | [03](03-video-plan.md), [04](04-transcript.md), [06](06-text-overlays.md), [07](07-scenes-breakdown.md), [08](08-images.md) | planning, narration, QC, overlay content, clip splitting, prompt rewriting |
 | ElevenLabs | [05](05-avatar-clips.md) | speech, and the character alignment the whole lesson clock is derived from |
 | D-ID | [05](05-avatar-clips.md) | talking-head video from a portrait and an audio track |
 | fal.ai FLUX | [08](08-images.md) | still image generation |
 | Google Custom Search | [08](08-images.md) | sourced imagery for maps |
 | Kling via fal.ai, Luma | [09](09-videos.md) | image-to-video motion, with Luma as fallback |
 | Google Gemini | [09](09-videos.md) | video QC, whose verdict is currently discarded |
-| Shotstack | [10](10-shotstack.md) | the final timeline render |
-| Playwright and ffmpeg | [05](05-avatar-clips.md), [06](06-text-overlays.md), [10](10-shotstack.md) | HTML to video, and local splitting |
+| ffmpeg | [10](10-render.md) | the final composite |
+| Playwright and ffmpeg | [05](05-avatar-clips.md), [06](06-text-overlays.md), [10](10-render.md) | HTML to video, and local splitting |
 | AWS S3, DynamoDB, SES, CloudWatch | everywhere, under `STORAGE=s3` | artifacts, cost rows, mail, logs |
 | Google Chat | `core/notification_system.py` | batch start, per-lesson success and failure |
 
@@ -216,7 +216,7 @@ One lesson touches all of these. Auth is environment variables throughout; the f
 | [07 — Scenes Breakdown](07-scenes-breakdown.md) | 6 | The transcript cut into timed visual clips around the overlay windows |
 | [08 — Image Gen Clips](08-images.md) | 7 | One still per clip, generated or sourced, and the QC that picks it |
 | [09 — Video Gen Clips](09-videos.md) | 8 | Motion from each chosen still |
-| [10 — ShotStack](10-shotstack.md) | 9 | The timeline assembled and rendered, split, subtitled and published |
+| [10 — Render](10-render.md) | 9 | Every artifact composited into one MP4 with ffmpeg |
 | [11 — Support layer](11-support-layer.md) | — | `core/`: storage, the model clients, cost, logging, notifications, and every environment variable |
 | [12 — Operator tooling](12-operator-tooling.md) | — | `ops/`: the Streamlit reviewer, the `-edited.json` contract, the repair and delivery scripts, and what QC actually gates |
 | [13 — Layout](13-generation-layout.md) | — | The folder rules, the two storage backends, and the checks that enforce both |
