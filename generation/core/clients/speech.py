@@ -42,6 +42,55 @@ logger = logging.getLogger(__name__)
 # successor and still serves the /with-timestamps endpoint the word-level clock depends on.
 # Override with ELEVENLABS_MODEL_ID, or per call by passing model_id through kwargs.
 ELEVENLABS_MODEL_ID = os.getenv("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
+_BREAK_RE = re.compile(r'<break\s+time=["\'][\d.]+s["\']\s*/>')
+_SENTENCE_END_RE = re.compile(r'[.!?]["\u201d\u2019)\]]*$')
+_PAUSE_TRANSITION_RE = re.compile(
+    r"^(?:after|before|by \d|in \d|on (?:the |\d)|years? later|the next|"
+    r"that gap|what changed|from there|with that|the .* (?:problem|failure|test|trial))\b", re.I)
+_PAUSE_STOPWORDS = frozenset(
+    "about after again against also among because been before being between both could from have "
+    "into itself more most much only other over same some such than that their them then there "
+    "these they this those through under very what when where which while with would".split())
+
+
+def add_narration_pauses(text: str) -> str:
+    """Insert sentence breaths and stronger paragraph-level SSML pauses."""
+    if _BREAK_RE.search(text):
+        return text
+    from nltk.tokenize import PunktSentenceTokenizer
+
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n+", text) if p.strip()]
+    if len(paragraphs) < 2:
+        return text
+    tokenizer = PunktSentenceTokenizer(text)
+
+    def content_words(paragraph: str) -> set[str]:
+        return {word for word in re.findall(r"[a-z]{4,}", paragraph.lower())
+                if word not in _PAUSE_STOPWORDS}
+
+    def paced_paragraph(paragraph: str) -> str:
+        sentences = [paragraph[start:end].strip() for start, end in tokenizer.span_tokenize(paragraph)]
+        return ' <break time="1s"/> '.join(sentences)
+
+    out, words_since_long_pause = [paced_paragraph(paragraphs[0])], len(paragraphs[0].split())
+    previous_words = content_words(paragraphs[0])
+    for index, paragraph in enumerate(paragraphs[1:], 1):
+        current_words = content_words(paragraph)
+        overlap = len(previous_words & current_words) / max(1, min(len(previous_words), len(current_words)))
+        starts_transition = bool(_PAUSE_TRANSITION_RE.match(re.sub(r"^\[[^\]]+\]:\s*", "", paragraph)))
+        sentence_boundary = bool(_SENTENCE_END_RE.search(out[-1]))
+        major_transition = words_since_long_pause >= 320 and starts_transition
+        topic_transition = words_since_long_pause >= 260 and overlap <= 0.05
+        pause = (2.5 if major_transition else 2.0 if topic_transition else
+                 1.5 if len(paragraphs[index - 1].split()) < 80 else 2.0
+                 ) if sentence_boundary else 0.0
+        if pause:
+            out.append(f'<break time="{pause:g}s"/>')
+            words_since_long_pause = 0 if major_transition or topic_transition else words_since_long_pause
+        out.append(paced_paragraph(paragraph))
+        words_since_long_pause += len(paragraph.split())
+        previous_words = current_words
+    return "\n\n".join(out)
 
 def clean_voice_with_elevenlabs(audio_path, out_path):
     client = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
@@ -468,7 +517,7 @@ def generate_speech(text:str, speech_file_path='./speech.mp3', voice='IKne3meq5a
 
 def synthesize_speech(
         file_path: str, text: str, s3_media_path: str, voice: str = 'echo', **kwargs) -> Tuple[List[WordTiming], str]:
-    enhanced_text = text #speech_enhance_transcript(text)
+    enhanced_text = add_narration_pauses(text) if kwargs.pop("add_pauses", False) else text
     character_timestamps = []
     request_ids = []
     if len(enhanced_text) >= 4096:  # limit is 5k in elevenlabs but sticking to this for simplicity
@@ -522,7 +571,7 @@ def speech_enhance_transcript(transcript: str) -> str:
         system_message(TRANSCRIPT_SPEECH_ENHANCEMENT_PROMPT),
         user_message(transcript)
     ]
-    response = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    response = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     if not response:
         raise Exception("Speech enhancement failed.")
     return response

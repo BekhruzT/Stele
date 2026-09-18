@@ -63,7 +63,7 @@ def find_best_voice(context: Context, speaker: str, image_prompt: str):
         system_message(MATCH_SIGNIFICANT_FIGURE_VOICE_PROMPT.format(voices = json.dumps(elevenlabs_voice_descriptions, indent=2),  **get_subject_specific_general_prompt_entries(context.subject))),
         user_message(f"{context.category} Figure: {speaker}\nTopic: {get_unit_from_chapter(context.subject, context.chapter)} - {context.subsection}.\nPortrait Description: {image_prompt}")
     ]
-    voice_id = extract_tag_content('voice_id', llm_complete(messages, model=LLM.GPT_4_TURBO))
+    voice_id = extract_tag_content('voice_id', llm_complete(messages, model=LLM.GPT_5))
     return voice_id
 
 def describe_avatars(subject: str, transcript: str, avatar_intros: Dict[str, str]) -> Dict[str, str]:
@@ -71,7 +71,7 @@ def describe_avatars(subject: str, transcript: str, avatar_intros: Dict[str, str
         system_message(AVATAR_INTRODUCTION_PROMPT.format(transcript=transcript, introducing_phrases=json.dumps(avatar_intros, indent=2), **get_subject_specific_general_prompt_entries(subject))),
         user_message(f"Here is the list of signficant personas:\n<personas>\n{json.dumps(list(avatar_intros.keys()), indent=2)}\n</personas>")
     ]
-    avatar_introductions = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    avatar_introductions = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
 
     return str_2_json(extract_tag_content('introductions', avatar_introductions))
 
@@ -101,7 +101,7 @@ def identify_speaker_intro(speaker: str, avatar_asset: AvatarAsset) -> Dict[str,
     ]
 
 
-    llm_response = llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    llm_response = llm_complete(messages, LLM.CLAUDE_5_SONNET)
     try:
         response = str_2_json(extract_tag_content('matches', llm_response))
         trigger_word_index = identify_word_index_in_transcript(splits, response['word'], response['phrase_index'])
@@ -171,7 +171,7 @@ def find_best_match(speaker: str, character_bundles: dict) -> Optional[str]:
     
     prompt = SPEAKER_IDENTIFIER_PROMPT.format(speaker=speaker, candidate_matches=matches_str)
 
-    llm_response = ensure_json(llm_complete([user_message(prompt)], model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET))
+    llm_response = ensure_json(llm_complete([user_message(prompt)], model=LLM.CLAUDE_5_SONNET))
     
     if llm_response and 'match_found' in llm_response and llm_response['match_found']:
         return llm_response.get('matching_candidate')
@@ -233,7 +233,7 @@ def load_speaker(context: Context, loaded_speakers: Dict[str, Speaker], segment:
         user_message(GENERATE_AVATER_IMAGE_USER_PROMPT.format(figure_name=segment['speaker'], topic=context.subsection, unit=get_unit_from_chapter(context.subject, context.chapter), **get_subject_specific_general_prompt_entries(context.subject)))
     ]
 
-    image_prompt = extract_tag_content('prompt', llm_complete(messages, model=LLM.GPT_4_TURBO))
+    image_prompt = extract_tag_content('prompt', llm_complete(messages, model=LLM.GPT_5))
     image_url = generate_flux_image_portrait(image_prompt)
     if image_url == "NSFW":
         raise Exception(f"Generation of image for {segment['speaker']} failed as it contained NSFW concepts.")
@@ -265,14 +265,15 @@ def create_avatar_asset_audio(context: Context, host_names: List[str], loaded_sp
                 
     # Generate audio for all segments, including host, with their dialogue
     audio_s3_path = context.media_path + f'{segment_clip_prefix_name}.mp3'
-    voice_id = 'IKne3meq5aSn9XLyUdCD' if is_host else loaded_speakers[segment['speaker']].voice_id  # Voice IDs for host and others
+    # Alternate: George (audition #4) — JBFqnCBsd6RMkjVDRZzb
+    voice_id = 'PIGsltMj3gFMR34aFDI3' if is_host else loaded_speakers[segment['speaker']].voice_id
     try:
         speech_timings, request_ids = synthesize_speech(
             f'/tmp/{segment_clip_prefix_name}.mp3', 
             segment['dialogue'], context.media_path, 
             voice=voice_id, previous_text=previous_text, 
             next_text=next_text, previous_request_ids=previous_request_ids,
-            speed=1.1 if is_host else 1.0
+            speed=0.9 if is_host else 1.0, add_pauses=is_host
         )
 
     except Exception as e:
@@ -284,7 +285,8 @@ def create_avatar_asset_audio(context: Context, host_names: List[str], loaded_sp
                 f'/tmp/{segment_clip_prefix_name}.mp3', 
                 segment['dialogue'], context.media_path, 
                 voice=loaded_speakers[segment['speaker']].voice_id, previous_text=previous_text, 
-                next_text=next_text, previous_request_ids=previous_request_ids, speed=1.1 if is_host else 1.0
+                next_text=next_text, previous_request_ids=previous_request_ids,
+                speed=0.9 if is_host else 1.0, add_pauses=is_host
             )
             logger.info(f"Changed, {segment['speaker']} - {voice_id}, to a default voice: {loaded_speakers[segment['speaker']].voice_id}")
         else: 
