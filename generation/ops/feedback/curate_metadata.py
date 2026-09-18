@@ -120,7 +120,7 @@ def classify_key_concept_change_requested(key_concept: KeyConcept) -> ChangeType
         system_message(CLASSIFY_KEY_CONCEPT_CHANGE_TYPE),
         user_message(f"<comment>\n{key_concept.feedback}\n</comment>\n\n<key_concept>\n{json.dumps(key_concept_dict, indent=2)}\n</key_concept>")
     ] 
-    response = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    response = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     return ChangeType(extract_tag_content('classification', response))
 
 def classify_change_requested(comment: str, key_phrase: str) -> ChangeType:
@@ -128,7 +128,7 @@ def classify_change_requested(comment: str, key_phrase: str) -> ChangeType:
         system_message(CLASSIFY_PHRASE_CHANGE_TYPE),
         user_message(f"<comment>\n{comment}\n</comment>\n\n<key_concept>\n{key_phrase}\n</key_concept>")
     ] 
-    response = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    response = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     return ChangeType(extract_tag_content('classification', response))
 
 def update_key_concept(lesson_metadata: LessonMetadata, key_concept: KeyConcept) -> KeyConcept:
@@ -146,7 +146,7 @@ def update_key_concept(lesson_metadata: LessonMetadata, key_concept: KeyConcept)
             feedback = key_concept.feedback, key_concept={'title': key_concept.title, 'key_phrases': [p.edited_phrase for p in key_concept.key_phrases]}
         ))
     ] 
-    response = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    response = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     response = str_2_json(extract_tag_content('updated_key_concepts', response))
 
     empty_phrase = Keyphrase(phrase='').dict()
@@ -176,7 +176,7 @@ def update_key_phrase(key_concept: KeyConcept, keyphrase: Keyphrase) -> str:
             feedback = keyphrase.feedback, key_phrase=keyphrase.edited_phrase
         ))
     ] 
-    response = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    response = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     return extract_tag_content('updated_key_phrase', response)
 
 def create_key_phrase(key_concept: KeyConcept, keyphrase: Keyphrase) -> str:
@@ -190,7 +190,7 @@ def create_key_phrase(key_concept: KeyConcept, keyphrase: Keyphrase) -> str:
             feedback = keyphrase.feedback, key_phrase=keyphrase.edited_phrase
         ))
     ]
-    response = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    response = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     response_json = str_2_json(extract_tag_content('new_key_phrase', response))
     return -1 if response_json['placement'].lower()=='before' else 1, response_json['key_phrase']
 

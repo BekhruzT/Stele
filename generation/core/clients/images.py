@@ -230,7 +230,7 @@ def generate_flux_image(query: str, nsfw_retry: int = 0, width: int = 1280, heig
             _, new_query = llm_call(
                 system_prompt=REMOVE_NSFW_CONCEPTS_SYSTEM_PROMPT,
                 user_prompt=REMOVE_NSFW_CONCEPTS_USER_PROMPT.format(prompt=query),
-                model=LLM.CLAUDE_3_7_SONNET_THINKING,
+                model=LLM.CLAUDE_5_OPUS,
                 tag="new_prompt",
                 temperature=1
             )
@@ -264,7 +264,7 @@ def generate_flux_image_portrait(query: str, nsfw_retry: int = 0) -> str:
             _, new_query = llm_call(
                 system_prompt=REMOVE_NSFW_CONCEPTS_SYSTEM_PROMPT,
                 user_prompt=REMOVE_NSFW_CONCEPTS_USER_PROMPT.format(prompt=query),
-                model=LLM.CLAUDE_3_7_SONNET_THINKING,
+                model=LLM.CLAUDE_5_OPUS,
                 tag="new_prompt",
                 temperature=1
             )
@@ -480,10 +480,10 @@ def generate_diagram(image_description: str, grade: str, subject: str, image_pat
         user_message(PLAN_PLOTLY_DIAGRAM_PROMPT, description=image_description)
     ]
 
-    plan = chat_complete(messages, model='gpt-4-turbo')
+    plan = chat_complete(messages, model=LLM.GPT_5)
     messages = add_to_messages(messages, plan, CODE_PLOTLY_DIAGRAM_PROMPT.format(description=image_description))
 
-    code = chat_complete(messages, model='gpt-4-turbo')
+    code = chat_complete(messages, model=LLM.GPT_5)
     code = re.findall(r"```python(.*?)```", code, re.DOTALL)[0]
 
     code_interpreter(code + f'\nfig.write_image("{image_path}")' +
@@ -504,7 +504,7 @@ def ai_prompt_to_google_query(prompt: str) -> str:
         user_message(prompt)
     ]
 
-    query = extract_tag_content('query', llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET))
+    query = extract_tag_content('query', llm_complete(messages, LLM.CLAUDE_5_SONNET))
 
     return query
 
@@ -532,7 +532,7 @@ def find_matching_image_from_db(prompt: str, target_chapter: str, target_subsect
         user_message(prompt)
     ]
 
-    response = str_2_json(extract_tag_content('decision', llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET)))
+    response = str_2_json(extract_tag_content('decision', llm_complete(messages, LLM.CLAUDE_5_SONNET)))
 
     if response['confidence'] == 2:
         return images[response['best_image_index']]['url']

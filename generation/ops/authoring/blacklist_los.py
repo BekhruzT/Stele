@@ -174,7 +174,7 @@ def update_sheet_with_clusters(sheet, grouped_los, start_row, subject):
                     {"role": "user", "content": f"I have identified potentially redundant learning objectives grouped by their L1 standards:\n\n{json.dumps(l1_groups, indent=2)}\n\nAre these learning objectives truly redundant? If yes, which group should be kept based on which is more suitable home based on the scope of l1 standard and assuming student is going through the course in order of l1 standard prescribed by the college board? Please respond in JSON format with two fields: 'are_redundant' (boolean) and 'keep_group' (L1 standard key to keep). Return only the json and nothing else"}
                 ]
                 
-                response = llm_complete(messages, model=LLM.GPT_4_O)
+                response = llm_complete(messages, model=LLM.GPT_5)
                 try:
                     llm_decision = ensure_json(response) # type: ignore
                     if llm_decision['are_redundant']: # type: ignore

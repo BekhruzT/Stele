@@ -109,7 +109,7 @@ class CharacterImageProcessor:
             user_message(f"Compose a prompt for {speaker}, who will be portrayed as a historic figure. Here is some info about the character: {json.dumps(info, indent=2)}")
         ]
 
-        image_prompt = extract_tag_content('prompt', llm_complete(messages, model=LLM.GPT_4_TURBO))
+        image_prompt = extract_tag_content('prompt', llm_complete(messages, model=LLM.GPT_5))
         return image_prompt
 
     def create_thumbnail(self, image_path: str, thumbnail_path: str) -> None:

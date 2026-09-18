@@ -5,10 +5,9 @@
 # The pipeline itself needs none of the ops/ block at the bottom. Install without it and
 # run.py still builds a video; only the tools under ops/ break.
 
-# LLMs. There is no Anthropic client: the four LLM.CLAUDE_* names in
-# core/clients/openai.py are enum aliases carrying gpt-* values, so nothing reaches an
-# anthropic SDK.
+# LLMs. Chat completions route through the TrueFoundry gateway; gemini.py is direct-to-Google.
 openai==1.59.6
+anthropic>=0.39.0
 google-generativeai
 langchain==0.3.14
 langchain-community==0.3.14
@@ -19,7 +18,6 @@ assemblyai==0.28.0
 pydub==0.25.1
 fal_client==0.4.1
 lumaai==1.5.0
-shotstack-sdk==0.2.8
 opencv-python==4.11.0.86
 Pillow
 CairoSVG==2.7.1

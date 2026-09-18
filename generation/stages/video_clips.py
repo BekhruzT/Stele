@@ -59,7 +59,7 @@ def secure_prompt(prompt: str):
         user_message(prompt)
     ]
 
-    response = llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    response = llm_complete(messages, LLM.CLAUDE_5_SONNET)
     
     return extract_tag_content('prompt', response)
 
@@ -82,7 +82,7 @@ def reimagine_image_prompt(context: Context, clip: Clip, qc_reasoning: str):
     _, clips_raw = llm_call(
         system_prompt='',
         user_prompt=user_msg,
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
+        model=LLM.CLAUDE_5_SONNET,
         tag="segments",
         history=history, 
         is_json=True

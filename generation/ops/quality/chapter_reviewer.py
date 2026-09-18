@@ -21,7 +21,7 @@ import logging
 from core.logger import Logger
 logger = Logger("MetadataFixer", logging.DEBUG)
 
-METADATA_MODEL = LLM.O1_PREVIEW
+METADATA_MODEL = LLM.GPT_5
 
 def gather_chapter_lessons(event) -> Dict[str, List[LessonMetadataWithContext]]:
     """
@@ -252,7 +252,7 @@ def verify_changes(
         improvements
     )
 
-    response = chat_complete([{"role": "user", "content": prompt}], model=LLM.GPT_4_O)
+    response = chat_complete([{"role": "user", "content": prompt}], model=LLM.GPT_5)
     result = ensure_json(response) if response else {"changes_approved": False, "verification": ""}
     return result # type: ignore
 

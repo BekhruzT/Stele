@@ -175,7 +175,7 @@ def define_clips(
     history, clips_raw = llm_call(
         system_prompt=get_system_prompt_define_clips(context),
         user_prompt=get_user_prompt_define_clips(essay, suggested_splits, speakers),
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
+        model=LLM.CLAUDE_5_SONNET,
         tag="segments",
         is_json=True
     )
@@ -189,7 +189,7 @@ def define_clips(
         history, clips_raw = llm_call(
             system_prompt='',
             user_prompt=FIX_CLIPS_USER_PROMPT.format(validation_errors = json.dumps(validation_errors, indent=2)),
-            model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
+            model=LLM.CLAUDE_5_SONNET,
             history=history,
             tag="segments",
             is_json=True
@@ -239,7 +239,7 @@ For clip two, covering the background information for the lesson besides the bac
     _, clips_raw = llm_call(
         system_prompt=get_system_prompt_define_clips(context),
         user_prompt=get_user_prompt_define_clips(segment_text, ["No suggested segment splits. Please divide the transcript into two parts at a logical point. Ideally, the split should occur between the lesson introduction and the background information."], speaker=[],custom_instruction=custom_instruction),
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
+        model=LLM.CLAUDE_5_SONNET,
         tag="segments",
         is_json=True
     )
@@ -268,7 +268,7 @@ def identify_maps(context: Context, clips: List[Clip]) -> List[Clip]:
         user_message(json.dumps(potential_maps, indent=2))
     ]
 
-    response = str_2_json(extract_tag_content('answer', llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET)))
+    response = str_2_json(extract_tag_content('answer', llm_complete(messages, LLM.CLAUDE_5_SONNET)))
 
     def process_response_item(item):
         ii, _map = item

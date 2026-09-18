@@ -261,7 +261,7 @@ def determine_section_transition(section_title: str, overview: str, error_messag
             overview=overview
         ) + retry_prompt)
     ]
-    transition_data = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2)
+    transition_data = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     return ensure_json(transition_data or '{}')
 
 
@@ -313,7 +313,7 @@ def phrase_split_to_content_split(content: str, phrases: Tuple[str, str]) -> Tup
     _, response = llm_call(
         system_prompt = "",
         user_prompt = f"The spoken phrase has been split into two parts:\n<part1>{phrases[0]}</part1>\n<part2>{phrases[1]}</part2>\n\nSplit the written content accordingly: <content>{content}</content>. Split it into two parts and return each inside tags <content1> and <content2> respectively. <content2> can never start with punctuation mark, punctuation at the split point should appear in <content1>.",
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2
+        model=LLM.CLAUDE_5_SONNET
     )
     return extract_tag_content("content1", response), extract_tag_content("content2", response)
 
@@ -455,7 +455,7 @@ def process_text_slide_concept(concept_data, transcript_timings):
                 transcript=concept_transcript['explanation'],
                 figure_name=concept_data.get('figure_name', '')
             ),
-            model=LLM.CLAUDE_3_7_SONNET_THINKING, is_json=True, tag='answer', type_of_content="text slide content"
+            model=LLM.CLAUDE_5_OPUS, is_json=True, tag='answer', type_of_content="text slide content"
         )
 
         # Determining text slide timings
@@ -465,7 +465,7 @@ def process_text_slide_concept(concept_data, transcript_timings):
                 points=json.dumps(slide_content["points"], indent=2),
                 transcript=concept_transcript['explanation']
             ),
-            model=LLM.CLAUDE_3_7_SONNET_THINKING,
+            model=LLM.CLAUDE_5_OPUS,
             history=[system_message(TEXT_SLIDE_TIMINGS_SYSTEM_PROMPT), *text_slides_timings_examples],
             is_json=True
         )
@@ -474,7 +474,7 @@ def process_text_slide_concept(concept_data, transcript_timings):
             _, point_matches = llm_call(
                 system_prompt='',
                 user_prompt=f"Some identified phrases did not exactly match the text in the transcript. Remember, each identified phrase must match a substring in the transcript exactly. You may need to slightly adjust these mismatches to align with the transcript verbatim. If the match was completely incorrect, try to identify the closest semantic match in the transcript.\n<unmatched_phrases>\n{failed_matches}\n</unmatched_phrases>\nPlease correct only these phrases, leaving the rest of the JSON as it is. Without asking any further questions, return the best JSON you can.",
-                model=LLM.CLAUDE_3_7_SONNET,
+                model=LLM.CLAUDE_5_SONNET,
                 history=history,
                 tag='answer',
                 is_json=True
@@ -604,7 +604,7 @@ def identify_diagram_timings(Model: BaseDiagram, contents: dict, transcript: str
             transcript=transcript,
             custom=custom
         ),
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
         tag='answer',
         is_json=True,
     )
@@ -621,7 +621,7 @@ def identify_diagram_timings(Model: BaseDiagram, contents: dict, transcript: str
     _, phrase_matched_content = llm_call(
         system_prompt='',
         user_prompt=f"Some identified phrases did not exactly match the text in the transcript. Remember, each identified phrase must match a substring in the transcript exactly. You may need to slightly adjust these mismatches to align with the transcript verbatim. If the match was completely incorrect, try to identify the closest semantic match in the transcript.\n<unmatched_phrases>\n{unmatched_phrases}\n</unmatched_phrases>\nPlease correct only these phrases, leaving the rest of the JSON as it is. Without asking any further questions, return the best JSON you can.",
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
         history=history,
         tag='answer',
         is_json=True
@@ -648,7 +648,7 @@ def process_diagram_concept(concept_data, transcript_timings):
                 explanation=concept_transcript['explanation'],
                 figure_name=concept_data['figure_name']
             ),
-            model=LLM.CLAUDE_3_7_SONNET_THINKING,
+            model=LLM.CLAUDE_5_OPUS,
             qc_requirements=DIAGRAM_QC_REQUIREMENTS.format(
                 diagram_type=concept_data['visual']['diagram_type'],
                 diagram_specific_requirements=diagram_config["qc_requirements"],
@@ -734,7 +734,7 @@ def extract_intro_overview_segment(introduction: str, section_names: str):
             sections=section_names
         ))
     ]
-    lesson_organizer_part = llm_complete(messages, model=LLM.GPT_4_O)
+    lesson_organizer_part = llm_complete(messages, model=LLM.GPT_5)
     return lesson_organizer_part, messages+[assistant_message(lesson_organizer_part)]
 
 def get_lesson_overview_diagram_contents(video_plan: VideoPlan, transcript_json: TranscriptOutput, transcript_timings: TranscriptTiming) -> Diagram:
@@ -756,7 +756,7 @@ def get_lesson_overview_diagram_contents(video_plan: VideoPlan, transcript_json:
                 _, lesson_organizer_part = llm_call(
                     system_prompt='',
                     user_prompt=f"The identified part did not exactly match the text in the transcript. Remember, the segment you return must exactly match a verbatim substring in the transcript. Please try to identify the part again, only return the required part and nothing else.",
-                    model=LLM.GPT_4_O,
+                    model=LLM.GPT_5,
                     history=history,
                     is_json=False
                 )
@@ -777,7 +777,7 @@ def get_lesson_overview_diagram_contents(video_plan: VideoPlan, transcript_json:
         system_message(LESSON_ORGANIZER_CONTENT_SYSTEM),
         user_message(LESSON_ORGANIZER_CONTENT_USER.format(organizer_data=json.dumps(organizer_data, indent=2)))
     ]
-    lesson_organizer_data = llm_complete(messages, model=LLM.GPT_4_O)
+    lesson_organizer_data = llm_complete(messages, model=LLM.GPT_5)
     lesson_organizer_data = ensure_json(lesson_organizer_data or json.dumps(organizer_data))
     # print_json(lesson_organizer_data)
 
@@ -830,7 +830,7 @@ def get_section_overview_diagram_contents(video_plan: VideoPlan, transcript_json
             ))
         ]
         history = [messages[0]]
-        section_organizer_part = llm_complete(messages, model=LLM.GPT_4_O)
+        section_organizer_part = llm_complete(messages, model=LLM.GPT_5)
         
         # Match the identified segment with retries
         max_retries = 2
@@ -845,7 +845,7 @@ def get_section_overview_diagram_contents(video_plan: VideoPlan, transcript_json
                     _, section_organizer_part = llm_call(
                         system_prompt='',
                         user_prompt=f"The identified part did not exactly match the text in the transcript. Remember, the segment you return must exactly match a verbatim substring in the transcript. Please try to identify the part again, only return the required part and nothing else.",
-                        model=LLM.GPT_4_O,
+                        model=LLM.GPT_5,
                         history=history,
                         is_json=False
                     )
@@ -869,7 +869,7 @@ def get_section_overview_diagram_contents(video_plan: VideoPlan, transcript_json
                 concepts=concept_names
             )+(f"\n\nUse the icon: '{section_title_icon}' for the section title." if section_title_icon else ''))
         ]
-        section_organizer_data = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2)
+        section_organizer_data = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
         section_organizer_data = ensure_json(extract_tag_content('mind_map', section_organizer_data) or '{}')
 
         section_start_time = next((val for val in video_split_times.values() if 0 < section_organizer_timings.timings[0].start_time - val < 1),

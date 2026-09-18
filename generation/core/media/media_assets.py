@@ -240,7 +240,7 @@ def update_transcript_with_artifact_reference(transcript: str, diagram: dict, ar
             diagram=json.dumps(diagram, indent=2), 
             artifact=artifact.name
         ),
-        model=LLM.CLAUDE_3_7_SONNET
+        model=LLM.CLAUDE_5_SONNET
     )
 
     insert_method = extract_tag_content("method", response).strip()

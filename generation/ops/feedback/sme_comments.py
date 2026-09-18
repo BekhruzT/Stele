@@ -78,7 +78,7 @@ def process_comment_batch(batch):
         ]"""
     }]
 
-    response = llm_complete(messages=prompt, model=LLM.GPT_4_O)
+    response = llm_complete(messages=prompt, model=LLM.GPT_5)
     analyses = ensure_json(response) # type: ignore
 
     return analyses
@@ -208,7 +208,7 @@ Some examples of enriching context can be : include x (as example/point etc) for
         }
     ]
 
-    response = llm_complete(messages=prompt, model=LLM.GPT_4_O)
+    response = llm_complete(messages=prompt, model=LLM.GPT_5)
     try:
         enriched_batch = ensure_json(response) # type: ignore
         if not isinstance(enriched_batch, list):

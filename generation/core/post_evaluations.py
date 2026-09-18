@@ -166,7 +166,7 @@ def generic_llm_evaluation(eval_content: str, **kwargs: dict) -> Dict[str, str]:
     history, evaluation = llm_call(
         system_prompt=system_prompt,
         user_prompt=user_prompt.format(content=eval_content),
-        model=kwargs.get("model", LLM.CLAUDE_3_7_SONNET),
+        model=kwargs.get("model", LLM.CLAUDE_5_SONNET),
         tag=kwargs.get("tag", "eval"),
         is_json=True
     )
@@ -356,7 +356,7 @@ if __name__=="__main__":
     output = orchestrator(folders, eval_type="LLM Transcript",
                  system_prompt=FIND_VISUAL_OBJECTS_SYSTEM_PROMPT, 
                  user_prompt=FIND_VISUAL_OBJECTS_USER_PROMPT, 
-                 model=LLM.CLAUDE_3_7_SONNET_THINKING,
+                 model=LLM.CLAUDE_5_OPUS,
                  tag='output',
                  processor=lambda x: {"visuals": x}
                  )

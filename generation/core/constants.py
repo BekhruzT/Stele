@@ -18,9 +18,13 @@ CONST_STRING_LENGTH = 128
 CONST_TOKEN_LENGTH = 2048
 CONST_PARAGRAPH_LENGTH = 4096
 
-# Openai
+# Openai. Images, speech and transcription only; chat completions go to the gateway below.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_ORGANIZATION_ID = os.getenv("OPENAI_ORGANIZATION_ID")
+
+# TrueFoundry gateway
+TFY_API_KEY = os.getenv("TFY_API_KEY")
+TFY_BASE_URL = os.getenv("TFY_BASE_URL")
 
 # aws resources
 S3_BUCKET = os.getenv("S3_BUCKET")

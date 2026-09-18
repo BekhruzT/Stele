@@ -119,7 +119,7 @@ def handle_lesson(context: Context):
     history, repetitions = llm_call(
         system_prompt=REPETITION_SYSTEM_PROMPT,
         user_prompt=REPETITION_USER_PROMPT.format(transcript=transcript_str),
-        model=LLM.CLAUDE_3_7_SONNET_THINKING,
+        model=LLM.CLAUDE_5_OPUS,
         tag="findings"
     )
     

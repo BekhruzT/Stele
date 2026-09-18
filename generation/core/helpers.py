@@ -89,14 +89,14 @@ def llm_call(
 def llm_call_with_qc(
     system_prompt: str, 
     user_prompt: str, 
-    model: LLM = LLM.GPT_4_O, 
+    model: LLM = LLM.GPT_5, 
     tag: Optional[str] = None, 
     is_json: bool = False, 
     history: List[Dict[str, str]] = [],
     temperature: float = 0,
     # Optional QC-related parameters
     qc_requirements: Optional[str] = None,
-    qc_model: LLM = LLM.CLAUDE_3_7_SONNET,
+    qc_model: LLM = LLM.CLAUDE_5_SONNET,
     type_of_content: str = "content",
     max_iterations: int = 2
 ) -> Tuple[List[Dict[str, str]], Any]:
@@ -215,7 +215,7 @@ def classify_image(subject: str, prompt: str) -> GeneratedImageTypes:
         system_message(IMAGE_CLASSIFICATION_PROMPT),
         user_message(prompt)
     ]
-    classification = extract_tag_content('classification', llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET))
+    classification = extract_tag_content('classification', llm_complete(messages, LLM.CLAUDE_5_SONNET))
 
     return GeneratedImageTypes(str_2_json(classification)['class'].lower())
 
@@ -353,7 +353,7 @@ def generate_img_prompt(subject: str, description: str) -> str:
         user_message(IMAGE_GEN_USER_PROMPT.format(description=description, **ssi))
     ]
 
-    prompt = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2)
+    prompt = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     
     extracted_prompt = extract_tag_content('prompt', prompt)
     if extracted_prompt:
@@ -369,7 +369,7 @@ def generate_video_prompt(subject: str, description: str, img_prompt: str) -> st
         user_message(f"<image_prompt>\n{img_prompt}\n</image_prompt>\n\n<scene_description>\n{description}\n</scene_description>")
     ]
 
-    prompt = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2)
+    prompt = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     
     extracted_prompt = extract_tag_content('prompt', prompt)
     if extracted_prompt:
@@ -500,7 +500,7 @@ def qc_llm_call(content_type: str, evaluation_type: str):
                     context="" if llm_call_output.context is None else llm_call_output.context,
                     general_content=main_guidelines['name']
                 ),
-                model=LLM.CLAUDE_3_7_SONNET_THINKING if evaluation_type=="CONCEPT EXPLANATION" or content_type=="VideoPlan"  else LLM.CLAUDE_3_7_SONNET
+                model=LLM.CLAUDE_5_OPUS if evaluation_type=="CONCEPT EXPLANATION" or content_type=="VideoPlan"  else LLM.CLAUDE_5_SONNET
             )
             any_fail = any(x.lower() == 'fail' for x in re.findall(r'<evaluation>(.*?)</evaluation>', finder_output, flags=re.DOTALL))
 
@@ -529,7 +529,7 @@ def fix_single_icon(icon: str, icon_for: str, valid_icons: List[str]) -> str:
             user_prompt= f"The icon '{icon}' is not a valid font awesome classic solid free icon.\nI want you to give me a new icon that is valid and closest to the original icon."
             + f"\nThe list of valid icons is: {json.dumps(valid_icons, indent=2)}"
             + f"\nThis icon is supposed to represent: {icon_for}\nThe new icon should strictly be from the given list of icon names.\nReturn only the new icon name (with no quotes), no other text. ",
-            model=LLM.CLAUDE_3_7_SONNET_THINKING,
+            model=LLM.CLAUDE_5_OPUS,
             is_json=False,
             temperature=1
         )
@@ -541,6 +541,6 @@ def identify_location(context: Context, snippet: str)->str:
         system_prompt = "You will be given a transcript from a history lesson and a specific snippet from that transcript. Your task is to determine the location being discussed in the snippet. The location should be a high-level place such as a kingdom, empire, country, or city.\n\nCarefully read the snippet and identify the location being discussed. Consider any mentions of place names, empires, kingdoms, or countries. If multiple locations are mentioned, choose the most prominent or relevant one.",
         user_prompt = f"Here is the full transcript:\n<transcript>\n{transcript}\n</transcript>\nHere is the specific snippet to analyze:\n<snippet>\n{snippet}\n</snippet>\nI want to know where this scene being captured to visualize the transcript snippet is taking place. I want an answer, however generic or even if the scene cannot be attributed to anywhere specifically, just give me your best guess. Specify the identified location within <location> tags. Do not go more detailed than city level. If specifying a city, also include the country, kingdom, or empire it belongs to.",
         tag = "location",
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2
+        model=LLM.CLAUDE_5_SONNET
     )
     return location

@@ -80,14 +80,14 @@ def get_historical_figures(context: Context, video_plan: Dict[str, Any]) -> Dict
     messages = [
         user_message(get_historical_figures_prompt(video_plan.model_dump()) + added_instructions)
     ]
-    return str_2_json(chat_complete(messages, model=LLM.O1) or '')
+    return str_2_json(chat_complete(messages, model=LLM.GPT_5) or '')
 
 def final_touchups(context: Context, video_plan: VideoPlan) -> VideoPlan:
     messages = [
         system_message(FINAL_TOUCHUPS_SYSTEM_PROMPT),
         user_message(FINAL_TOUCHUPS_USER_PROMPT.format(plan=json.dumps(video_plan.model_dump(), indent=2)))
     ]
-    touchup_fields = list(str_2_json(extract_tag_content("json", llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2))).values())[0]
+    touchup_fields = list(str_2_json(extract_tag_content("json", llm_complete(messages, LLM.CLAUDE_5_SONNET))).values())[0]
 
     video_plan = video_plan.model_copy(update=touchup_fields['touchup_fields'])
     section_titles = [sec.section_title for sec in video_plan.sections]
@@ -136,7 +136,7 @@ def sequencing_and_grouping(context: Context, kg: LessonKnowledgeGraph) -> dict:
     history, structure = llm_call(
         system_prompt="",
         user_prompt=VIDEO_PLANNER_USER_PROMPT.format(title=context.subsection, facts=f"{facts}\n\n{xu_facts}", l3_facts=l3_facts, relationships=relationships),
-        model=LLM.O1,
+        model=LLM.GPT_5,
         history=[system_message(VIDEO_PLANNER_SYSTEM_PROMPT.format(subject=context.subject)), *video_planner_history],
         is_json=True
     )
@@ -161,7 +161,7 @@ def sequencing_and_grouping(context: Context, kg: LessonKnowledgeGraph) -> dict:
     #         f"The redundant facts are:\n{json.dumps(redundant_facts, indent=2)}"
     #     )
     
-    return LLMCallOutput(content=structure, model=LLM.O1, history=history, 
+    return LLMCallOutput(content=structure, model=LLM.GPT_5, history=history, 
                          postprocess = lambda text: ensure_json(text), context=context_message)
 
 @qc_llm_call("VideoPlan", "TEACHING TECHNIQUES")
@@ -171,7 +171,7 @@ def plan_teaching_techniques(context: Context, knowledge_graph: LessonKnowledgeG
     history, teaching_techniques = llm_call(
         system_prompt=TEACHING_TECHNIQUE_SYSTEM_PROMPT.format(subject=context.subject),
         user_prompt=TEACHING_TECHNIQUE_USER_PROMPT.format(structure=format_syllabus_grouping(knowledge_graph, video_plan.model_dump())),
-        model=LLM.O1,
+        model=LLM.GPT_5,
         is_json=True
     )
 
@@ -185,7 +185,7 @@ def plan_teaching_techniques(context: Context, knowledge_graph: LessonKnowledgeG
         for j, con in enumerate(sec.concepts)
     ]
 
-    return LLMCallOutput(content=teaching_techniques, model=LLM.O1, history=history, 
+    return LLMCallOutput(content=teaching_techniques, model=LLM.GPT_5, history=history, 
                          postprocess = lambda text: ensure_json(text))
 
 # @qc_llm_call("VideoPlan", "VISUAL TECHNIQUES")
@@ -196,7 +196,7 @@ def plan_visual_techniques(context: Context, knowledge_graph: LessonKnowledgeGra
     visual_organizers = generate_visuals and llm_call(
         system_prompt=VISUAL_ORGANIZER_SYSTEM_PROMPT.format(subject=context.subject),
         user_prompt=VISUAL_ORGANIZER_USER_PROMPT.format(structure=format_syllabus_grouping(knowledge_graph, video_plan.model_dump(), teaching_techniques)),
-        model=LLM.O1,
+        model=LLM.GPT_5,
         is_json=True
     )[1]
 

@@ -35,16 +35,7 @@ class ImageEvaluationBody(BaseModel):
 
 
 def absolute_image_qc(image_path: str, conditions: Dict[str, List[str]]):
-    """Judge one generated image against its conditions.
-
-    Runs on OpenAI vision rather than Gemini, for the same reason the Claude calls moved:
-    one provider, one key. Gemini was also the only thing here needing GEMINI_API_KEY, which
-    has never been valid in this .env, so every image QC failed at the last step after the
-    FLUX spend had already happened.
-
-    A local file becomes a data URI. The alternative is what the commented-out code below
-    used to do -- upload to S3 and presign it -- which local mode has no bucket for.
-    """
+    """Judge one image against its conditions on the gateway's vision route; local files become data URIs."""
     url = image_path if image_path.startswith('http') else image_to_data_uri(image_path)
     response = call_openai_vision([
         {"role": "system", "content": ABSOLUTE_IMAGE_EVAL_PROMPT},
@@ -85,7 +76,7 @@ def enhance_description(grade: str, subject: str, description: str, _type: Gener
          "content": get_subject_agnostic_prompt(prompt, {'grade': grade, 'subject': subject})},
         *case_specifications[_type.value]['examples'],
         {"role": "user", "content": description}, ]
-    response = chat_complete(messages, model="gpt-4-0613")
+    response = chat_complete(messages, model=LLM.GPT_5)
     return ImageDescription(**str_2_json(response))
 
 
@@ -220,14 +211,14 @@ def correct_image_description(
         {"role": "system", "content": UPDATE_DESCRIPTION_PROMPTS[0].format(case_specific_practices=case_specifications[_type.value]['update_description_prompt'])},
         {"role": "user", "content": UPDATE_DESCRIPTION_PROMPTS[1].format(evaluation=evaluation, description=description)}
     ]
-    analysis = chat_complete(messages, model="gpt-4-1106-preview")
+    analysis = chat_complete(messages, model=LLM.GPT_5)
 
     messages = add_to_messages(
         messages,
         analysis,
         UPDATE_DESCRIPTION_PROMPTS[2].format(description = case_specifications[_type.value]['final_query_prompt']))
     logger.info(json.dumps(messages, indent = 2))
-    new_query = chat_complete(messages, model="gpt-4-1106-preview")
+    new_query = chat_complete(messages, model=LLM.GPT_5)
     logger.info(new_query)
     return str_2_json(new_query)['query']
 

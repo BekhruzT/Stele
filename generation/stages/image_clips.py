@@ -79,7 +79,7 @@ def subject_specific_image_qc(context: Context, image_path: str, prompt: str, sn
         user_message(f"Here is the original image prompt:\n<original_prompt>{prompt}</original_prompt>\nThe evaluation feedback for this prompt is:\n<evaluation>{json.dumps(failed_evals, indent=2)}</evaluation>")
     ]
 
-    response = extract_tag_content('prompt', llm_complete(messages, model=LLM.GPT_4_O_LATEST))
+    response = extract_tag_content('prompt', llm_complete(messages, model=LLM.GPT_5))
     return False, response
 
 def choose_best_image(context: Context, metadata: ImagesMetadata, best_img_index: int) -> ImagesMetadata:
