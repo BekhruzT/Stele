@@ -1,0 +1,58 @@
+{
+  "status": "candidate_reference_pending_listener_review_and_acceptance",
+  "curated_on": "2026-09-23",
+  "method": "Composed directly and edited in this task; no generation-pipeline calls",
+  "audio_generated": false,
+  "pipeline_modified": false,
+  "runtime_estimation": "Whitespace word count divided by 120 or 135 words per minute, before pauses. Existing viewer uses its own fixed 150 WPM estimate.",
+  "documents": [
+    {
+      "title": "The Letter That Split the Atom",
+      "scope": "Complete hand-curated narrative",
+      "canonical_source": "generation/docs/golden_references/2026-09-23/meitner-full.txt",
+      "viewer_copy": "generations/science/letter-split/20260923-hand-curated-v1/full.txt",
+      "word_count": 4603,
+      "paragraph_count": 97,
+      "estimated_minutes": {
+        "120_wpm": 38.4,
+        "135_wpm": 34.1
+      },
+      "sha256": "3a54a824e09787f229bbdbf0ee1c249e1bccc69ecc6fe63eb2c6583addc7f543",
+      "exact_duplicate_paragraphs": 0,
+      "repeated_12_word_sequences": 0
+    },
+    {
+      "title": "Ten Sheets of Glass in a Berkeley Basement",
+      "scope": "Connected hand-curated opening sample; not a complete script",
+      "canonical_source": "generation/docs/golden_references/2026-09-23/bell-opening-sample.txt",
+      "viewer_copy": "generations/science/ten-sheets/20260923-hand-curated-v1/opening_sample.txt",
+      "word_count": 1805,
+      "paragraph_count": 42,
+      "estimated_minutes": {
+        "120_wpm": 15.0,
+        "135_wpm": 13.4
+      },
+      "sha256": "d13a9472fbca1760498b0a9c67213be1b645409144c096abca0b19b01861205a",
+      "exact_duplicate_paragraphs": 0,
+      "repeated_12_word_sequences": 0,
+      "opening_hook_status": "approved"
+    },
+    {
+      "title": "The Coldest Place on Earth Was a House in Leiden",
+      "scope": "User-approved reference hook only; no hand-curated body yet",
+      "canonical_source": "generation/docs/golden_references/2026-09-23/leiden-hook.txt",
+      "viewer_copy": "generations/science/coldest-place/20260923-hand-curated-v1/reference_hook.txt",
+      "reference_status": "hook_approved_only",
+      "word_count": 20,
+      "paragraph_count": 1,
+      "estimated_minutes": {
+        "120_wpm": 0.2,
+        "135_wpm": 0.1
+      },
+      "sha256": "a29b4183de7d4ccf4eef4c9b33a92c3e94c202d3dee4c67bc4096df25f6848c9",
+      "exact_duplicate_paragraphs": 0,
+      "repeated_12_word_sequences": 0
+    }
+  ],
+  "existing_transcripts_unchanged": 35
+}

@@ -1,0 +1,8 @@
+{
+  "run_id": "20260924-prompt-v5-9",
+  "label": "AUTOMATIC PIPELINE · v5.9",
+  "previous_run_id": "20260924-prompt-v5-5",
+  "editorial_file": "six-case-review-v5.json",
+  "feedback_file": "user-feedback-20260924.json",
+  "description": "Fresh hook evaluation across all six topics with the production writer and selection prompts, GPT-6 Astra at high reasoning, and all 45 cached reference openings. These are the pipeline’s own selections, with no manual edits or substituted candidates. Approved topic hooks were excluded from the fresh writer inputs. Identical completed requests were reused from the preceding trial; changed reviews and the fission rewrite called the model again. These model passes are results for your review, not a claim that the writing now meets your standard. Full transcript bodies remain as before."
+}

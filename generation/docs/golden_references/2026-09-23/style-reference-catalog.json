@@ -1,0 +1,32 @@
+{
+  "science": [
+    {
+      "file": "meitner-full.txt",
+      "opening_paragraphs": 5,
+      "passages": [{"starts_with": "Barium and radium have", "paragraphs": 9}],
+      "ending_paragraphs": 4
+    },
+    {
+      "file": "bell-opening-sample.txt",
+      "opening_paragraphs": 8,
+      "passages": [{"starts_with": "No message has to travel", "paragraphs": 8}],
+      "ending_paragraphs": 0
+    }
+  ],
+  "history": [
+    {
+      "file": "history-silk-roads-full.txt",
+      "opening_skip_paragraphs": 1,
+      "opening_paragraphs": 8,
+      "passages": [{"starts_with": "A merchant did not need", "paragraphs": 8}],
+      "ending_paragraphs": 4
+    },
+    {
+      "file": "history-mali-opening-sample.txt",
+      "opening_skip_paragraphs": 1,
+      "opening_paragraphs": 8,
+      "passages": [{"starts_with": "A load that became more valuable", "paragraphs": 5}],
+      "ending_paragraphs": 0
+    }
+  ]
+}

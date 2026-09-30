@@ -1,0 +1,78 @@
+{
+  "_meta": {
+    "course": "History lore: reviewed reference comparisons",
+    "subject_profile": "history",
+    "purpose": "Two bounded historical stories for reference-led evaluation, replacing the unverified claims in the broader legacy topic outlines for these comparisons.",
+    "reviewed_on": "2026-09-23",
+    "source_notes": "generation/docs/golden_references/2026-09-23/history-curation-notes.md"
+  },
+  "chapters": [
+    {
+      "chapter": "The Silk Roads through the Sogdian Ancient Letters",
+      "videos": [
+        {
+          "title": "The Silk Roads: How Distant Cities Stayed Connected",
+          "lessons": [
+            {
+              "name": "A trading network made from local connections; scholarly introduction and translations by Daniel Waugh and Nicholas Sims-Williams, University of Washington Silk Road site",
+              "concepts": [
+                "The Silk Roads were changing networks of routes, not a single road built by one government. Goods could pass through successive traders and regional circuits. Some travellers made very long journeys; the absolute claim that no merchant ever travelled the entire distance is not supportable. An explicitly hypothetical handover of cloth can explain the principle without inventing a documented shipment.",
+                "Sogdians were an Iranian-speaking people whose home region lay around Samarkand in Central Asia, in parts of present-day Uzbekistan and Tajikistan. Waugh's introduction describes their important role in Silk Road commerce between the fourth and ninth centuries, trading settlements in China, and widespread use of their language. It does not establish a Sogdian monopoly over all freight, a uniform international coinage, or a single empire governing the routes.",
+                "Aurel Stein, the archaeologist, discovered five nearly complete Sogdian letters in 1907 at an old watchtower west of Dunhuang, near the Jade Gate. The scholarly introduction favours a date around 313-314 CE. The reason they remained there is uncertain; confiscation by a garrison is a hypothesis. Do not say that they were demonstrably sealed untouched in 313 or that the writers intended them to become an archive.",
+                "Letter 2 is from the merchant Nanai-vandak to Varzakk, his business contact in Samarkand. Its writer was probably near Jincheng, modern Lanzhou. These identities differ from Miwnay's absent husband Nanai-dhat in Letters 1 and 3. The legacy outline conflates them. Letter 2 reports the destruction of Luoyang, sacked in 311, and prolonged loss of news from associates farther inside China. It is distant reporting, not an eyewitness account of the sack.",
+                "Nanai-vandak reports that some associates are safe, while others have not replied for three years. He describes sending people into China and uncertainty about what has happened to them. The legacy line about no caravan arriving from Samarkand for three years is not a faithful paraphrase. The letter supplies evidence of people acting at a distance and relying on news and instructions; it does not quantify the economic damage throughout Asia.",
+                "The letters mention silver, several textiles, musk, pepper, and a substance translated as white, possibly white lead. Some product identifications remain uncertain. Waugh describes the reported trade as comparatively small in scale and concentrated in goods of high value for their weight. The value-to-weight logic can be explained in ordinary terms: transporting a bulky load requires more carrying capacity and supplies. Avoid fabricated prices or a documented journey for an imagined bolt of cloth.",
+                "Letter 2 includes instructions for dividing a consignment of musk into shares and managing money deposited in the Samarkand region. It discusses principal, income, documentation, and a young dependent, although parts of the passage are damaged or uncertain. Its broad significance is that a distant merchant was attempting to maintain financial and family obligations through other people. Precise amounts and the legal relationship of every named person are unnecessary and uncertain.",
+                "Letter 5 concerns a trader whose partner Ghawtus had left him. Waugh's introduction explains that the writer had consequently been forced to return from Dunhuang to Guzang. This supplies a documented example of a personal commercial arrangement changing an itinerary. It is a separate author and episode, not another event in Nanai-vandak's own biography.",
+                "Letters 1 and 3 are from Miwnay, a Sogdian woman stranded in Dunhuang, to her mother Chatis and her absent husband Nanai-dhat. She describes lacking money, seeking permission and help to leave, and receiving support from a priest. Her daughter adds material to Letter 3. The mother's attempts to arrange transport show that an available route did not guarantee personal freedom to travel. Her circumstances do not establish a universal rule for all Sogdian women.",
+                "The letters are evidence of trading communities and households as well as moving caravans. A locally settled contact can supply knowledge and perform transactions for someone far away. This is ordinary explanatory reasoning from the correspondence, not evidence that every trader had an identical family business or always dealt with strangers. Cooperation can fail even between people who share a language or have an existing relationship.",
+                "Waugh notes that Sogdians were among the translators of Buddhist scriptures into Chinese. People, languages, and settlements could support religious as well as commercial exchange, without every merchant being a missionary or every translated text travelling with silk. The wider importance of Sogdian commerce lasted beyond these early-fourth-century letters. Later travellers and medieval caravan inns must not be inserted into the same moment.",
+                "The source is a scholarly introduction plus translations of Letters 1, 2, 3, and 5 by Nicholas Sims-Williams, https://depts.washington.edu/silkroad/texts/sogdlet.html, read on 2026-09-23. The selected story can end by returning to the practical instructions and requests carried on the papers. There is no documented happy resolution for Miwnay in this evidence. Violent and humiliating details can be omitted without concealing the dependence and disruption that matter to the story."
+              ]
+            },
+            {
+              "name": "Rome, China and the interests of intermediaries — new opening context",
+              "concepts": [
+                "A Chinese historical account says rulers of Da Qin (the Roman Empire) wished to send embassies to China, but Anxi (Parthia) wished to preserve its trade in Han silk and prevented direct communication. This is an attributed explanation in a distant account, not independently established proof of every Parthian policy. It provides context for the scale and competing interests of the wider trading network. Do not claim that all commerce stopped, that nobody ever travelled between the regions, or that Rome and China never subsequently had contact. The same passage reports a mission in 166 CE; its identification as a formal Roman embassy is uncertain. These first/second-century accounts are earlier than the Sogdian letters of about 313–314, not episodes in the same merchant’s life. Source: Fordham Internet East Asian History Sourcebook, Chinese Accounts of Rome, Friedrich Hirth translation, https://sourcebooks.fordham.edu/eastasia/romchin1.asp, read and cached 2026-09-24 at artifacts/hook-feedback-20260924/rome-china-sourcebook.html. A broad Rome–China hook requires the body to establish this wider network before turning to the letters."
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "chapter": "Mansa Musa's visit and the work of crossing the Sahara",
+      "videos": [
+        {
+          "title": "Mansa Musa: The Gold Behind a King's Journey",
+          "lessons": [
+            {
+              "name": "The 1324 visit, court protocol, and reported gold prices; al-Umari excerpt hosted by Boston University African Studies Center",
+              "concepts": [
+                "Mansa Musa, ruler of the West African kingdom of Mali, passed through Cairo in 1324 on pilgrimage to Mecca. His entourage brought substantial gold and made extensive gifts and purchases. The checked excerpt supports exceptional wealth and spending, not a precise modern net worth, a ranking as the richest person ever, or exact counts of 60,000 followers and 80 laden camels.",
+                "The writer al-Umari visited Cairo some years afterward and collected accounts of Musa's visit. His source for the royal audience included an official involved in arranging it. This is testimony preserved in a later account, not a word-for-word contemporary transcript. The official's name is abbreviated in the checked teaching excerpt, so 'a court official' is preferable to completing it from memory.",
+                "Egypt's sultan al-Nasir Muhammad expected to receive Musa. According to the court official, Musa initially resisted attending and said that he had come for pilgrimage, while the official believed the required gesture of submission was the difficulty. Keep the distinction between Musa's stated purpose and the official's interpretation of his reluctance; do not claim private access to the king's thoughts.",
+                "At the audience, Musa initially refused the instruction to bow to the ground. An unnamed member of his party spoke to him; the official did not understand that exchange. Musa then declared his gesture to be directed to God and proceeded. The sultan received and conversed with him, and gifts of ceremonial garments and equipped horses followed. Paraphrase this report; do not invent the adviser's words, the audience's emotions, or precise room details.",
+                "Al-Umari's account says Musa made extensive gifts to officials and that Cairenes profited from trade with his party. It also reports that a standard weight of gold, the mithqal, which had fetched at least 25 silver dirhams, later fetched about 22 or less. This is a reported exchange relationship between gold and silver, not a measurement of every consumer price or evidence that the whole economy stopped functioning.",
+                "Al-Umari attributed depressed gold values to the amount Musa's party spent and said the effect persisted roughly twelve years up to the time of his account. Preserve that attribution. The excerpt is not an independently reconstructed price series proving that Musa alone caused a precisely bounded twelve-year economic crash. More gold offered in exchange can put downward pressure on its value, but that general explanation does not isolate all causes in this historical case.",
+                "Checked source: Boston University African Studies Center, Kingdom of Mali, excerpt from al-Umari in Levtzion and Hopkins, Corpus of Early Arabic Sources for West African History (1981), pages 269-273, https://www.bu.edu/africa/outreach/teachingresources/history/ancient-to-medieval-history/k_o_mali/. Read 2026-09-23. Musa's visit can orient a wider account of trans-Saharan connections, without claiming the kingdom had previously been unknown to everyone outside Africa."
+              ]
+            },
+            {
+              "name": "A later traveller shows caravan logistics; Ibn Battuta's 1352 Sahara journey, translated excerpt hosted by Fordham Internet History Sourcebooks",
+              "concepts": [
+                "The Moroccan traveller Ibn Battuta crossed the Sahara toward Mali in 1352, nearly three decades after Musa's 1324 visit to Cairo. He was not a member of Musa's pilgrimage. His later account illustrates another journey in the region; it does not document Musa's exact route or provisions. He describes purchasing camels and fodder at Sijilmasa and joining a caravan of merchants.",
+                "At Taghaza, Ibn Battuta described buildings made with salt blocks, salt cut into slabs, and food supplied from elsewhere. He identified the workers as enslaved people belonging to the Massufa, a Saharan community. This human cost is relevant to how the trade worked and can be stated briefly without graphic detail. Do not substitute the later salt centre Taudeni for Taghaza or present the traveller's account as a complete census.",
+                "Ibn Battuta reported higher prices for a camel-load of salt farther south: roughly eight to ten mithqals at Walata and higher amounts in Mali. A load-price difference is evidence about particular places in his account, not proof of a universal weight-for-weight exchange of salt and gold. The practical explanation is that a useful commodity had to be moved from where it was mined to where buyers wanted it, with transport and scarcity affecting its value.",
+                "Before one desert crossing, his caravan stopped to rest, repair waterskins, fill them, and add protective coverings. They hired a messenger from the Massufa to carry letters ahead to Walata, where contacts arranged lodgings and sent water out to meet them. A traveller without a personal contact could appeal to a merchant known for providing such help. These are reported practices for this journey, not a centrally administered universal postal or relief service.",
+                "Ibn Battuta recalled seeing the fires of the party coming to meet the caravan after several days of travelling. At Walata the merchants deposited their goods to be guarded and met the ruler's local representative. A host had arranged lodging for Ibn Battuta. These actions illustrate the cooperation and local authority that made a crossing usable. Avoid the account's graphic danger episodes and reproduce neither its prejudices nor its supernatural explanations as narrator-endorsed facts.",
+                "On the route farther into Mali, Ibn Battuta praised security and later recorded both things he admired and practices he disliked. His judgments reflect his own expectations. A concluding account can distinguish a visiting observer's perspective from an entire society's view of itself, while keeping attention on what he reports people doing. His testimony supplies evidence of institutions and daily arrangements, not confirmation that every institution originated with one founder.",
+                "Checked source: Fordham Internet History Sourcebooks, Ibn Battuta: Travels in Asia and Africa 1325-1354, translated H. A. R. Gibb (1929), section beginning 'After returning to Fez, in 1352 Ibn Battuta crosses the Sahara', https://sourcebooks.fordham.edu/source/1354-ibnbattuta.asp. Read 2026-09-23. The selected narrative can connect royal spending to the less visible logistics of crossing the desert, without claiming these two accounts describe the same expedition."
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

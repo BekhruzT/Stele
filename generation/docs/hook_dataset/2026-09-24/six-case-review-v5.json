@@ -1,0 +1,48 @@
+{
+  "harrison": {
+    "verdict": "Better options; the model still chooses a heavier anecdote",
+    "assessment": "The compass candidate supplies a familiar reference point, the danger of not knowing position, and the unexpected clock in two direct sentences. It is a more usable opening than the unexplained distance errors. The model instead chose sailors searching for an island with fresh water. That has stakes, but can imply death from thirst; the supporting episode involved scurvy. I prefer the compass candidate and would still review its first sentence aloud.",
+    "next_step": "Review this generated option before promoting it. Keep the navigation danger distinct from a claim that Harrison saved one particular ship.",
+    "pick": {
+      "run_id": "20260924-prose-first-v5-2",
+      "candidate_index": 2
+    }
+  },
+  "musa": {
+    "verdict": "A strong generated option exists; latest selection regressed",
+    "assessment": "The v5.0 candidate puts Musa’s action and the decade-long effect in one sentence with a short qualifier. It is close to the approved standard. The final v5.2 pool returns to an ordinary supply-and-demand opening and source commentary; the reviewer still passed one of those. This is a remaining selector failure, not an improvement over the approved hook.",
+    "next_step": "Keep the approved production line. The earlier generated option is shown as evidence of what the writer can produce, not as the latest automatic choice.",
+    "pick": {
+      "run_id": "20260924-listener-first-v5",
+      "candidate_index": 0
+    }
+  },
+  "silk-roads": {
+    "verdict": "Rejected; no worthwhile new opening",
+    "assessment": "Both pools recycle intermediaries, uncertain business contacts, or a traveller turning back. Those are the same ordinary constraints previously rejected. The stricter listener review now rejects every candidate instead of calling a paraphrase an improvement. The current source packet chiefly supports the surviving letters, not a larger consequence connecting distant cities.",
+    "next_step": "Add evidence for a consequential exchange or narrow the episode’s promise explicitly. Further wording tweaks cannot supply a missing story."
+  },
+  "leiden": {
+    "verdict": "Clearer practical meaning; still room to tighten",
+    "assessment": "The wire-and-heat opening gives electrical resistance a familiar consequence before introducing the discovery. That is an improvement over reporting that an instrument measured practically zero. “Wastes electricity” is colloquial shorthand for dissipating electrical energy, and “the race to make things colder” is less precise than the approved cold-limit opening. The existing approved hook remains strong.",
+    "next_step": "Review the new option as a generated alternative; preserve the approved production hook.",
+    "pick": {
+      "run_id": "20260924-prose-first-v5-2",
+      "candidate_index": 2
+    }
+  },
+  "meitner": {
+    "verdict": "The discovery has a recognizable consequence; selection still drifts",
+    "assessment": "The electricity candidate finally leads with what splitting atoms means to a general listener, then the surprise that its discoverers doubted the evidence. The new Department of Energy context note supports that framing. Its second sentence is longer than necessary. The final model choice instead switches to Meitner refusing bomb work, which is a useful story episode but displaces the discovery’s premise.",
+    "next_step": "Use the electricity candidate to review the improvement in framing. Keep the approved nuclear-age hook locked; do not treat the final automatic selection as equivalent.",
+    "pick": {
+      "run_id": "20260924-prose-first-v5-2",
+      "candidate_index": 2
+    }
+  },
+  "bell": {
+    "verdict": "Rejected; still too much conceptual work for an opening",
+    "assessment": "The first pool still starts with shared instructions or apparatus. The retry tries to make measurement itself familiar, but packs pre-existing properties and locality into the opening. No candidate passes both reviews. This is more honest than the old pass, but it does not yet match the approved opening about a successful theory and Einstein’s objection.",
+    "next_step": "Keep the approved production hook. The next research/prompt pass needs a plain account of the successful theory and what completeness would mean before drafting this opening."
+  }
+}

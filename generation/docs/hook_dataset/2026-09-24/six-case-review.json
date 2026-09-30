@@ -1,0 +1,32 @@
+{
+  "harrison": {
+    "verdict": "Clearer question; still needs meaningful stakes",
+    "assessment": "The first trial repeats the rejected sixty-mile error without explaining its consequence. The calibrated line connects distant time with finding an island, so its question is understandable. But it still asks how the trick works before establishing why the inability to locate a ship mattered. 'Keeping that distant time' is also strained. I would not adopt it as the reference opening.",
+    "next_step": "Choose the supported practical consequence of uncertain position first, then introduce the clock in a short turn. Do not imply that a particular clock trial demonstrably prevented a wreck unless the evidence says so."
+  },
+  "musa": {
+    "verdict": "Right premise; weaker wording than the approved reference",
+    "assessment": "Both runs retain the important disproportion: one visitor's spending and an effect lasting more than a decade. The first buries it under 'according to a later account'; the second improves that to 'reportedly' but still adds an exchange-rate qualification and 'stayed depressed'. The approved line is shorter, more direct and easier to hear. Neither trial is an improvement on it.",
+    "next_step": "Keep the approved hook. In fresh topics, preserve economic meaning with the shortest necessary qualifier and put detailed exchange-rate framing in the following prose."
+  },
+  "silk-roads": {
+    "verdict": "Video premise still unresolved",
+    "assessment": "The first trial recycles the explicitly rejected delayed-correspondence premise. The calibrated trial adds the destruction of Luoyang, which makes the uncertainty more serious, but it remains a merchant's unresolved personal question. It does not establish what the audience will discover about the broader connection between distant cities. The prior research-gap result was more honest about that scope mismatch. The model selector passing both is a failure of judgment.",
+    "next_step": "Research a documented consequence that connects the cities, such as the traceable spread of a specific technology, belief or disruption. Alternatively narrow the video's promise to the surviving letters; do not quietly replace its current scope with a stranded-person story."
+  },
+  "leiden": {
+    "verdict": "Back on topic, but less accessible than the reference",
+    "assessment": "The first trial chooses an incidental flask invention instead of the superconductivity discovery. The second restores the relevant result but assumes 'absolute zero' and 'electrical resistance' already communicate the wonder. Its freezing comparison adds a routine observation, while 'measured ... practically zero' sounds like a report. The approved hook gives the cold limit and the behavior of electricity directly.",
+    "next_step": "Keep the approved hook. For new cases, express what matter or electricity could do, not merely what instrument reading researchers recorded."
+  },
+  "meitner": {
+    "verdict": "Biography crowds out the discovery's significance",
+    "assessment": "Both trials lead with exile and the letter. That is valuable opening prose, but neither makes the scale of the discovery clear to a general listener. The second adds 'release energy' without explaining why that release deserves this story. Two detailed sentences replace the approved reference's clean link between an unexpected discovery and the nuclear age.",
+    "next_step": "Keep the approved hook and let exile and correspondence follow in the prose. Make the discovery's broader consequence the hook's subject before selecting the scene."
+  },
+  "bell": {
+    "verdict": "Technical puzzle without an adequate premise",
+    "assessment": "The first trial substitutes a scientist getting an unexpected result for the meaning of Bell's test. The second tries to explain matching instructions, independent measurements and 'the separateness Einstein wanted' in the opening itself. A general listener is left decoding the abstraction before learning why the disagreement matters. Both remain below the approved quantum openings.",
+    "next_step": "Keep the approved hook. Establish the successful theory and the question about reality before using hidden instructions as an explanatory model in the body."
+  }
+}

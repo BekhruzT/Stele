@@ -1,0 +1,83 @@
+Einstein helped create quantum physics, but its success left him questioning whether it described reality or only what scientists could observe.
+
+Could two particles carry their answers with them before anyone decided what to measure?
+
+In a Berkeley basement, John Clauser and Stuart Freedman used light to test a precise version of that question. They made pairs of photons, particles of light, and measured them with equipment that included stacks of thin glass plates. Each stack held ten sheets, arranged so that turning the glass changed which light could pass through.
+
+The apparatus let them compare the results at two detectors. If each photon responded only to its local measurement and information carried from the source, the pattern of results had to obey a mathematical limit. Quantum mechanics predicted a pattern that could exceed it.
+
+That difference gave an old argument something the experimenters could count.
+
+The glass itself was ordinary. Its purpose was very specific. It helped turn a discussion about what a physical theory leaves out into a set of measurements that another laboratory could repeat. Over the years, the test would become more demanding, with faster switches, more reliable detectors, and greater distances between them.
+
+We can follow that work slowly, from the question to the pieces on the bench. Make yourself comfortable. There is no equation to keep in mind tonight. What matters is the difference between two things agreeing because of their shared past, and a pattern of agreement that such a past cannot explain under the conditions of the test.
+
+An ordinary example gives us somewhere to begin. Suppose someone puts a red card in one envelope and a blue card in another. The envelopes are sent to different towns. When one is opened and the card inside is red, the colour in the other envelope is immediately known.
+
+No message has to travel from the first envelope to the second. The cards were chosen and packed together. Opening one changes what the person looking at it knows about the other.
+
+A shared preparation can therefore produce a connection between distant results. Distance does not make that connection mysterious. The question is how far an explanation of that kind can go when the objects are particles and the experimenters can choose among different measurements.
+
+Quantum mechanics describes pairs of particles that have been prepared together in a state called entanglement. For such a pair, the theory describes the joint system in a way that cannot be reduced to an independent state for each particle. It predicts relationships between their measurement results, including when the particles are far apart.
+
+The word entanglement names that feature of the description. To see why it caused difficulty, we need the measurement choices as well as the pair.
+
+With the envelopes, there is one simple question: which colour is inside? In the light experiment, each side can measure polarization at a chosen angle. Polarization concerns the orientation of light's electric field. An optical filter can be arranged to transmit one polarization more readily than another, and rotating it changes the measurement being made.
+
+The experimenters can compare several combinations of angles. It is the pattern across those combinations that matters. A result at one setting may fit more than one explanation. Changing the settings gives those explanations more opportunities to disagree.
+
+Einstein had long thought quantum mechanics was missing something. The theory was extraordinarily successful at predicting experimental results, but its treatment of separated systems troubled him. He wanted an account in which events at one place did not require an immediate physical influence from a distant measurement.
+
+In 1935, he and two colleagues, Boris Podolsky and Nathan Rosen, published an argument that the quantum description of reality was incomplete. They used the correlations between separated particles to ask whether the theory described everything that could be said about each system.
+
+The disagreement did not begin with defective apparatus or an inaccurate calculation. It concerned the kind of world the successful calculations described. Was the quantum state a complete account, or could a more detailed theory supply information it left out?
+
+Additional information of that kind came to be discussed as hidden variables. Hidden meant absent from the quantum description, rather than concealed by an experimenter. Such variables might specify more about the physical system than the theory currently provided.
+
+For many years, the disagreement could seem remote from the practical work of a laboratory. If competing accounts produced the same observations, an experiment would have little to choose between them.
+
+John Bell found a way to make part of that disagreement testable. He was a physicist at CERN, working professionally on particles and accelerators, with a continuing interest in the foundations of quantum theory. In 1964, he published a short paper about the problem Einstein and his colleagues had raised.
+
+Bell considered what a local explanation would require. Two particles could share information from their common source. Each could then respond to the measurement made where it arrived. But the result on one side would not depend on which measurement was chosen at the distant side.
+
+There was another condition. The choices of measurement settings had to be independent of the hidden information in the particles. If the source and the future settings were secretly arranged together in just the right way, that would be a different explanation from the one being tested.
+
+Within those conditions, Bell showed that the possible correlations had a limit. Giving the particles more complicated local information could not remove it. The limit followed from the structure of the explanation: a common past, local responses, and independent choices of what to measure.
+
+Quantum mechanics predicted that suitable measurements on an entangled pair could violate that limit. The two descriptions therefore made different predictions for an experiment that could, in principle, be done.
+
+This is the step that makes the story possible to follow without working through Bell's mathematics. An assumption about how the particles could account for their results led to a restriction on the results themselves. The restriction could be tested by counting.
+
+The experiment would not decide whether every object exists only when someone looks at it. Nor would it reject every conceivable theory involving hidden variables. It would test a particular combination of conditions. Some theories could respond by giving up locality; other proposals would question other assumptions. The result would be important because it narrowed what an explanation could preserve.
+
+Clauser saw an opportunity to carry the question into a laboratory. With other physicists, he helped adapt Bell's reasoning to the limitations of equipment that could actually be built. At Berkeley, he and Freedman prepared a source of correlated photon pairs and arranged detectors to measure them.
+
+The source used calcium atoms. When an atom had been excited appropriately, it could return to a lower energy through two successive emissions, producing two photons in the process. The two detectors looked for photons belonging to the same pair.
+
+Between the source and the detectors were the polarization analysers. The stacks of glass used the way light behaves at a tilted glass surface: one polarization is reflected more strongly than another. Several plates together made that difference useful for the measurement.
+
+Rotating a stack changed its orientation. The experimenters could therefore ask how often both detectors registered a photon for one pair of settings, then change the settings and count again. The comparison was built from many events, rather than from a single pair doing something visibly remarkable.
+
+That distinction matters to the atmosphere of the room. There was no little particle to watch choosing a route, no visible line connecting the two detectors. There were electrical signals and accumulated counts. The predicted difference belonged to the statistical pattern they would reveal.
+
+Collecting that pattern required patience. The detectors caught only a small fraction of the photons available, and the light source could change during a long run. A slowly weakening source might alter the count rate even if nothing about the polarization measurement had changed.
+
+Clauser and Freedman therefore alternated their measurements. They changed analyser settings and took comparison readings with the analysers out of the beams. Repeating the sequence helped them distinguish a dependence on angle from a gradual change in the apparatus.
+
+The ordinary demands of experimental work were part of the argument. A mathematical prediction could be very clear, while its test still depended on lamps, detectors, alignment, and a careful comparison of conditions. The result had to survive those details before anyone could ask what it meant for physics.
+
+In 1972, they reported correlations that violated the inequality they were testing and agreed with the quantum prediction. The local account, with the conditions used to derive the limit and the additional assumptions needed for their apparatus, did not give the observed result.
+
+That was strong evidence, but the early experiment left room for further tests. Because so many photons went undetected, the inference depended on an assumption about the sample the detectors did catch. Were those detected pairs representative of the others? An explanation that exploited a difference between the two groups would have to be excluded by a more complete experiment.
+
+Another concern involved the settings themselves. If an analyser remained at one angle long enough, information about that setting could, in principle, reach the other side at an ordinary speed before the relevant measurement. A more demanding arrangement would change the settings while the photons were already travelling, leaving too little time for a signal moving at the speed of light to cross between the two sides.
+
+These were specific experimental gaps. Identifying them gave the next laboratories a practical task. Better tests would have to catch more of the relevant events or arrange the measurements so that communication between the sides could not supply an ordinary explanation.
+
+There was also a distinction that the surprising correlations did not remove. An observer on one side could not choose a particular outcome and use it to send an instant message to the other. In quantum mechanics, the local results remain unpredictable in the way required to prevent that use. The correlation is revealed when the records from both sides are brought together and compared.
+
+The two records, and the method of comparing them, remained at the centre of the work. A detector by itself recorded the events that reached it. The significance emerged from matching the records and asking whether their relationship could fit within Bell's limit.
+
+For the experiments that followed Berkeley, the source and the detectors would change. The old question would acquire more exact conditions. A setting could be selected later, a detector placed farther away, or a larger proportion of the events brought into the count.
+
+The next demanding step was to make the apparatus change its question while the light was already on its way.

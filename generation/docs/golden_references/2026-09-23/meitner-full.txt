@@ -1,0 +1,193 @@
+The discovery that opened the nuclear age started with an accident.
+
+In December 1938, a chemist in Berlin wrote a letter about something that seemed impossible. He had been working with uranium, one of the heaviest elements in nature. The substance appearing in his experiments behaved like barium, a much lighter element. He had tested it again, and it still behaved like barium.
+
+The letter went to Lise Meitner in Sweden. Until a few months earlier, she had worked in the same institute as the man writing it. They had been colleagues for more than thirty years. Now she was a refugee, separated from the laboratory where most of her working life had taken place.
+
+Otto Hahn wrote late at night. His fellow chemist, Fritz Strassmann, was still at work, and Hahn was waiting for him before going home. The experiments had reached a point where the two men could describe what they found more confidently than they could explain it. They wanted Meitner to think about the result.
+
+The difficulty was inside the uranium atom. An atom has a small, dense centre, its nucleus, and the identity of an element depends on what that nucleus contains. Ordinary chemistry can combine atoms, rearrange them, and separate them from one another. To turn uranium into barium would require a much deeper change.
+
+By then, physicists knew that nuclei could change. Radioactive substances did it naturally, and laboratory experiments could make it happen. But the changes they understood usually involved small pieces or small steps. Here, something far lighter than uranium seemed to have appeared. A large part of the original nucleus would have to go somewhere else.
+
+Hahn trusted the chemistry. Meitner knew how carefully he worked. Between those two kinds of knowledge lay the question in the letter: if this really was barium, what had happened to the uranium?
+
+She and her nephew, the physicist Otto Robert Frisch, would work out an answer during a Christmas visit. The process would soon have a name, nuclear fission. But the path to that answer runs through a long collaboration, a laboratory that once kept its doors closed to women, and the work Meitner continued after she could no longer remain in Germany.
+
+Settle in, and let the story take its time. The few people who matter will stay with us. There is no need to keep a list of dates, or to remember the measurements. We can follow the question from the laboratory to the letter, and from the letter to the people who understood it.
+
+When Meitner first arrived in Berlin in 1907, she already had a doctorate in physics. She had earned it at the University of Vienna, after a route into education that had required years of private preparation. The schooling available to girls had not prepared them for a university science course. She had studied for the entrance examination outside that system, passed it, and gone on to study physics.
+
+In Berlin she wanted to learn from Max Planck. Women could not yet enrol at Prussian universities, so even attending his lectures required his personal permission. Planck gave it. That opened one door, but it did not provide a laboratory in which she could work.
+
+Hahn was a chemist of almost exactly her age. He had been working with radioactive materials, substances that gave off radiation as their atoms changed. The field brought chemistry and physics unusually close together. A chemist could separate a material and study its reactions. A physicist could measure the radiation and ask what was happening inside its atoms. Each needed information the other could supply.
+
+Hahn and Meitner began working together at Berlin's Chemical Institute. The arrangement offered her an opportunity with very specific limits. Emil Fischer, who ran the institute, did not allow women into its laboratories. Meitner could use a room in the basement, a former carpenter's workshop that Hahn had fitted with instruments for measuring radiation. She could not go upstairs to the laboratory where he did the chemistry.
+
+The basement had its own entrance from the street. That was what made the arrangement acceptable to the institute: she could reach her work without passing through the rest of the building. There was no lavatory there that she was permitted to use. She walked to a restaurant down the road.
+
+For a collaboration that depended on exchanging information, the building itself imposed a separation. Hahn could move between the chemistry and the measurements. Meitner was expected to remain with the instruments below.
+
+The restrictions changed when Prussia admitted women to its universities in 1908. Fischer opened the institute to them and had a ladies' room installed. Some of his assistants were slower to adjust. Meitner remembered one who, on finding the two colleagues together, greeted Hahn and ignored her.
+
+The work nevertheless continued. Neither had initially been paid for it; both depended on money from their families. Meitner's first salaried post came several years later, as Planck's assistant. She marked students' papers for him while continuing her experimental work. The salary gave her a firmer place in a profession she had already spent years practising.
+
+Their early laboratory had another difficulty, one that affected the measurements themselves. Radioactive material could spread from a preparation to a bench, from a bench to a hand, and from there to the instruments. An instrument might then register radiation from the room around it as well as from the sample being examined.
+
+If the sample gave off only a weak signal, that background could hide it. The cleanliness of a room determined what could be learned inside it.
+
+When the collaboration moved into the new Kaiser Wilhelm Institute for Chemistry in 1912, Hahn and Meitner developed a careful routine. Chemical preparations and physical measurements were kept in separate rooms. The strongest radioactive materials stayed away from the new measuring spaces. Paper was kept beside telephones and door handles so that someone working with a preparation could avoid transferring material with their fingers.
+
+Certain chairs were marked yellow for use by people handling radioactive substances. Handshakes were avoided. A visitor encountering the arrangement might have noticed the unusual etiquette before understanding the reason for it. For the scientists, every clean surface helped preserve the distinction between the signal they wanted and the background they did not.
+
+Meitner was particularly strict about these procedures. Her rooms remained suitable for delicate measurements long after the move. Years later, when a minute amount of a new radioactive substance appeared in uranium experiments, the ability to measure such small signals would matter very much.
+
+By 1917, she had a physics section of her own. Hahn led the chemistry section. They could work together while pursuing their own research, and the two sides of the institute developed around those different skills.
+
+During the First World War, they had searched for a missing member of a radioactive sequence. One element changed into another, which changed again. By following the chain, researchers could sometimes see that an unknown substance had to occupy a particular place, even before they had isolated it.
+
+Meitner did much of the experimental work that identified a long-lived form of the element they named protactinium. Hahn was away in military service for much of that period. She worked with the materials already available to her, in a city where food and fuel were scarce. Their joint paper appeared in 1918.
+
+It was the kind of result their partnership made possible: chemistry established which substance had been separated; measurements established how it behaved. The evidence came together across the boundary between their fields.
+
+Her own standing grew through the following decade. She taught, supervised students, and carried out research on the nucleus. In 1922 she gave a lecture on the significance of radioactivity for cosmic processes. A publisher asking to print it managed to turn cosmic into cosmetic. Meitner enjoyed the mistake for years.
+
+By the time the uranium problem began, she had a laboratory, students, a reputation, and colleagues who knew what her measurements were worth. The woman who would read Hahn's letter in Sweden had helped build the work that made the letter possible.
+
+The immediate puzzle began in the 1930s with a relatively new way of reaching the nucleus. Physicists had discovered the neutron, a particle with no electric charge. Because it was uncharged, it could approach a positively charged nucleus without being pushed away by the electrical repulsion that affected charged projectiles.
+
+In Rome, Enrico Fermi and his colleagues exposed different elements to neutrons and looked for changes. Sometimes the material became radioactive. The nucleus had absorbed a neutron or undergone a reaction, leaving a new substance that could be followed through the radiation it emitted.
+
+Uranium was especially interesting because it stood at the heavy end of the known periodic table. Some of the activity produced in it seemed to suggest elements beyond uranium, elements no one had yet securely identified. Meitner read the reports and proposed that she and Hahn investigate the problem together. Strassmann joined the work, bringing his skill in analytical chemistry.
+
+It was a difficult investigation because the new substances were present in such tiny quantities. The team could not simply collect a visible lump and place it on a balance. They had to follow radioactivity through a sequence of chemical separations.
+
+Imagine, in general terms, a solution containing a substance too scarce to see. A chemist adds reagents that bring one group of elements out of the liquid as a solid. The solid is separated from the remaining liquid, and both can be tested for radiation. Where the activity goes supplies a clue to the chemical identity of the substance carrying it.
+
+One separation is rarely enough. Several elements may behave alike in a particular reaction. A series of tests narrows the possibilities. The work consists of dissolving, separating, measuring, and checking again, while the radioactive material is itself changing with time.
+
+That changing activity can help identify it. Each radioactive isotope has its own characteristic rate of decay. The combination of chemical behaviour and decay rate can therefore tell the researchers much more than either one alone.
+
+But the results from uranium kept multiplying. There seemed to be several substances, several rates of decay, and several possible chains connecting them. The team tried to make those findings fit the kinds of nuclear changes already known.
+
+There had been a suggestion of a much larger change. In 1934, the chemist Ida Noddack pointed out that Fermi's tests had not excluded all the lighter elements. She proposed that a heavy nucleus might break into several large pieces. It was a possibility rather than a demonstrated mechanism, and the idea was not developed into a successful explanation at the time. Meitner did not pursue it either.
+
+The researchers were trying to understand a complicated set of measurements with methods and ideas that had worked before. Even a careful experiment leaves room for the wrong interpretation when the range of possible answers is wider than anyone expects.
+
+For several years, Meitner, Hahn, and Strassmann worked within that uncertainty. Then the conditions under which Meitner worked changed more abruptly than the experiment itself.
+
+The Nazi government had already taken away her right to teach at the university. Her Austrian citizenship had given her some protection, and she had continued researching at the privately funded institute. When Germany annexed Austria in March 1938, that protection fell away. She faced persecution under the regime's racial laws, regardless of her religious beliefs or her place in German scientific life.
+
+Leaving was difficult. Her Austrian passport was no longer straightforwardly accepted, and permission to travel became another obstacle. Friends abroad began trying to arrange a position and a route out. Among them was Dirk Coster, a Dutch physicist who had known her for years.
+
+By July, a plan was ready. Coster came to Berlin to accompany her to the Netherlands. Meitner kept her usual routine at the institute until the evening before she left, working on a colleague's paper. She then packed a small amount of luggage for a departure that had to attract as little attention as possible.
+
+Hahn gave her a diamond ring that had belonged to his mother, something she could use in an emergency. She carried only ten marks in cash. The ring and the money were practical provisions for a journey whose outcome depended on people and decisions beyond her control.
+
+At the station, she and Coster behaved as though they had met by chance. They travelled toward the Dutch frontier and crossed successfully. The careful arrangements on the Dutch side had given her somewhere to go. She was fifty-nine, leaving the country in which she had done almost all her scientific work.
+
+She eventually reached Sweden and began working at an institute in Stockholm. There was space for her, but little of the support she had relied on in Berlin. An experimental physicist needs more than a desk and an idea. Counters must be assembled, equipment made, seals tested, and faults found. Much of the practical assistance that had made her work possible was now missing.
+
+In Berlin, she could discuss a piece of apparatus with an experienced technician and have it built. In Stockholm, she found herself doing much of that work alone. Her letters to Hahn describe counters she had to assemble, evacuate, and test for leaks herself.
+
+Their correspondence continued to carry the uranium investigation. Hahn sent results; Meitner questioned interpretations and suggested what should be tested. They also met during a visit to Copenhagen that autumn. Leaving Berlin had separated her from the bench, but it had not ended her part in the argument about what the measurements meant.
+
+Back in the institute, Hahn and Strassmann were following a radioactive product they believed to be a form of radium. Radium was lighter than uranium, but still close enough to it that a sequence of relatively small nuclear changes seemed conceivable. Barium was a much more difficult answer.
+
+Barium and radium have similar chemical properties. That similarity was useful: ordinary barium could be added to help collect a radioactive substance present in quantities too small to handle on its own. The added material was called a carrier. It made the separation practical, while the radiation revealed where the trace substance had gone.
+
+This also created a very particular question. If the new activity belonged to radium carried along with barium, could they make the radium separate from that carrier in the expected way?
+
+They used a method of crystallization that should alter the proportions. As crystals formed from a mixture containing both substances, the radium should become relatively concentrated in some fractions. By comparing the radioactivity of those fractions, they could check whether that enrichment had happened.
+
+It did not happen with the new product from uranium. The activity followed the barium instead.
+
+They repeated the work and changed the conditions. The result remained stubbornly similar. Perhaps, they considered, the amount of radioactive material was too small for the method to work properly. A separation that succeeded with an ordinary sample might fail at such an extreme trace level.
+
+So they tested genuine radium. With that material, the method behaved as expected. The radium became enriched in the appropriate fraction. They went further, putting a known radium isotope and the mysterious product through the procedure together, so both experienced the same solution and the same conditions.
+
+The genuine radium separated in its characteristic way. The mysterious product stayed with the barium.
+
+That was why the letter became necessary. A failed procedure could have sent the chemists back to their apparatus. A procedure that worked for the known substance and gave a different answer for the unknown one pointed toward the identity of the material itself.
+
+They had added barium deliberately, but the radioactive substance following it had come from the irradiated uranium. The question was whether they were looking at a radioactive form of barium as well as the ordinary barium used to collect it.
+
+Hahn described the evidence to Meitner on December nineteenth. His letter still searched for a way to reconcile the chemistry with familiar physics. Could she suggest an explanation? Their work together had often depended on precisely that exchange: a chemical result handed to a physicist who could ask what kind of nuclear process might produce it.
+
+The letter reached her in Stockholm two days later. She answered promptly. A breakup that extensive was difficult to accept, but she was willing to consider it. Nuclear physics had already produced enough surprises that she would not simply call it impossible.
+
+Hahn and Strassmann sent their findings to a scientific journal before Christmas. Their paper described the chemical evidence but remained cautious about its meaning. In effect, their tests told them to call the material barium, while their understanding of nuclear physics made that conclusion hard to believe.
+
+Meitner left Stockholm for a Christmas visit to her friend Eva von Bahr-Bergius in Kungälv, on Sweden's west coast. Frisch came from Copenhagen to join them. He was her sister's son and a physicist in his own right, working at Niels Bohr's institute.
+
+Our familiar picture of their conversation comes from Frisch's recollection, written much later. He remembered coming out on the first morning of the visit to find his aunt occupied with Hahn's letter. He wanted to discuss an experiment of his own. She wanted him to read what had arrived from Berlin.
+
+His first thought was a mistake in the chemistry. Meitner was reluctant to accept that explanation. She knew Hahn's work, and the repeated tests deserved to be taken seriously. Their starting point would be the difficult result itself: suppose the barium was real.
+
+They went outside. Frisch remembered skiing while Meitner walked beside him, keeping up as they talked. The snow and the walk are part of his account; the precise day is less certain. At some point, they sat on a tree trunk and began calculating on scraps of paper.
+
+The image they used was already familiar in nuclear physics. A nucleus could, in some respects, be treated like a drop of liquid. The particles making it up were held together, and the whole could change shape. A drop might stretch, develop a narrow middle, and separate into two smaller drops.
+
+For the nucleus, the forces were different from those in an ordinary drop of water. A short-range nuclear attraction held its particles together. At the same time, the positively charged protons repelled one another electrically. In a heavy nucleus such as uranium, that electrical repulsion was substantial.
+
+The liquid-drop picture let Meitner and Frisch think about the nucleus as a whole. An incoming neutron could leave it with extra energy. If the nucleus became sufficiently distorted, the balance of forces could allow it to divide. Once two positively charged fragments were far enough apart, their electrical repulsion would drive them away from each other.
+
+The idea gave the barium a place in the process. It could be one of the large fragments of a uranium nucleus. The other fragment would carry the remaining nuclear charge. A result that had looked absurd when imagined as a small alteration now made sense as a much larger rearrangement.
+
+There was still an important check to make. Those fragments would fly apart with a great deal of energy. An explanation had to account for that energy as well as for the identities of the pieces.
+
+Frisch estimated the energy the fragments would gain as they repelled one another. Meitner drew on her knowledge of nuclear masses to estimate the difference between the mass of the nucleus after absorbing a neutron and the combined masses of the products.
+
+The products would have slightly less mass at rest. Through the relation between mass and energy, that difference could supply the motion of the fragments. The change in nuclear binding made energy available as the nucleus divided.
+
+The estimates agreed, at roughly two hundred million electron volts for a fission. An electron volt is a very small unit, so this was still a tiny amount of energy on an everyday scale. For the transformation of one atom, however, it was far greater than the energy associated with an ordinary chemical reaction.
+
+The number mattered because two routes to the answer met. The electrical repulsion of the fragments suggested an energy; the difference in nuclear masses could provide it. They had a physical explanation that fitted the chemical evidence and made a further prediction about what the process should look like in an instrument.
+
+The letter had crossed a border carrying a problem. On that visit, Meitner and Frisch found a way to connect it to the forces and masses inside a nucleus. Their explanation drew on years of work by many physicists, including the nuclear models being developed in Copenhagen. The walk was a moment when those ideas became useful in a way they had not been before.
+
+After the visit, the investigation continued by letter. Meitner returned to Stockholm and Frisch to Copenhagen. They worked on a short paper together. Frisch discussed the idea with Bohr, who recognized how it could follow from the picture of the nucleus they had been using.
+
+They also wanted more evidence. The chemical tests in Berlin identified a product of the reaction. A physical experiment could look for the fast, heavy fragments themselves. If uranium really split into large pieces, those pieces should leave a much stronger trace in a suitable detector than the smaller particles emitted by ordinary uranium radioactivity.
+
+Frisch prepared a detector containing gas and an electrical measuring system. A charged particle moving through the gas could knock electrons away from atoms, leaving a trail of electrical charge. The instrument collected that charge as a pulse. A fragment carrying a large amount of energy could produce an unusually large pulse.
+
+Natural uranium already emitted radiation, so the apparatus had to distinguish the expected small signals from the much larger ones they were looking for. Meitner and Frisch discussed the experiment by correspondence and telephone. He adjusted the measurement to select the large bursts.
+
+In January 1939, Frisch exposed the uranium to neutrons and observed those strong signals. The experiment supplied physical evidence for the division they had proposed. The explanation now connected a chemical identity, an energy calculation, and a detector response.
+
+As they prepared the papers, Frisch asked a biologist in Copenhagen what the division of a cell was called. The term was binary fission. Fission seemed suitable for a nucleus dividing as well, and he and Meitner used it in their report.
+
+Their joint paper appeared in Nature in February, under both their names. Frisch's account of his experiment followed. Hahn and Strassmann's chemical paper had appeared in January. The discovery was entering the published record through separate reports, from scientists whose work had remained connected even when they could no longer share a laboratory.
+
+There were still many questions. Which uranium nuclei divided most readily? How did the energy of an incoming neutron affect the reaction? What other fragments were produced? Could a fission release neutrons that would lead to further fissions?
+
+Other laboratories began examining those questions. The discovery would lead toward nuclear reactors and nuclear weapons, but neither was contained as a finished design in the Christmas calculation. Meitner and Frisch had explained a particular transformation. The possibility of sustaining and controlling many such transformations required further discoveries and considerable experimental work.
+
+Even the interpretation of the earlier Berlin experiments took time to untangle. Many of the supposed elements beyond uranium were lighter products of fission. But the team had also observed a uranium isotope that would indeed lead beyond uranium through radioactive decay. The old investigation contained different processes mixed together, and the new explanation had to be applied carefully to distinguish them.
+
+Meitner was concerned that the correction of their earlier work should include her. She had shared responsibility for the interpretation and wanted to take part in understanding where it had gone wrong. Correspondence was a slow way to do work that had once been conducted across a room, particularly when a published result could send other laboratories in a new direction within days.
+
+She also had ideas for experiments she struggled to carry out in Stockholm. Without adequate equipment and technical assistance, a promising suggestion could remain a letter while someone elsewhere built the apparatus. Her knowledge had travelled with her; the practical means of using it had not.
+
+The distinction became important again when the discovery was recognized. The Nobel Prize in Chemistry for 1944 went to Hahn alone. Meitner and Strassmann were not included, nor was Frisch. The award was announced after the war, in 1945.
+
+Meitner did not deny the importance of Hahn's chemistry. In a private letter, she wrote that he deserved the chemistry prize. She also believed that she and Frisch had made a substantial contribution by explaining how fission could occur and why it released so much energy.
+
+The record supports a discovery made across those different forms of work. Hahn and Strassmann established the chemical evidence. Meitner had participated in the investigation before and after her departure, and she and Frisch supplied the physical interpretation. Frisch then detected the energetic fragments. Recognizing one part did not make the others disappear.
+
+Historians later examined the Nobel deliberations after the records became available. Their accounts describe difficulties in assessing work that crossed chemistry and physics, alongside the effects of wartime isolation and Meitner's forced separation from Berlin. The result had become easier to assign to one laboratory than the surviving correspondence justified.
+
+Her standing was also obscured by a smaller, more ordinary description. She was repeatedly presented as Hahn's assistant or subordinate. In the early 1950s, she challenged that wording in a letter to him. She had been entrusted with her own physics section in 1917 and had led it for twenty-one years. She wanted their long friendship to include an understanding of what that independent work had meant.
+
+The correspondence makes it difficult to reduce their relationship to a single event or a simple judgment. They had helped one another, made discoveries together, and remained in contact through exile and war. They had also disagreed, misunderstood one another, and left grievances unresolved. Her scientific life was larger than the prize she did not receive, just as their collaboration was larger than either name on its own.
+
+After the war, Meitner obtained a better-supported research position in Sweden. She could again work with assistants and equipment in a laboratory of her own. The conditions were more modest than the institute she had once helped shape in Berlin, but they gave practical form to work she had continued trying to do through the difficult years.
+
+She moved to Cambridge in 1960, where Frisch was a professor. Aunt and nephew could once again talk without relying on international post. She read scientific journals and tried to keep up with developments in a field that had changed enormously since her first measurements in the Berlin basement.
+
+At eighty-five, she kept a small notebook with a section headed Questions for O.R., her nephew's initials. There were questions about nuclear physics in it, alongside unfamiliar expressions she wanted explained. Highfalutin and juke box appeared among the things she meant to ask him about.
+
+The question in Hahn's letter had once brought them together over a few scraps of paper. In Cambridge, decades later, the conversation continued with new physics and ordinary words. Meitner read, made a note of what she wanted to ask, and kept the notebook for their next conversation.
+
+Good night.

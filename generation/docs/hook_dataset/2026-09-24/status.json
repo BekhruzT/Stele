@@ -1,0 +1,23 @@
+{
+  "updated_at": "2026-09-24T11:58:01.974571+00:00",
+  "status": "corpus_and_two_trials_complete_quality_not_solved",
+  "requested_curated_examples": 50,
+  "curated_examples": 45,
+  "unique_transcripts_available": 240,
+  "fresh_transcripts_fetched": 2,
+  "prior_transcripts_recovered": 6,
+  "overlap_between_fresh_and_recovered": 2,
+  "successful_searches_cached": 8,
+  "distinct_video_ids_with_caption_404": 26,
+  "generation_prompts_changed": true,
+  "six_topic_evaluation_run": true,
+  "active_collection_processes": 0,
+  "next_step": "See action-plan.md: improve premise selection and evaluator judgment; keep approved reference hooks.",
+  "published_archive_transcripts": 234,
+  "six_topic_evaluation_runs": 2,
+  "topics_evaluated_per_run": 6,
+  "selected_hooks_adopted_as_new_reference": 0,
+  "active_evaluation_processes": 0,
+  "cached_video_transcript_records": 240,
+  "archive_unique_texts": 234
+}
