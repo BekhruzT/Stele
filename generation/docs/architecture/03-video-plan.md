@@ -1,120 +1,95 @@
 # 03 — Video Plan
 
-> Stage 2 of nine ([00](00-overview.md)). It decides the lesson's shape from the facts [02](02-knowledge-graph.md) established; [04](04-transcript.md) writes the words for that shape and [06](06-text-overlays.md) draws the visuals it specified.
+> Stage 1 of eight ([00](00-overview.md)). It shapes the video's research facts from `lesson_plan.json`; [04](04-transcript.md) turns that shape into research notes for the narration and [06](06-text-overlays.md) reads its titles.
 
 ## What it does
 
-Turns a flat set of facts into a taught lesson: groups them into sections and concepts, orders those, chooses a teaching technique and a visual form per concept, assigns a historical figure per section, and simplifies every title for on-screen use.
+Turns the flat list of research facts under one video of `lesson_plan.json` into sections and concepts, orders them, picks teaching techniques per concept, optionally a visual form per concept, and simplifies the lesson and section titles.
 
 ## Contract
 
-- **Reads one artifact and one database.**
-  - `APVideoContext.kg_path`, loaded as `core/types.py::LessonKnowledgeGraph`.
-  - `core/clients/images.py::find_lesson_map_from_db`, which answers whether this lesson has a map available and what it depicts. The answer lands on the plan as `included_map`.
-  - It does not read the content plan or the lesson metadata, despite both existing by now ([01](01-upstream.md)).
-- **Writes `contents/subsection/Video Plan/{key}.json`, via `APVideoContext.video_plan_path`.**
-  - The artifact is wrapped: `{"video_plan": {...}, "qc_iterations": []}`.
-  - Consumers must reach through the wrapper. [04](04-transcript.md) and [07](07-scenes-breakdown.md) both do `load_json_from_s3(context.video_plan_path)['video_plan']`.
-- **`qc_iterations` is always an empty list.**
-  - `::generate_lesson_video_plan` initialises a feedback list and never appends to it.
-  - The key is vestigial and no consumer reads it. It is not a record of the QC that did run.
-- **Honours `-edited.json`.** `video_plan_path` prefers `{key}-edited.json`, which is how a reviewer's re-ordering of sections reaches [04](04-transcript.md).
-- **Skipped when the canonical `{key}.json` exists.**
+- **Reads no artifact.** The input is `core/context.py::Context.lessons`, the plan's lesson list for this video.
+  - `stages/video_plan.py::plan_facts` flattens every non-blank concept sentence of every lesson, in plan order.
+  - `::format_plan_facts` renders them for the prompt, grouped under `Lesson: <name>`.
+  - The input format is [../lore_input_spec.md](../lore_input_spec.md).
+- **Writes `{video folder}/Video Plan.json`**, via `Context.artifact_path` in `run.py::run_stage`.
+  - The artifact is wrapped: `{"video_plan": {...}, "qc_iterations": []}`. Consumers read `load_json_from_s3(context.video_plan_path)['video_plan']`.
+  - `qc_iterations` is always an empty list. No consumer reads it; it is not a record of the QC that ran.
+- **Downstream honours `Video Plan-edited.json`.** `Context.video_plan_path` goes through `Context.reviewed_path`, so a hand-edited sidecar wins for [04](04-transcript.md) and [06](06-text-overlays.md).
+- **Skipped when the canonical `Video Plan.json` exists**, unless `--force`.
+- **Raises when the video has no concepts**, before any model call.
 
 ## Scope
 
-- **Owns pedagogy.** What is grouped with what, in what order, taught how, and shown as what.
-- **Owns the cast.** Which historical figures appear, per section, which is what makes the transcript a dialogue rather than a monologue.
-- **Owns the on-screen naming.** Every `simple_title` is written here, for [06](06-text-overlays.md) to render.
-- **Owns the check that the plan is grounded**, by matching its facts back against the knowledge graph.
+- **Owns grouping and order.** Which facts form a concept, which concepts form a section, and in what order.
+- **Owns grounding.** Every planned fact is put back to the verbatim research sentence.
+- **Owns the on-screen naming.** Every `simple_title` is written here.
 
 Not here:
 
-- Any sentence a viewer hears. The plan names concepts and suggests techniques; it writes no narration — [04](04-transcript.md).
-- Any asset. `visual.type` and `figure_name` are declarations; nothing is drawn or voiced — [06](06-text-overlays.md), [08](08-images.md).
+- Any sentence a viewer hears — [04](04-transcript.md). The narration engine regroups the concepts into its own movements.
+- Any asset. `visual` is a declaration; nothing is drawn — [06](06-text-overlays.md).
 - Any timing. There is no clock until [05](05-avatar-clips.md).
-- The facts themselves — [02](02-knowledge-graph.md). A plan may not introduce one.
+- New facts. A plan may not introduce one.
 
 ## Flow
 
 ```mermaid
 flowchart TD
-  KG["Knowledge Graph/{key}.json"] --> Seq["::sequencing_and_grouping — O1"]
-  Seq -->|"QC: SEQUENCING AND GROUPING"| Seq
-  Seq --> Corr["LessonKnowledgeGraph::correct_kg_facts"]
-  Corr -->|"unmatched facts as QC context"| Seq
-  Corr --> Tech["::plan_teaching_techniques — O1"]
-  Tech -->|"QC: TEACHING TECHNIQUES"| Tech
-  Tech --> Vis["::plan_visual_techniques — O1, no QC"]
-  Vis --> Fig["::get_historical_figures — O1"]
-  Fig --> Rel["::parse_fact_relationships → ::process_edges"]
-  Rel --> Touch["::final_touchups — Claude 5 Sonnet"]
-  DB["find_lesson_map_from_db"] --> Touch
+  LP["Context.lessons"] --> Facts["::plan_facts / ::format_plan_facts"]
+  Facts --> Seq["::sequencing_and_grouping — GPT 5"]
+  Seq --> Rest["::restore_facts"]
+  Rest -->|"missing facts as QC context"| QC["qc_llm_call: SEQUENCING AND GROUPING"]
+  QC --> Rest2["::restore_facts again"]
+  Rest2 --> Tech["::plan_teaching_techniques — GPT 5, QC: TEACHING TECHNIQUES"]
+  Tech --> Vis["::plan_visual_techniques — GPT 5 if LAYER_PLANNER_VISUAL_TECHNIQUES, no QC"]
+  Vis --> Touch["::final_touchups — Claude 5 Sonnet"]
   Touch --> Out["{video_plan, qc_iterations: []}"]
 ```
 
 ## Design decisions
 
-- **The plan is built in five passes, each a separate model call, each narrowing the previous.**
+- **The plan is built in four model passes, each narrowing the previous.**
   - `::sequencing_and_grouping` decides sections, concepts and their order.
-  - `::plan_teaching_techniques` adds a technique and a suggestion per concept.
-  - `::plan_visual_techniques` adds a visual form per concept.
-  - `::get_historical_figures` assigns a cast per section.
-  - `::final_touchups` rewrites titles into `simple_title` fields.
-  - Splitting these is what makes the QC criteria per pass meaningful: a sequencing complaint cannot be answered by changing a diagram type.
+  - `::plan_teaching_techniques` adds techniques and suggestions per concept.
+  - `::plan_visual_techniques` merges the techniques onto the plan and, when the layer is on, adds a visual per concept.
+  - `::final_touchups` adds `simple_title` to the lesson and each section.
+  - Splitting them keeps the QC criteria per pass meaningful.
 
-- **Grounding is checked after generation, not constrained during it.**
-  - `LessonKnowledgeGraph::correct_kg_facts` fuzzy-matches every fact the plan quoted back to node text and rewrites near-misses to the canonical wording.
-  - Facts that match nothing are passed into the sequencing QC call as extra context, so the model is told which of its citations were not real.
-  - The alternative — refusing the plan — was not taken, so a plan can ship with a fact the graph does not contain if QC lets it through.
-
-- **Relationships are derived, not planned.**
-  - `::parse_fact_relationships` and `::process_edges` convert the graph's `lo_edges` into `fact_relationships` and its `iu_edges` into `intra_unit_relationships`.
-  - No model chooses these. They are the graph's edges, reshaped into the plan's vocabulary so [04](04-transcript.md) can narrate a connection without reading the graph's edge format.
+- **Grounding is repaired after generation, not constrained during it.**
+  - `::restore_facts` fuzzy-matches each research fact against every planned fact (`fuzz.ratio`, `::FACT_MATCH_THRESHOLD` = 90) and overwrites the best match with the verbatim research text.
+  - Research facts that match nothing are passed to the sequencing QC finder as `prompts/video_planner_prompts.py::VIDEO_PLANNER_MISSING_FACTS`, which is what activates the otherwise-passing "Complete Facts Coverage" criterion.
 
 - **QC is one finder call and at most one fixer call.**
-  - `core/helpers.py::qc_llm_call` decorates a pass, runs a finder against the guidelines in `prompts/qc_prompts.py::videoplan_guidelines`, and if any criterion returns `FAIL`, replays one fixer call on the same history.
-  - There is no iteration count and no second look. This is a deliberate simplification from the older loop still visible in `generate_transcript.py` ([04](04-transcript.md)).
-  - The finder uses `LLM.CLAUDE_5_OPUS` for this stage's criteria.
+  - `core/helpers.py::qc_llm_call` runs a finder with the pass's criteria from `prompts/qc_prompts.py::content_guidelines` (`VideoPlan` is its only entry). Any `FAIL` replays one fixer call, `prompts/qc_prompts.py::VIDEOPLAN_FIXER_USER_PROMPT`, on the pass's history and model.
+  - The finder runs on `LLM.CLAUDE_5_OPUS` for `VideoPlan`.
 
-- **Visual planning is deliberately un-QC'd.**
-  - The `@qc_llm_call` decorator on `::plan_visual_techniques` is commented out.
-  - So diagram-type choices reach [06](06-text-overlays.md) unreviewed, and that stage's own QC is the first check on them.
-
-- **`included_map` comes from a database, not a model.**
-  - `find_lesson_map_from_db` is consulted in `::final_touchups` and the answer is written onto the plan.
-  - [07](07-scenes-breakdown.md) branches on it: a lesson with a map gets a bespoke two-clip opening rather than a generic split.
+- **Visuals are a layer.** `LAYER_PLANNER_VISUAL_TECHNIQUES` off skips the visual call and leaves every `concept.visual` null. The `lore` video type turns it off.
 
 ## Layers
 
 In the order `::generate_lesson_video_plan` walks them:
 
-- `::sequencing_and_grouping` — the structural pass, with `prompts/video_planner_prompts.py::VIDEO_PLANNER_SYSTEM_PROMPT`, `::VIDEO_PLANNER_USER_PROMPT` and the few-shot `::video_planner_history`.
-- `::format_syllabus_grouping` — renders the graph and the structure-so-far into the text a later pass is shown. Shared by the technique and visual passes.
+- `::plan_facts`, `::format_plan_facts` — the input.
+- `::sequencing_and_grouping` — `prompts/video_planner_prompts.py::VIDEO_PLANNER_SYSTEM_PROMPT` (formatted with `Context.subject`), the few-shot `::video_planner_history`, `::VIDEO_PLANNER_USER_PROMPT`.
+- `::restore_facts` — the deterministic grounding pass.
+- `::format_syllabus_grouping` — renders the structure (and techniques) as the text the later passes see.
 - `::plan_teaching_techniques` — `::TEACHING_TECHNIQUE_SYSTEM_PROMPT`, `::TEACHING_TECHNIQUE_USER_PROMPT`.
 - `::plan_visual_techniques` — `::VISUAL_ORGANIZER_SYSTEM_PROMPT`, `::VISUAL_ORGANIZER_USER_PROMPT`.
-- `::get_historical_figures` — `::HISTORICAL_FIGURES_PROMPT` via `::get_historical_figures_prompt`.
-- `::process_edges` and `::parse_fact_relationships` — the deterministic edge conversion.
-- `::final_touchups` — `::FINAL_TOUCHUPS_SYSTEM_PROMPT`, `::FINAL_TOUCHUPS_USER_PROMPT`, plus the map lookup.
-- `core/types.py::VideoPlan` and the `TeachingTechnique` and `VisualType` enums — the artifact's vocabulary.
+- `::final_touchups` — `::FINAL_TOUCHUPS_SYSTEM_PROMPT`, `::FINAL_TOUCHUPS_USER_PROMPT`, straight through `core/clients/openai.py::llm_complete`.
+- `core/types.py::VideoPlan` and the `TeachingTechnique`, `VisualType` and `DiagramType` enums — the artifact's vocabulary.
 
 ## Rules
-
-- **The models differ by pass and the split is intentional.**
 
 | Pass | Model | QC |
 | --- | --- | --- |
 | `::sequencing_and_grouping` | `LLM.GPT_5` | `qc_llm_call("VideoPlan", "SEQUENCING AND GROUPING")` |
 | `::plan_teaching_techniques` | `LLM.GPT_5` | `qc_llm_call("VideoPlan", "TEACHING TECHNIQUES")` |
-| `::plan_visual_techniques` | `LLM.GPT_5` | none — decorator commented out |
-| `::get_historical_figures` | `LLM.GPT_5` | none |
+| `::plan_visual_techniques` | `LLM.GPT_5`, only if the layer is on | none |
 | `::final_touchups` | `LLM.CLAUDE_5_SONNET` | none |
 
-- **QC can revise but cannot reject.**
-  - A failing criterion produces one fixer call. If the fix is also bad, the plan ships.
-  - Nothing in this stage raises on content grounds.
-- **The only blocking failures are structural**: a missing knowledge graph artifact, or a model response that will not parse into `VideoPlan`.
-  - `run.py::run_stage` retries the whole stage up to three times on either.
+- **QC can revise but cannot reject.** If the fix is also bad, the plan ships.
+- **The blocking failures are structural**: no concepts for the video, or a response that will not parse into `VideoPlan`. `run.py::run_stage` retries the whole stage up to three times.
 
 ## Artifact
 
@@ -123,28 +98,19 @@ In the order `::generate_lesson_video_plan` walks them:
   "video_plan": {
     "lesson_title": "...",
     "simple_title": "...",
-    "included_map": "...",
     "section_justifications": { "for_grouping": "...", "for_ordering": "..." },
-    "fact_relationships": [
-      { "source_fact": "...", "target_fact": "...",
-        "relationship": { "type": "...", "description": "..." } }
-    ],
-    "intra_unit_relationships": [ "same shape" ],
     "sections": [
       {
         "section_title": "...",
         "simple_title": "...",
-        "historical_figures": ["..."],
         "concept_justifications": { "for_grouping": "...", "for_ordering": "..." },
         "concepts": [
           {
             "concept_name": "...",
             "concept": "...",
-            "facts": ["verbatim knowledge-graph fact text"],
+            "facts": ["verbatim research fact"],
             "teaching_techniques": [{ "choice": "<TeachingTechnique>", "suggestion": "..." }],
-            "visual": { "type": "<VisualType>", "diagram_type": "...", "justification": "..." },
-            "figure_name": "... or null",
-            "includes_question": true
+            "visual": { "type": "<VisualType>", "diagram_type": "<DiagramType>", "justification": "..." }
           }
         ]
       }
@@ -154,29 +120,22 @@ In the order `::generate_lesson_video_plan` walks them:
 }
 ```
 
+`visual` is `null` when `LAYER_PLANNER_VISUAL_TECHNIQUES` is off.
+
 ## External dependencies
 
-- **GPT 5** for four of the five passes, and **Claude 5 Sonnet** for the fifth, all through `core/helpers.py::llm_call` onto `core/clients/openai.py::llm_complete` and the TrueFoundry gateway.
-- **Claude 5 Opus** for the QC finder and fixer, through `::qc_llm_call`.
-- **The lesson map database**, through `core/clients/images.py::find_lesson_map_from_db`.
-- **S3**, for the knowledge graph read and the artifact write.
+- **GPT 5** for three passes and **Claude 5 Sonnet** for the touch-ups, through `core/helpers.py::llm_call` / `core/clients/openai.py::llm_complete` and the TrueFoundry gateway.
+- **Claude 5 Opus** for the QC finder.
+- **Storage**, for the artifact write only.
 
 ## Boundary
 
-- **Three stages read this artifact, for three different fields.**
-  - [04](04-transcript.md) reads the whole structure: sections, concepts, facts, techniques and `historical_figures`, which is what makes the transcript a dialogue.
-  - [06](06-text-overlays.md) reads `visual` to decide which concepts get a text slide and which get a diagram, and `simple_title` for what appears on them.
-  - [07](07-scenes-breakdown.md) reads `included_map` only.
-- **`teaching_techniques[].suggestion` is advice, not instruction.**
-  - It reaches the transcript prompt as context. Nothing verifies the narration followed it.
-- **`visual.type` is a commitment.** [06](06-text-overlays.md) branches on it and there is no fallback for a value it does not recognise.
-- **Nothing downstream re-checks the facts.**
-  - `::correct_kg_facts` runs exactly once, here. A fact that survives this stage is treated as true by every stage after it.
+- **[04](04-transcript.md) reads sections, concepts and facts.** Each concept becomes one research note (`concept_name` plus `facts`), labelled with its section's `simple_title`; the plan's `simple_title` (or `lesson_title`) is the story title.
+- **[06](06-text-overlays.md) reads `simple_title`** for the lesson title overlay, and `visual` and section `simple_title` only when its text-slide, infographic or overview layers are on.
+- **Nothing downstream re-checks the facts.** `::restore_facts` is the only grounding pass.
 
-## Seams
+## Traps
 
-- **`prompts/video_planner_prompts.py::VIDEO_PLAN_QC_PROMPT` and `::get_video_plan_qc_prompt` are imported and never called.**
-  - They are the pre-`qc_llm_call` QC and were superseded by `prompts/qc_prompts.py::videoplan_guidelines`.
-- **`::generate_lesson_video_plan`'s `__main__` block does not parse.**
-  - It contains a bare `asda`, so the module cannot be run directly. It is import-safe, which is why nothing noticed.
-- **`config/courses.py::data_list` carries two near-identical AP World History entries**, `AP World History: Video Lessons` and `... Lessons 2`. `config/courses.py::get_execution_input` maps the subject `AP World History` to the second.
+- **Facts the QC fixer did not restore are dropped silently.** The second `::restore_facts` in `::generate_lesson_video_plan` discards its missing list; nothing logs or raises.
+- **Two research facts can land on the same planned slot.** `::restore_facts` picks each fact's best match independently, so the later fact overwrites the earlier one.
+- **`teaching_techniques` has no reader.** [04](04-transcript.md) passes only names and facts to the narration engine, so the technique pass and its QC shape nothing downstream.
