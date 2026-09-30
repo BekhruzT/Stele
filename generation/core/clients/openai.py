@@ -4,10 +4,8 @@ import json
 import logging
 import os
 import tempfile
-import time
 import traceback
 from enum import Enum
-from json import JSONDecodeError
 from pathlib import Path
 from typing import Dict, List, Union, Optional
 import uuid
@@ -15,16 +13,14 @@ import anthropic
 import openai
 import requests
 from core.parsers import str_2_json
-from openai import OpenAI
 from tenacity import (retry, retry_if_not_exception_type, stop_after_attempt,
                       wait_exponential)
-from core.clients.s3 import load_json_from_s3, upload_file_to_s3
+from core.clients.s3 import upload_file_to_s3
 from core.constants import (OPENAI_API_KEY, OPENAI_ORGANIZATION_ID, TFY_API_KEY,
                             TFY_BASE_URL)
-from core.logger import Logger
 from core.pricing import gpt4_cost
+from prompts.common_prompts import ENSURE_JSON_SYSTEM_PROMPT
 
-# logger = Logger("OpenAIClient", logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 openai.api_key = OPENAI_API_KEY
@@ -88,10 +84,6 @@ def openai_gpt4v_message(url, n):
     }
 
 
-def print_openai_messages(messages: List[Dict[str, str]]):
-    logger.info("\n\n".join([f"{v['role']}\n{v['content']}" for v in messages]))
-
-
 def system_message(prompt: str, *args, **kwargs):
     return {
         "role": "system",
@@ -117,10 +109,7 @@ def user_message(prompt: str, *args, **kwargs):
 
 def ensure_json_prompt(response: str):
     return [
-        {"role": "system", "content": '''The user will provide a broken JSON response that GPT provided earlier.
-1. You will respond only with the corrected format of that same exact JSON Object.
-2. Ensure that python json.loads() will accept this JSON string as a dict.
-3. If the JSON is already in corrected format then respond with that corrected JSON, never respond in any other format other than JSON.'''},
+        {"role": "system", "content": ENSURE_JSON_SYSTEM_PROMPT},
         {"role": "user", "content": f"{response}"}
     ]
 
@@ -254,65 +243,6 @@ def ensure_json(response: str) -> Union[Dict, List]:
         return obj
 
 
-class OpenaiAssistantConversation:
-    def __init__(self, assistant_id, thread_id=None):
-        self.assistant_id = assistant_id
-        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        self.thread = self.client.beta.threads.retrieve(thread_id) if thread_id else self.client.beta.threads.create()
-
-    def _wait_on_run(self, thread_run):
-        terminal_status = ["cancelled", "failed", "completed", "expired", "requires_action"]
-        # logger.info(f'Entering loop to check for terminal status')
-        i = 0
-        while thread_run.status not in terminal_status:
-            thread_run = self.client.beta.threads.runs.retrieve(
-                thread_id=self.thread.id,
-                run_id=thread_run.id,
-            )
-            time.sleep(1)
-            i += 1
-            # if i % 15 == 0:
-            # logger.info(f'Waiting for thread run to complete: {thread_run.status}')
-        return thread_run
-
-    @retry(stop=stop_after_attempt(30), wait=wait_exponential(multiplier=1, max=60))
-    def ask_assistant_sync(self, query_input: str):
-        try:
-            message = self.client.beta.threads.messages.create(
-                thread_id=self.thread.id,
-                role="user",
-                content=query_input,
-            )
-            # logger.info(f'Created message with id {message.id} and {message}')
-            run = self.client.beta.threads.runs.create(
-                thread_id=self.thread.id,
-                assistant_id=self.assistant_id,
-            )
-            # logger.info(f'Created run with id {run.id} and {run}')
-            run = self._wait_on_run(run)
-            # logger.info(f'Returning run  with status {run.status} info as {run}')
-            if run.status == "failed":
-                logger.error(f"Failed run - {run.status}. {self.thread.id}. {run.last_error}")
-                raise Exception("Failed Run")
-            return run, message
-        except Exception as e:
-            logger.error(f"Error asking assistant: {e}")
-            raise e
-
-    def fetch_messages_after(self, message):
-        messages = self.client.beta.threads.messages.list(
-            thread_id=self.thread.id, order="asc", after=message.id
-        )
-        return messages
-
-    def delete_message(self, message):
-        deleted_message = self.client.beta.threads.messages.delete(
-            message_id=message.id,
-            thread_id=self.thread.id,
-        )
-        return deleted_message
-
-
 def generate_image_dalle(prompt, n=1, model: str = "dall-e-3"):
     client = openai.OpenAI(api_key=OPENAI_API_KEY, organization=OPENAI_ORGANIZATION_ID)
 
@@ -326,27 +256,6 @@ def generate_image_dalle(prompt, n=1, model: str = "dall-e-3"):
     )
     return response.data[0].url
 
-
-def generate_speech_via_openai(text:str, speech_file_path='./speech.mp3', voice='echo')->dict:
-    response = openai.audio.speech.create(
-        model="tts-1-hd",
-        voice=voice,
-        input=text
-    )
-    response.stream_to_file(speech_file_path)
-
-    return response
-
-
-def tts(speech_file_path='./speach.mp3'):
-    client = openai.OpenAI(api_key=OPENAI_API_KEY, organization=OPENAI_ORGANIZATION_ID)
-
-    audio_file = open(speech_file_path, "rb")
-    transcript = client.audio.transcriptions.create(
-        model="whisper-1",
-        file=audio_file
-    )
-    return response
 
 def generate_openai_image(prompt: str, image_path: Optional[str] = None, quality: str = "high") -> str:
     client = openai.OpenAI(api_key=OPENAI_API_KEY, organization=OPENAI_ORGANIZATION_ID)

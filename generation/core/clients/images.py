@@ -4,41 +4,26 @@ import logging
 import os
 import re
 import sys
-import time
 import uuid
-from collections.abc import MutableMapping
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from enum import Enum
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple
 
 import boto3
 import cairosvg
 import fal_client
 import requests
-from bs4 import BeautifulSoup
-from core.log import (
-    ContextAwareThreadPoolExecutor, setup_logging)
-from core.stage_constants import \
-    get_sheet_info_by_subject
-from core.parsers import str_2_json
+from core.log import ContextAwareThreadPoolExecutor
 from googleapiclient.discovery import build
 from core.clients.openai import generate_openai_image
-from prompts.images.qc import MULTIQUERY_PROMPT
 from prompts.images.system_prompts import (AI_PROMPT_TO_GOOGLE_QUERY_PROMPT,
-                                    CLASSIFY_IMAGE_DESCRIPTION_SYSTEM_PROMPT,
-                                    FETCH_DESCRIPTION_TUNE_SYSTEM_PROMPT,
                                     GENERATE_MERMAID_CODE_SYSTEM_PROMPT,
                                     GENERATE_PLOTLY_DIAGRAM_PROMPT,
                                     GENERATE_SVG_CODE_SYSTEM_PROMPT,
-                                    IMAGE_DESCRIPTION_TUNE_SYSTEM_PROMPT,
-                                    REMOVE_NSFW_CONCEPTS_SYSTEM_PROMPT,
-                                    get_subject_agnostic_prompt)
-from prompts.images.user_prompts import (CLASSIFY_IMAGE_DESCRIPTION_TUNE_USER_PROMPT,
-                                  CODE_PLOTLY_DIAGRAM_PROMPT,
-                                  FETCH_DESCRIPTION_TUNE_USER_PROMPT,
+                                    REMOVE_NSFW_CONCEPTS_SYSTEM_PROMPT)
+from prompts.images.user_prompts import (CODE_PLOTLY_DIAGRAM_PROMPT,
                                   GENERATE_MERMAID_CODE_USER_PROMPT,
                                   GENERATE_SVG_CODE_USER_PROMPT,
-                                  IMAGE_DESCRIPTION_TUNE_USER_PROMPT,
                                   PLAN_PLOTLY_DIAGRAM_PROMPT,
                                   REMOVE_NSFW_CONCEPTS_USER_PROMPT)
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -46,12 +31,10 @@ from core.constants import (AWS_REGION, GCP_API_KEY, GCP_SEARCH_CXID,
                              MERMAID_LAMBDA_NAME, MIDJOURNEY_LAMBDA_URL,
                              TIKTOK_AWS_ACCESS_KEY_ID,
                              TIKTOK_AWS_SECRET_ACCESS_KEY)
-from core.logger import Logger
 from core.clients.openai import (LLM, add_to_messages, chat_complete,
                           generate_image_dalle, llm_complete, system_message,
                           user_message)
 
-# logger = Logger(__name__, logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -69,41 +52,41 @@ class GeneratedImageTypes(Enum):
     FLUX = "FLUX"
 
 
-def generate_image(grade: str, subject: str, standard_id: str, image_description: str, image_class: GeneratedImageTypes,
+def generate_image(audience: str, subject: str, image_description: str, image_class: GeneratedImageTypes,
                    image_path: str, cost_callback=None) -> Tuple[List[str],
                                                                  List[str], Any]:
     image_urls = None
     image_citations = None
     custom_output = {}
     if image_class == GeneratedImageTypes.SVG:
-        generate_svg_image(image_description, grade, standard_id, image_path, cost_callback)
+        generate_svg_image(image_description, audience, image_path, cost_callback)
     elif image_class == GeneratedImageTypes.MERMAID:
-        generate_mermaid_image(image_description, grade, standard_id, image_path, cost_callback)
+        generate_mermaid_image(image_description, audience, image_path, cost_callback)
     elif image_class == GeneratedImageTypes.WEB:
         image_urls, image_citations = generate_web_image(image_description)
 
         if not image_urls:
             logger.info(f"COULDN'T FIND WEB IMAGES FOR: {image_description}")
             image_urls, custom_output = generate_ai_image(
-                image_description, grade, subject, standard_id, cost_callback)
+                image_description, audience, subject, cost_callback)
 
     elif image_class == GeneratedImageTypes.PLOTLY:
-        custom_output = generate_diagram(image_description, grade, subject, image_path)
+        custom_output = generate_diagram(image_description, audience, subject, image_path)
     else:
         image_urls, custom_output = generate_ai_image(
-            image_description, grade, subject, standard_id, cost_callback, image_class=image_class)
+            image_description, audience, subject, cost_callback, image_class=image_class)
     return image_urls, image_citations, custom_output
 
 
-def generate_svg_image(image_description, grade, standard_id, image_path, cost_callback=None):
+def generate_svg_image(image_description, audience, image_path, cost_callback=None):
     logger.info(f"Generating svg code for image: {image_description}")
-    svg_code = generate_svg_code(image_description, grade, standard_id, cost_callback)
+    svg_code = generate_svg_code(image_description, audience, cost_callback)
     logger.info(f"Generated svg code for image: {image_description}. SVG code: {svg_code}")
     svg_to_png(svg_code, image_path)
 
 
-def generate_mermaid_image(image_description, grade, standard_id, image_path, cost_callback=None):
-    mermaid_code = generate_mermaid_code(image_description, grade, standard_id, cost_callback)
+def generate_mermaid_image(image_description, audience, image_path, cost_callback=None):
+    mermaid_code = generate_mermaid_code(image_description, audience, cost_callback)
     uri = generate_daigram(mermaid_code)
     logger.info(f"Generated diagram from mermaid code: {mermaid_code}. Diagram URI: {uri}")
     save_image(uri, image_path)
@@ -160,13 +143,10 @@ def query_google(image_description, domain='.edu', n_results=5):
 
 
 def generate_ai_image(
-        image_description, grade, subject, standard_id, cost_callback, image_class: GeneratedImageTypes=GeneratedImageTypes.FLUX) -> Tuple[
+        image_description, audience, subject, cost_callback, image_class: GeneratedImageTypes=GeneratedImageTypes.FLUX) -> Tuple[
         List[str],
         List[Dict[str, str]]]:
-    # multiquery = multiquery_image_description( image_description, grade, subject, 2, standard_id, cost_callback) 
     multiquery = [image_description]
-
-    # logger.info(f"Generate Multiquery: {'; '.join(multiquery)}")
 
     image_details = []
 
@@ -275,59 +255,14 @@ def generate_flux_image_portrait(query: str, nsfw_retry: int = 0) -> str:
     return result['images'][0]['url']
 
     
-def multiquery_image_description(description: str, grade, subject, n, standard_id, cost_callback) -> List[str]:
-    tuned_image_description = tune_image_description(description, grade, subject, standard_id, cost_callback)
-
-    if n>0:
-        messages = [
-            system_message(""),
-            user_message(MULTIQUERY_PROMPT, n=2, query=tuned_image_description)
-        ]
-        response = chat_complete(messages, cost_callback=cost_callback)
-        return [description, tuned_image_description, *[r for r in response.split("\n") if len(r.strip()) > 0]]
-    return [description, tuned_image_description]
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=30))
-def tune_image_description(image_description: str, grade: str, subject: str, standard_id: str, cost_callback=None):
-    messages = [
-        system_message(get_subject_agnostic_prompt(IMAGE_DESCRIPTION_TUNE_SYSTEM_PROMPT, {'subject': subject})),
-        user_message(IMAGE_DESCRIPTION_TUNE_USER_PROMPT, grade=grade,
-                     standard_id=standard_id, image_description=image_description)
-    ]
-    try:
-        tuned_prompt_response = chat_complete(messages, cost_callback=cost_callback)
-        logger.info(f'Tuned prompt: {tuned_prompt_response}')
-        tuned_prompt = json.loads(tuned_prompt_response.strip('`').strip('json'))['tuned_prompt']
-        return tuned_prompt
-    except Exception as error:
-        logger.error(f"Failed to tune image description: {image_description}. Error: {error}")
-        raise
-
-
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=30))
-def classify_image(image_description: str, grade: str, standard_id: str, cost_callback=None):
-    messages = [
-        system_message(CLASSIFY_IMAGE_DESCRIPTION_SYSTEM_PROMPT),
-        user_message(CLASSIFY_IMAGE_DESCRIPTION_TUNE_USER_PROMPT, grade=grade,
-                     standard_id=standard_id, image_description=image_description)
-    ]
-    try:
-        image_class = chat_complete(messages, cost_callback=cost_callback)
-        classified_image = str_2_json(image_class)
-        image_type = classified_image.get("type")
-        return GeneratedImageTypes[image_type.upper()]
-    except Exception as error:
-        logger.error(f"Failed to classify image: {image_description}. Error: {error}")
-        raise
-
-
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=30))
-def generate_mermaid_code(image_description: str, grade: str, standard_id: str, cost_callback=None):
+def generate_mermaid_code(image_description: str, audience: str, cost_callback=None):
     messages = [
         system_message(GENERATE_MERMAID_CODE_SYSTEM_PROMPT),
-        user_message(GENERATE_MERMAID_CODE_USER_PROMPT, grade=grade,
-                     standard_id=standard_id, image_description=image_description)
+        user_message(GENERATE_MERMAID_CODE_USER_PROMPT, audience=audience,
+                     image_description=image_description)
     ]
     try:
         mermaid_code_response = chat_complete(messages, cost_callback=cost_callback)
@@ -341,11 +276,11 @@ def generate_mermaid_code(image_description: str, grade: str, standard_id: str, 
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=30))
-def generate_svg_code(image_description: str, grade: str, standard_id: str, cost_callback=None):
+def generate_svg_code(image_description: str, audience: str, cost_callback=None):
     messages = [
         system_message(GENERATE_SVG_CODE_SYSTEM_PROMPT),
-        user_message(GENERATE_SVG_CODE_USER_PROMPT, grade=grade,
-                     standard_id=standard_id, image_description=image_description)
+        user_message(GENERATE_SVG_CODE_USER_PROMPT, audience=audience,
+                     image_description=image_description)
     ]
     try:
         svg_code_response = chat_complete(messages, cost_callback=cost_callback)
@@ -441,29 +376,6 @@ def generate_image_util(prompt: str):
     return json.loads(response.text)['uri']
 
 
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=30))
-def tune_image_description_for_caption(alt: str, content: str, cost_callback=None):
-    messages = [
-        system_message(FETCH_DESCRIPTION_TUNE_SYSTEM_PROMPT),
-        user_message(FETCH_DESCRIPTION_TUNE_USER_PROMPT, alt=alt, content=content)
-    ]
-    try:
-        tuned_prompt_response = chat_complete(messages, cost_callback=cost_callback)
-        start_index = tuned_prompt_response.find('```detailed') + len('```detailed')
-        end_index = tuned_prompt_response.rfind('```')
-        tuned_prompt = tuned_prompt_response[start_index:end_index].strip()
-        return tuned_prompt
-    except Exception as error:
-        logger.error(f"Failed to tune image description for caption - {alt}. Error: {error}")
-        raise
-
-
-def generate_image_caption(image_description: str, context: str, cost_callback=None):
-    logger.info(f"Generating image caption for image: {image_description}")
-    image_caption = tune_image_description_for_caption(image_description, context, cost_callback)
-    return image_caption
-
-
 def code_interpreter(code: str) -> str:
     buffer = io.StringIO()
     sys.stdout = buffer
@@ -474,7 +386,7 @@ def code_interpreter(code: str) -> str:
     return output
 
 
-def generate_diagram(image_description: str, grade: str, subject: str, image_path: str, retry_count: int = 0) -> str:
+def generate_diagram(image_description: str, audience: str, subject: str, image_path: str, retry_count: int = 0) -> str:
     messages = [
         system_message(GENERATE_PLOTLY_DIAGRAM_PROMPT, description=image_description),
         user_message(PLAN_PLOTLY_DIAGRAM_PROMPT, description=image_description)
@@ -492,7 +404,7 @@ def generate_diagram(image_description: str, grade: str, subject: str, image_pat
     if not os.path.exists(image_path):
         if retry_count >= 3:
             raise FileNotFoundError(f"Failed to create image at {image_path} after 3 retries.")
-        return generate_diagram(image_description, grade, subject, image_path, retry_count + 1)
+        return generate_diagram(image_description, audience, subject, image_path, retry_count + 1)
     return code
 
 
@@ -507,39 +419,3 @@ def ai_prompt_to_google_query(prompt: str) -> str:
     query = extract_tag_content('query', llm_complete(messages, LLM.CLAUDE_5_SONNET))
 
     return query
-
-def find_lesson_map_from_db(subject: str, target_chapter: str, target_subsection: str) -> dict:
-    from core.clients.gsheet import \
-        GoogleSheetsClient
-    sheet_info = get_sheet_info_by_subject(subject)['Maps']
-
-    g_client = GoogleSheetsClient(sheet_info['sheet_id'])
-    data = g_client.read_batch_from_sheet(sheet_info['sheet_name'], 1, 85, 6)
-    chapter_dict, pattern = {}, re.compile(r'^=IMAGE\("(.*)"\)$')
-    for _, chapter, subsection, desc, map_cell, is_good in data:
-        match = pattern.match(map_cell)
-        url = match.group(1) if match else map_cell
-        chapter_dict.setdefault(chapter, {})[subsection] = {"description": desc, "img_url": url, "is_good": is_good}
-    lesson_map_info = chapter_dict.get(target_chapter, {}).get(target_subsection, {})
-    return lesson_map_info if lesson_map_info.get("is_good", False) else {}
-
-def find_matching_image_from_db(prompt: str, target_chapter: str, target_subsection: str) -> dict:
-    images = load_json_from_s3('custom/ap_history/mapped_images.json')['images']
-    image_captions = "\n".join([f"{ii}) {image['description']}" for ii, image in enumerate(images)])
-
-    messages = [
-        system_message(MAP_IMAGE_PROMPT_TO_CAPTIONS_PROMPT.format(image_captions=image_captions)),
-        user_message(prompt)
-    ]
-
-    response = str_2_json(extract_tag_content('decision', llm_complete(messages, LLM.CLAUDE_5_SONNET)))
-
-    if response['confidence'] == 2:
-        return images[response['best_image_index']]['url']
-    else:
-        return ''
-
-if __name__ == "__main__":
-    setup_logging()
-
-    print(generate_flux_image("Create a photorealistic image of a bustling Pre-Columbian village square during daytime, with indigenous families arranging tribute goods on woven reed mats. In the foreground, show people in traditional cotton clothing sorting vibrant textiles, clay pottery vessels, and stacks of corn and beans. Include children helping their parents bundle goods, emphasizing the communal atmosphere. The background features earthen adobe buildings with stepped doorways, and a stepped pyramid temple rises prominently against a clear blue sky. Natural lighting casts soft shadows across the plaza, highlighting the warm earth tones of the architecture and the colorful tribute items. Wide-angle perspective to capture both the detailed activities and architectural context."))

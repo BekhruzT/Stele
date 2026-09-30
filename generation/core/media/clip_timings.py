@@ -1,26 +1,16 @@
-import json
 import logging
 import re
-import string
 from typing import Dict, List, Tuple, Union
 from pydub import AudioSegment
 import subprocess
 from core.types import (
-    Clip, TranscriptOutput, TranscriptTiming, WordTiming)
-from core.helpers import (
-    print_json, split_transcript)
-from prompts.clips_prompts import \
-    IDENTIFY_CLIP_TIMINGS
-from core.parsers import str_2_json
-from core.context import APVideoContext as Context
-from core.clients.openai import LLM, llm_complete, system_message, user_message
-from core.clients.s3 import load_json_from_s3, save_json_to_s3
+    TranscriptTiming, WordTiming)
+from prompts.clips_prompts import SPLIT_ADD_TOLERANCE, SPLIT_NO_ADD, SPLIT_NO_REMOVE, SPLIT_REMOVE_TOLERANCE
 
 logger = logging.getLogger(__name__)
 
 def segment_split_suggestions(timings: List[WordTiming]) -> List[Dict[str, Union[str, float]]]:
     bounds = [6.5, 8.5]
-    ideal_duration = 7.5
 
     total_duration = round(timings[-1].end_time - timings[0].start_time, 3)
     average_word_duration = round(sum([t.end_time-t.start_time for t in timings])/len(timings), 3)
@@ -65,34 +55,12 @@ def segment_split_suggestions(timings: List[WordTiming]) -> List[Dict[str, Union
             'start_time': segment[0].start_time,
             'end_time': segment[-1].end_time,
             'duration': duration,
-            'positive_tolerance': f'Can add at most {add_tolerance} words to this segment' if add_tolerance>0 else f"{add_tolerance} words. Can't add words to this segment",
-            'negative_tolerance': f'Can remove at most {remove_tolerance} words from this segment' if remove_tolerance>0 else f"{remove_tolerance} words. Can't remove words from this segment",
+            'positive_tolerance': (SPLIT_ADD_TOLERANCE if add_tolerance > 0 else SPLIT_NO_ADD).format(n=add_tolerance),
+            'negative_tolerance': (SPLIT_REMOVE_TOLERANCE if remove_tolerance > 0 else SPLIT_NO_REMOVE).format(n=remove_tolerance),
         })
     return out
     
    
-def match_snippet_timings(timings: TranscriptTiming, clip: Clip) -> Tuple[float, float]:
-    # Function to normalize text by removing punctuation, whitespace, and converting to lowercase
-    def normalize(text):
-        return re.sub(r'\W+', '', text).lower()
-    
-    # Normalize the substring and split it into tokens
-    substring_tokens = [normalize(token) for token in clip.text.split()]
-    len_substring = len(substring_tokens)
-    
-    # Normalize the words in the transcript timings
-    processed_words = [normalize(word_timing.text) for word_timing in timings.timings]
-    
-    # Search for the substring tokens in the processed words
-    for i in range(len(processed_words) - len_substring + 1):
-        if processed_words[i:i+len_substring] == substring_tokens:
-            clip.start_time = timings.timings[i].start_time
-            clip.end_time = timings.timings[i + len_substring - 1].end_time
-            clip.duration = round(clip.end_time - clip.start_time, 3)
-            clip.duration_valid = 5<=clip.duration <=9 
-            return clip
-    
-    return clip
 
 
 def match_segment_timings(timings: TranscriptTiming, segment_text: str) -> Tuple[int, int]:
@@ -206,29 +174,4 @@ def mute_intervals(
 
     subprocess.run(cmd, check=True)
 
-def identify_video_split_indexes(transcript: TranscriptOutput, transcript_timings: TranscriptTiming):
-    """
-    This function identifies the video split indexes for the lesson video (end index for each split)
-    """
-    _, intro_end_index = match_segment_timings(transcript_timings, " ".join(transcript.lesson_transcript_breakdown.introduction.split()[-10:]))
-    split_indexes = {
-        "Introduction": intro_end_index,
-        "Conclusion": len(transcript_timings.timings) - 1
-    }
 
-    for section_name, section in transcript.lesson_transcript_breakdown.sections.items():
-        last_words_in_section = list(section.explanations.values())[-1].recap
-        _, end_index = match_segment_timings(transcript_timings, last_words_in_section)
-        split_indexes[section_name] = end_index
-
-    return dict(sorted(split_indexes.items(), key=lambda x: x[1]))
-
-def reset_timings(timings: TranscriptTiming):
-    """
-    This function resets the timings to start from 0
-    """
-    start = timings.timings[0].start_time
-    for timing in timings.timings:
-        timing.start_time -= start
-        timing.end_time -= start
-    return timings

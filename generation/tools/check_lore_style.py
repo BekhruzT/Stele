@@ -1,5 +1,5 @@
 """Compare a lore transcript's AI tells and flow metrics against a reference: `<transcript.txt> <reference.txt>`."""
-import re, statistics, sys
+import itertools, re, statistics, sys
 
 TELLS = {
     "we'll come back/return": r"[Ww]e['\u2019]ll (?:come back|return)|we will (?:come back|return)",
@@ -19,6 +19,16 @@ def load(path: str) -> str:
     return t.replace("&#x27;", "'").replace("&quot;", '"').replace("&middot;", "\u00b7")
 
 
+def near_duplicate_pairs(t: str, threshold: float = 0.5) -> int:
+    """Sentence pairs sharing most of their vocabulary: a beat narrated twice shows up here."""
+    bags = [set(re.findall(r"[a-z0-9]{4,}", s.lower()))
+            for s in re.split(r"(?<=[.!?])\s+", t) if len(s.split()) >= 8]
+    # ponytail: O(n^2) over the ~300 sentences a transcript holds is ~45k set ops. Past a few
+    # thousand sentences, bucket by shared rare token instead of comparing every pair.
+    return sum(1 for a, b in itertools.combinations([b for b in bags if b], 2)
+               if len(a & b) / len(a | b) >= threshold)
+
+
 def metrics(t: str) -> dict:
     words = t.split()
     n = len(words)
@@ -29,6 +39,7 @@ def metrics(t: str) -> dict:
         "% sentences >35w": round(100 * sum(1 for x in slens if x > 35) / len(slens), 1),
         "% sentences >38w": round(100 * sum(1 for x in slens if x > 38) / len(slens), 1),
         "% sentences <9w": round(100 * sum(1 for x in slens if x < 9) / len(slens), 1),
+        "near-duplicate sentence pairs": near_duplicate_pairs(t),
     }
     for name, pat in TELLS.items():
         m[name + " /10k"] = round(len(re.findall(pat, t)) / n * 10000, 1)

@@ -175,39 +175,3 @@ class ContextAwareThreadPoolExecutor(BaseThreadPoolExecutor):
 
 
 # Example usage:
-if __name__ == "__main__":
-    import time
-
-    # Initialize logging for the session
-    log_group = os.getenv("CLOUDWATCH_LOG_GROUP")
-    log_stream = f"test-{datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}"
-    setup_logging(log_group, log_stream)
-    logger = logging.getLogger(__name__)
-    
-    @with_logging_context(layer="layer-1")
-    def process_layer1(item):
-        logger.info(f"Processing {item} in layer 1")
-        time.sleep(1)
-    
-    
-    @with_logging_context(layer="layer-2")
-    def process_layer2(item):
-        logger.info(f"Processing {item} in layer 2")
-        time.sleep(2)
-
-        def process1(inp: str):
-            logger.error(f"processing1 {inp}")
-
-        with ContextAwareThreadPoolExecutor() as executor:
-            executor.map(with_logging_context(lesson_id="lesson-1")(process1), ["task1", "task2", "task3"])
-    
-    def process_lesson(lesson_id: str):
-        with LoggingContext(lesson_id=lesson_id):
-            process_layer1("task1")
-            process_layer2("task2")
-            logger.info("Lesson processing complete")
-    
-    # Run multiple lessons in parallel
-    with ContextAwareThreadPoolExecutor() as executor:
-        lessons = ["abc1", "abc2", "abc3"]
-        executor.map(process_lesson, lessons)

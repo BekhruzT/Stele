@@ -1,4 +1,7 @@
 {
+  "_meta": {
+    "subject_profile": "history"
+  },
   "chapters": [
     {
       "chapter": "The Longitude Problem — how the ocean finally got a clock",
@@ -23,7 +26,7 @@
               "name": "Parliament puts a price on the impossible: the Longitude Act of July 1714 offered a tiered reward — £10,000 for a method accurate to one degree, £15,000 for two-thirds of a degree, and £20,000 for half a degree, about thirty nautical miles on a voyage to the West Indies. It also created a Board of Longitude of astronomers, admirals, and professors to judge the claims. The Board did not hold a single meeting for twenty-three years.",
               "concepts": [
                 "In 1713 William Whiston — Newton's successor as Lucasian Professor, expelled from Cambridge for heresy — and the mathematician Humphry Ditton published a longitude scheme: hulks anchored across the oceans at roughly 600-mile intervals, each firing a shell timed to burst high over the ship at midnight, so any vessel within range could take distance from the flash-to-bang delay. Anchoring in mid-Atlantic depths was impossible and sailors mocked the plan, but the pamphlet and the petitions it stirred pushed Parliament to act.",
-                "The Longitude Act passed in July 1714, in the last weeks of Queen Anne's life. Its preamble stated the stakes in one line, that nothing was 'so much wanted and desired at sea, as the discovery of the longitude, for the safety and quickness of voyages, the preservation of ships, and the lives of men.' The top reward of £20,000 — several million pounds in today's money — was more than the crown paid for almost any single service in the century.",
+                "The Longitude Act passed in July 1714, in the last weeks of Queen Anne's life. Its preamble stated the stakes in one line, that nothing was 'so much wanted and desired at sea, as the discovery of the longitude, for the safety and quickness of voyages, the preservation of ships, and the lives of men.' The top reward was £20,000, millions of pounds in today's money. Scale evidence: The National Archives currency converter (https://www.nationalarchives.gov.uk/currency-converter/) gives approximately £2.10 million and £2.32 million in 2017 purchasing power for £20,000 in 1710 and 1720 respectively, the available years bracketing 1714. This supports the broad millions scale, not an exact 1714-to-2026 conversion. The reference year and calculation belong in the research, not the narration. See generation/docs/reviews/2026-09-23-harrison-money-context.md for saved evidence and method.",
                 "Isaac Newton, consulted by the parliamentary committee in 1714, listed the candidate methods and dismissed the obvious one. A sea clock was the right idea in principle, he wrote, 'but by reason of the motion of the ship, the variation of heat and cold, wet and dry, and the difference of gravity in different latitudes, such a watch hath not yet been made.' He put his cautious weight behind astronomy — the Moon's motion measured against the fixed stars.",
                 "The prize drew decades of crank proposals — perpetual-motion machines, schemes for squaring the circle — until 'finding the longitude' became London slang for a fool's errand. In the final scene of William Hogarth's A Rake's Progress, painted in the 1730s and set inside Bedlam asylum, one lunatic stands scrawling a longitude solution on the madhouse wall.",
                 "The Board of Longitude existed on paper from 1714 — the Astronomer Royal, the First Lord of the Admiralty, Cambridge and Oxford professors — but for twenty-three years no submission was judged worth assembling them. The commissioners convened for the first time on 30 June 1737. What finally brought them to a table was a machine built in a Lincolnshire village by a self-taught joiner.",
@@ -129,7 +132,7 @@
     }
   ],
   "_summary": {
-    "purpose": "Experimental plan authored directly to docs/lore_input_spec.md — a from-scratch topic (not in AP World) to test whether spec-compliant original inputs outperform AP-adapted ones.",
+    "purpose": "Experimental plan authored directly to docs/lore_input_spec.md — a from-scratch topic to test whether spec-compliant original inputs outperform adapted ones.",
     "total_videos": 2,
     "total_estimated_concepts": 53,
     "avg_concepts_per_video": 26

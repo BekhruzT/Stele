@@ -38,9 +38,6 @@ def main() -> int:
                         print(f"DUP  {video['title'][:48]!r}  L{prev[0]+1}b{prev[1]+1} ~ L{li+1}b{bi+1}  \"{sh}\"")
 
     n_videos = sum(len(c["videos"]) for c in plan["chapters"])
-    plan["_summary"]["total_videos"] = n_videos
-    plan["_summary"]["total_estimated_concepts"] = total
-    plan["_summary"]["avg_concepts_per_video"] = round(total / n_videos)
     PLAN.write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     print(f"\n{n_videos} videos, {total} beats (avg {total / n_videos:.1f}/video), {dup_pairs} cross-lesson near-duplicate pairs.")

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import random
 import subprocess
 import tempfile
@@ -11,7 +10,7 @@ from pathlib import Path
 
 from core.clients.s3 import (does_file_exist, is_local, load_json_from_s3,
                              upload_file_to_s3)
-from core.context import APVideoContext as Context
+from core.context import Context
 from core.helpers import exception_handler, sanitize_path
 from core.log import with_logging_context
 from core.types import LayerName
@@ -287,7 +286,7 @@ def render_lesson(output_path: str, output_type: str, inputs: dict) -> dict:
 
     animate = bool(inputs.get("LAYER_PROGRAMMATIC_MOTION", False))
     motion_params = inputs.get("LAYER_PROGRAMMATIC_MOTION_PARAMS") or {}
-    logger.info(f"Rendering locally: {context.subsection}")
+    logger.info(f"Rendering locally: {context.title}")
     assets = collect(context)
     if not assets["audio"]:
         raise RuntimeError("No narration found; the Avatar Clips stage has to run first")
@@ -302,7 +301,7 @@ def render_lesson(output_path: str, output_type: str, inputs: dict) -> dict:
         segments.append((None, assets["total"] - covered, None))
 
     # The media path and filename the delivery tooling looks for.
-    key = f"{context.media_path}{sanitize_path(context.subsection)}.mp4"
+    key = f"{context.media_path}{sanitize_path(context.title)}.mp4"
 
     with tempfile.TemporaryDirectory(prefix="local_render_") as tmp:
         base = Path(tmp) / "base.mp4"

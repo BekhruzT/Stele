@@ -1,23 +1,17 @@
 import logging
 import json
-import os
-import uuid
 import concurrent.futures
 from tenacity import retry, wait_exponential, stop_after_attempt
-from typing import List, Dict, Tuple, Union
+from typing import List, Dict, Union
 from pydantic import BaseModel, Field
-from openai import OpenAI, BadRequestError
-from core.clients.images import GeneratedImageTypes, save_image
-from core.log import setup_logging
-from core.clients.openai import chat_complete, openai_gpt4v_message, add_to_messages, call_openai_vision, system_message, user_message, llm_complete, LLM, ensure_json
+from openai import BadRequestError
+from core.clients.images import GeneratedImageTypes
+from core.clients.openai import chat_complete, openai_gpt4v_message, call_openai_vision, LLM, ensure_json
 from core.helpers import image_to_data_uri
-from core.logger import Logger
-from core.clients.s3 import create_presigned_url, upload_file_to_s3, delete_file_from_s3
-from prompts.images.qc import get_subject_agnostic_prompt, IMAGES_QC_SYSTEM_PROMPT2, IMAGES_QC_ENHANCE_DESRIPTION, case_specifications, UPDATE_DESCRIPTION_PROMPTS, ABSOLUTE_IMAGE_EVAL_PROMPT, ABSOLUTE_IMAGE_ENHANCER_PROMPT
+from prompts.images.qc import get_subject_agnostic_prompt, IMAGES_QC_SYSTEM_PROMPT2, IMAGES_QC_ENHANCE_DESRIPTION, case_specifications, ABSOLUTE_IMAGE_EVAL_PROMPT, ABSOLUTE_IMAGE_EVAL_USER_PROMPT, ABSOLUTE_IMAGE_ENHANCER_PROMPT, IMAGE_VISIBLE_PROMPT
 
 from core.parsers import str_2_json
 
-# logger = Logger("ImageQC", logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +33,7 @@ def absolute_image_qc(image_path: str, conditions: Dict[str, List[str]]):
     url = image_path if image_path.startswith('http') else image_to_data_uri(image_path)
     response = call_openai_vision([
         {"role": "system", "content": ABSOLUTE_IMAGE_EVAL_PROMPT},
-        {"role": "user", "content": f"Evaluate this Image. Make sure to dedicate a sentence per: Analysis, Assessment, and Justification for every condition. Evaluation should necessarily include 3 sentences per condition. Be verbose but specific. Conditions to meet: \n```\n{json.dumps(conditions, indent=2)}\n```"},
+        {"role": "user", "content": ABSOLUTE_IMAGE_EVAL_USER_PROMPT.format(conditions=json.dumps(conditions, indent=2))},
         openai_gpt4v_message(url, 0),
     ])
 
@@ -47,7 +41,7 @@ def absolute_image_qc(image_path: str, conditions: Dict[str, List[str]]):
 
 
 def image_quality_check(
-        grade: str,
+        audience: str,
         subject: str,
         _type: GeneratedImageTypes,
         description: Union[str, dict],
@@ -55,11 +49,11 @@ def image_quality_check(
     logger.info(f"Starting quality check on image: {description}\n{image_links}")
 
     conditions = description if isinstance(
-        description, dict) else enhance_description(grade, subject,
+        description, dict) else enhance_description(audience, subject,
                                                     description, _type)
 
     logger.info(f"Generated image conditions:\n{conditions}")
-    evaluations, best_image_index = divide_and_conquer(grade, subject,
+    evaluations, best_image_index = divide_and_conquer(audience, subject,
                                                        conditions, image_links, _type)
     logger.info(f"Evaluation Results of {description}: {json.dumps(evaluations, indent=2)}")
     confidence = evaluations['Final']['confidence']
@@ -67,13 +61,13 @@ def image_quality_check(
     return best_image_index, confidence, evaluations
 
 
-def enhance_description(grade: str, subject: str, description: str, _type: GeneratedImageTypes, eval_type='relative'):
+def enhance_description(audience: str, subject: str, description: str, _type: GeneratedImageTypes, eval_type='relative'):
     prompt = IMAGES_QC_ENHANCE_DESRIPTION
     if eval_type!='relative':
         prompt = ABSOLUTE_IMAGE_ENHANCER_PROMPT
     messages = [
         {"role": "system",
-         "content": get_subject_agnostic_prompt(prompt, {'grade': grade, 'subject': subject})},
+         "content": get_subject_agnostic_prompt(prompt, {'audience': audience, 'subject': subject})},
         *case_specifications[_type.value]['examples'],
         {"role": "user", "content": description}, ]
     response = chat_complete(messages, model=LLM.GPT_5)
@@ -81,7 +75,7 @@ def enhance_description(grade: str, subject: str, description: str, _type: Gener
 
 
 def divide_and_conquer(
-        grade: str, 
+        audience: str, 
         subject: str,
         conditions: ImageDescription,
         image_links: List[str],
@@ -94,7 +88,7 @@ def divide_and_conquer(
         divisions = [image_links[ii:ii + 4]
                      for ii in range(0, len(image_links), 4)]
         for ii, division in enumerate(divisions):
-            evaluation, best_image = evaluate_images(grade, subject, conditions, division, _type)
+            evaluation, best_image = evaluate_images(audience, subject, conditions, division, _type)
             evaluations[f"Division {ii}"] = evaluation.dict()
             if evaluation.confidence > 2:
                 best_images[f"Division {ii}"] = division[best_image]
@@ -117,12 +111,12 @@ def divide_and_conquer(
         else:
             logger.info(f"MULTIPLE BEST IMAGES IN DIVISION: {best_images}")
             final_eval, best = evaluate_images(
-                grade, subject, conditions, list(best_images.values()), _type)
+                audience, subject, conditions, list(best_images.values()), _type)
             _index = image_links.index(list(best_images.values())[best])
             evaluations["Final"] = final_eval.dict()
     else:
         logger.info(f"NO DIVISIONS, FINAL EVAL: {best_images}")
-        final_eval, _index = evaluate_images(grade, subject, conditions, image_links, _type)
+        final_eval, _index = evaluate_images(audience, subject, conditions, image_links, _type)
         evaluations["Final"] = final_eval.dict()
 
     return evaluations, _index
@@ -130,10 +124,9 @@ def divide_and_conquer(
 
 def check_url(url, ii):
     try:
-        response = call_openai_vision(
-            [{"role": "system", "content": "Is image visible? Return yes or no"}, openai_gpt4v_message(url, ii)])
+        call_openai_vision([{"role": "system", "content": IMAGE_VISIBLE_PROMPT}, openai_gpt4v_message(url, ii)])
         return url, True
-    except BadRequestError as e:
+    except BadRequestError:
         logger.error(f"Found invalid image: {url}")
         return url, False
 
@@ -175,7 +168,7 @@ def evaluate_with_retry(system_message: Dict[str, str], image_urls: List[str]):
 
 
 def evaluate_images(
-        grade: str,
+        audience: str,
         subject: str,
         conditions: ImageDescription,
         image_urls: List[str],
@@ -185,7 +178,7 @@ def evaluate_images(
             **{"Best Image": "Image 0", "Justification": "Only Image", "Confidence": 2, "Images": image_urls}), 0
 
     system_message = {"role": "system", "content": get_subject_agnostic_prompt(IMAGES_QC_SYSTEM_PROMPT2, 
-        {'grade': grade, 'subject': subject, 'case_specifics': case_specifications[_type.value]['main_prompt'], 'conditions':conditions.dict()})}
+        {'audience': audience, 'subject': subject, 'case_specifics': case_specifications[_type.value]['main_prompt'], 'conditions':conditions.dict()})}
 
     response = evaluate_with_retry(system_message, image_urls)
 
@@ -202,49 +195,3 @@ def evaluate_images(
     return image_eval, best_image_index
 
 
-def correct_image_description(
-        description: str,
-        evaluation: dict,
-        _type: GeneratedImageTypes):
-    logger.info(f"Type {case_specifications[_type.value]}. {_type.value}")
-    messages = [
-        {"role": "system", "content": UPDATE_DESCRIPTION_PROMPTS[0].format(case_specific_practices=case_specifications[_type.value]['update_description_prompt'])},
-        {"role": "user", "content": UPDATE_DESCRIPTION_PROMPTS[1].format(evaluation=evaluation, description=description)}
-    ]
-    analysis = chat_complete(messages, model=LLM.GPT_5)
-
-    messages = add_to_messages(
-        messages,
-        analysis,
-        UPDATE_DESCRIPTION_PROMPTS[2].format(description = case_specifications[_type.value]['final_query_prompt']))
-    logger.info(json.dumps(messages, indent = 2))
-    new_query = chat_complete(messages, model=LLM.GPT_5)
-    logger.info(new_query)
-    return str_2_json(new_query)['query']
-
-if __name__ == "__main__":
-
-    setup_logging(level=logging.DEBUG)
-
-    def test_eval_results(evals,
-            best_image_index,
-            true_description,
-            original_description):
-        correct_eval = best_image_index == '0'
-        return {"original_description": original_description,
-                "description": true_description[best_image_index],
-                "Correct": correct_eval, **evals}
-
-    events = json.load(open('./event.json'))["GOOGLE"]
-
-    result = []
-    for event in events:
-        best_image_index, confidence, evaluations = image_quality_check(
-            GeneratedImageTypes.WEB, event['description'], event['image_links'])
-        logger.info(best_image_index, confidence, evaluations)
-        break
-        # result.extend([test_eval_results(e,
-        #                                  best_image_index,
-        #                                  event['true_descriptions'],
-        #                                  event["description"]["must"]) for e in evaluations])
-    logger.info(json.dumps(result, indent=2))

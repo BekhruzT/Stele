@@ -1,77 +1,12 @@
+from typing import Dict
 
-FACTS_EXTRACTION_SYSTEM_PROMPT = '''As part of your assigned task, you'll receive educational material. Your goal is to extract the facts mentioned or used in the material by the author.
-Provide the facts formatted as a python list like 
-[
-"fact1",
-"fact2",
-.
-.
-.
-] 
-'''
+from config.subject_profiles import resolve_profile
 
-subject_specifications = {
-  "history": {
-    "tuning_instructions": "- If the context includes years, timelines, or specific historical events, do not alter these key terms.\n- If possible, use the context of the time period and location to refine the description."
-  },
-  "math": {
-    "tuning_instructions": "- If the context includes specific numerals or equations do not alter these key terms.\n- If possible, use your best judgement about educational math textbooks to generate a description that would best illustrate the concept at hand and in the simplest manner."
-  }
-}
-def get_subject_agnostic_prompt(prompt, kwargs):
-  placeholders = subject_specifications[[k for k in subject_specifications.keys() if k in kwargs['subject'].lower()][0]]
-  return prompt.format(**kwargs, **placeholders)
 
-IMAGE_DESCRIPTION_TUNE_SYSTEM_PROMPT = '''As an Image Prompt Generation AI Expert, your task is to create a prompt for image generation based on a given description. This prompt will be used as input for MidJourney AI.
+def get_subject_agnostic_prompt(prompt: str, kwargs: Dict[str, str]) -> str:
+  """Fill an image prompt from the caller's values plus the subject profile's image style."""
+  return prompt.format(**kwargs, **resolve_profile(kwargs['subject']).images.prompt_values())
 
-Please consider the following guidelines when creating the prompt:
-
-- Aim for images that are realistic, authentic, and simple. Avoid extravagance or overly vivid descriptions. The goal is to generate an image that closely matches the original description, not to exceed it.
-- The prompt should be clear and concise, capturing the essence of what is required.
-- Image Generation struggles with depicting specific text, numbers, or equations. Unless specifically requested, avoid these details to achieve a sensible image.
-- Concentrate on a single object and strive to reduce complexity. Remember, the simpler the description, the better the image.
-- For standard objects, aim for a realistic image rather than something fancy.
-{tuning_instructions}
-
-Here's an example for your reference:
-
-Image Description: Cartoon showing a problem about combining 8 red apples and 6 green apples
-Tuned Image Description: Cartoon standing next to red and green apples
-
-Output a JSOn in the following format
-```json
-{{
-  "tuned_prompt": "<tuned_prompt>"
-}}
-```
-'''
-
-RECTIFY_FACTUAL_CONTENT_SYSTEM_PROMPT = '''As part of your assigned task, you'll receive Teaching Content. Your task is to refine and update a provided Teaching Content, taking into account the comments and feedback of an experienced educator. Please edit the Teaching Content accordingly, incorporating suggestions from the expert review, and share the revised version for further assessment. Only update the content for which the review is available, keep the rest as in original teaching content.
-
-Do not remove anything from the original content.
-
-Your response should strictly follow this format
-```
-Revised Teaching Content:
-<revised teaching plan following the same format as the original teaching plan>
-'''
-
-CLASSIFY_IMAGE_DESCRIPTION_SYSTEM_PROMPT = '''As an expert in categorizing image descriptions based on their generation methods, you will be given an image description. Your task is to determine which of the following five categories best fits the image that would be created from the given description. Here are the categories and their corresponding image characteristics:
-
-1. SVG Code - This category is suitable for images involving equations, shapes, transformations, and statistics.
-2. Mermaid Js - This category is ideal for images best represented using graphs, flowcharts, diagrams, Gantt charts, or any other visuals supported by MermaidJS.
-3. Web - This category is for images depicting maps, historical figures or objects, buildings, art, literary works, etc. These are images that can be easily found on the web.
-4. Plotly - This category is best for images data-driven visualizations such as charts, shapes, graphs, and tables. Ideal for representing diagrams and statistical data. The image should not involve any real world objects.
-5. AI - This category is for images that present specific characters, places, scenarios or processes. These are custom images that would likely need to be hand-drawn. Note that this category is not suitable for images requiring the depiction of text, equations, arrows, etc. Also if the depiction is of recent event, after the 1950's then the Web category may be a better fit.
-
-Remember to focus on how the actual image might look based on the image description when making your decision. Think deeply and select the best fit.
-
-Output Format:
-```json
-{
-"type": "<svg | mermaid | AI | web>"
-}
-```'''
 
 GENERATE_MERMAID_CODE_SYSTEM_PROMPT = '''You are an expert Mermaid Code generator. You take Image Details from the user and based on other details given you decide on what kind of Mermaid Diagram to generate and return a valid Mermaid Code that can be rendered and is factually correct as well. 
 
@@ -93,8 +28,7 @@ Make sure to follow below points while generating Mermaid code for images.
 
 Input Format :
 
-Grade - {grade}
-StandardID - {standard_id}
+Audience - {audience}
 ImageDescription - {image_description}
 
 Output Format :
@@ -124,8 +58,7 @@ Make sure to follow below points while generating SVG code for images.
 
 Input Format :
 
-Grade - {grade}
-StandardID - {standard_id}
+Audience - {audience}
 ImageDescription - {image_description}
 
 Output Format :
@@ -134,40 +67,6 @@ Your output needs to strictly follow the below format, there should not be any e
 
 ```svg
 [svg_code]
-```'''
-
-FETCH_DESCRIPTION_TUNE_SYSTEM_PROMPT = '''You are an expert Educationist. You will be given a html educational content in string format and and image_alt, your job is to provide a good image description for the alt in about 10-15 words. Make sure the description is contextual and apt for the given image_alt.
-
-[Key Points]:
-Keep in mind the below critical points while generating Image Descriptions
-- Never Claim the Images to be the authentic thing/place/item, always describe it a general manner.
-- Since the Images are AI Generated, ensure that the description is as close to the input image_alt as possible, make sure not to add extra details or references than the ones mentioned in the image_alt.
-- Ensure Image Descriptions are totally close to image_alt and dont add in extra or unesscary details.
-- Do not use words like a historical depiction etc, keep your language totally natural and simple.
-
-Output Format :
-Your output needs to strictly follow the below format, there should not be any extra text or character in the response apart from this.
-
-```detailed
-[image_description]
-```'''
-
-TUNE_SYSTEM_PROMPT = '''You are Flesch Reading Ease score expert, given a piece of text calculate its Reading Ease score and rewrite it ensuring that the new reading is score is above 60.
-
-Key Guidelines:
-- It is absolutely critical to not add, delete or modify the meaning of any of the contents of the text.
-- Ensure that the update text contains the same key concepts and key terms covered as the original text.
-- You should use simple and short words to improve readability.
-- You should use short sentences and paragraphs to improve readability.
-- In your output follow below structure and do not provide original text again.
-- Never Modify HTML Tags placements or Contents of <img> Tag
-- Do not change/remove any header or sub-headers from the input text. You should only modify the text within each header and sub-header.
-
-Output Format :
-Your output needs to strictly follow the below format, there should not be any extra text or character in the response apart from this.
-
-```readable
-{updated_text}
 ```'''
 
 

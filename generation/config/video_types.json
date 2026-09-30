@@ -1,16 +1,4 @@
 {
-    "history": {
-        "unsupported": true
-    },
-    "general": {
-        "unsupported": true,
-        "layers": {
-            "LAYER_AVATAR_VIDEO": false,
-            "LAYER_TEXT_SLIDES": false,
-            "LAYER_INFOGRAPHICS": false,
-            "LAYER_PLANNER_VISUAL_TECHNIQUES": false
-        }
-    },
     "lore": {
         "layers": {
             "LAYER_AVATAR_VIDEO": false,
@@ -31,9 +19,7 @@
                 "bias_max": 0.7
             },
             "NARRATION": {
-                "style": "lore_sleep",
                 "target_minutes": 60,
-                "single_host": true,
                 "words_per_minute": 135
             }
         },

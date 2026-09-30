@@ -1,17 +1,16 @@
 {
   "_meta": {
-    "course": "AP World History: Video Lessons 2",
-    "curriculum": "college_board",
-    "purpose": "Lore-narration (sleep-video) groupings — each video combines 3–8 AP Topics into one rich narrative arc. Single-topic lore generation is structurally thinning: one LO provides only 4–10 seed facts for 18 segments × ~900 words each, forcing padding and suppressing entity density. Each video here targets 18–26 combined concepts from multiple LOs, matching the density of the hand-authored 18-beat Silk Road reference outline.",
+    "subject": "World History",
+    "subject_profile": "history",
+    "purpose": "Lore-narration (sleep-video) groupings: each video combines several lessons into one narrative arc of 18–26 concepts, dense enough for 18 segments without padding.",
     "target_concepts_per_video": "18–26",
     "target_video_duration_min": "75–110",
-    "structure": "chapter → video (thumbnail-worthy title) → lessons (AP Topic names) → estimated_concepts",
-    "revision_note": "Concepts revised 2026-09-15 from AP-exam framing to lore-narration framing. AP-synthesis bullets (comparison/causation types), philosopher name-lists, vocabulary-list concepts, and multi-civilization survey bullets replaced with concepts anchored to specific people, events, objects, and price points. Each replacement concept answers: what is the strangest, most specific thing inside this topic that a viewer would not expect?"
+    "structure": "chapter → video (thumbnail-worthy title) → lessons → concepts"
   },
   "chapters": [
     {
       "chapter": "Chapter 1: The Medieval World — Order, Trade, and Connection (c. 1200–1450 CE)",
-      "chapter_notes": "Covers AP World History Units 1 and 2. The lore opportunity: a world of sophisticated civilizations — Song China, Abbasid Islam, Malian gold empires, Khmer kingdoms — already deeply interconnected before Europe appears in the story at all.",
+      "chapter_notes": "The lore opportunity: a world of sophisticated civilizations — Song China, Abbasid Islam, Malian gold empires, Khmer kingdoms — already deeply interconnected before Europe appears in the story at all.",
       "videos": [
         {
           "title": "The World in 1200: How Civilizations Organized Power Before Everything Changed",
@@ -68,16 +67,7 @@
               ]
             }
           ],
-          "estimated_concepts": 25,
-          "ap_topics": [
-            "APWH 1.1",
-            "APWH 1.2",
-            "APWH 1.3",
-            "APWH 1.5",
-            "APWH 1.6",
-            "APWH 1.7"
-          ],
-          "revision": "Removed 'Comparison of State Forms across the World' (AP-synthesis) and 'Developments in South and Southeast Asia' (five-civilization survey). Replaced with a Song China specifics concept and a connectivity concept that carries the video's central argument."
+          "estimated_concepts": 25
         },
         {
           "title": "The Silk Roads: How the Ancient World's Greatest Trading Network Actually Worked",
@@ -125,12 +115,6 @@
             }
           ],
           "estimated_concepts": 20,
-          "ap_topics": [
-            "APWH 2.1",
-            "APWH 2.5",
-            "APWH 2.6"
-          ],
-          "revision": "Removed 'Environmental Consequences' (deforestation/desertification — abstract, no named people or events, produced guaranteed thin narration). Replaced with the Sogdian merchant letters concept, which anchors the same trade-network material in a specific person, a specific document, and a specific moment of commercial collapse.",
           "note": "Overlaps with the existing v5 Silk Road transcript. A regrouped version pulls in 2.5 and 2.6 for additional concept depth."
         },
         {
@@ -198,13 +182,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 2.2",
-            "APWH 2.5",
-            "APWH 2.6"
-          ],
-          "revision": "Removed 'The Mongol Successor States' (survey of four political entities — Yuan, Ilkhanate, Golden Horde, Chagatai — that produced one thin sentence per entity). Replaced with the specific story of the Siege of Baghdad and the death of the Abbasid Caliphate, which closes the video on the destruction of something 500 years old rather than opening a survey of what came next."
+          "estimated_concepts": 30
         },
         {
           "title": "Africa's Hidden Empires: Mali, Songhai, and the Gold That Built a World",
@@ -271,13 +249,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 1.5",
-            "APWH 2.4",
-            "APWH 2.5"
-          ],
-          "revision": "Removed 'The Swahili Coast' (belongs in the Indian Ocean video; its inclusion here split a coherent story across two videos) and 'The Spread of Islam in Sub-Saharan Africa' (abstract and taxonomic — conversion patterns, coexistence of religions — with no named people or events). Replaced with 'Timbuktu as the World's Great Library' and 'The Salt-Gold Asymmetry,' both of which anchor the same underlying material in specific quantities and specific strangeness."
+          "estimated_concepts": 30
         },
         {
           "title": "The Indian Ocean World: Asia's Invisible Superhighway",
@@ -344,19 +316,13 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 1.3",
-            "APWH 2.3",
-            "APWH 2.5"
-          ],
-          "revision": "Removed 'Southeast Asian Maritime Kingdoms' (Srivijaya and Majapahit as abstract toll-takers — no named events or people) and 'Key Port Cities and Their Roles' (a list: Calicut, Aden, Hormuz, Malacca — one sentence each, guaranteed thin). Replaced with 'How Strangers Trusted Each Other' (the hawala system, diaspora communities) and 'Black Pepper and the Price of Spice' (the commodity logic that explains why Europeans came). The Zheng He concept updated to foreground the ship-design destruction and the two-mast law as the closing image."
+          "estimated_concepts": 30
         }
       ]
     },
     {
       "chapter": "Chapter 2: The Age of Gunpowder Empires (c. 1450–1750 CE)",
-      "chapter_notes": "Covers AP World History Units 3 and 4. Gunpowder, centralized administration, and maritime technology simultaneously produce land-based empires in Asia and ocean-spanning colonial systems in Europe.",
+      "chapter_notes": "Gunpowder, centralized administration, and maritime technology simultaneously produce land-based empires in Asia and ocean-spanning colonial systems in Europe.",
       "videos": [
         {
           "title": "The Ottoman Empire: How a Border Kingdom Conquered the Known World",
@@ -423,14 +389,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 3.1",
-            "APWH 3.2",
-            "APWH 3.3",
-            "APWH 4.6"
-          ],
-          "revision": "Removed 'Ottoman Decline' (most generic AP-exam concept in the video — abstract institutional weakening, Janissaries as political force, succession — produced no specific events or people). Replaced with 'The Ottoman Empire at Its Cosmopolitan Peak,' which closes the video on what the empire was rather than how it failed, and gives the Istanbul coffee house as a specific closing image. Urban the Hungarian story moved to foreground in the Constantinople concept."
+          "estimated_concepts": 30
         },
         {
           "title": "The Mughal and Safavid Empires: Islam's Two Colliding Giants",
@@ -497,13 +456,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 3.1",
-            "APWH 3.2",
-            "APWH 3.3"
-          ],
-          "revision": "Removed 'The Gunpowder Empires as a Category' (pure AP-synthesis — what Ottomans, Safavids, and Mughals had in common and why historians group them — produced only abstract meta-commentary). Replaced with 'The Wars That Made the Middle East,' which gives the 14 Ottoman-Safavid wars their own concept and connects them to the modern Sunni-Shia geography that viewers already know. The Akbar/Aurangzeb contrast is now explicitly the video's central argument. 'Mughal Imperial Administration' (mansabdari system, land revenue) replaced entirely by 'Akbar's Ibadat Khana' to anchor the tolerance policy in a specific room and specific participants."
+          "estimated_concepts": 30
         },
         {
           "title": "The Age of Sail: How Europe's Ships Rewired the Globe",
@@ -570,13 +523,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 4.1",
-            "APWH 4.2",
-            "APWH 4.3"
-          ],
-          "revision": "Removed 'The Portuguese Empire as a Network' (trading post imperialism vs. territorial colonialism, Estado da India — abstract comparative analysis that belongs in a textbook, not narration). Replaced with 'How Smallpox Conquered America Before Cortés Did,' which tells the same demographic story as the existing Columbian Exchange concept but through one specific detective-story sequence: the 600-man conquest that only makes sense if you understand what arrived before it."
+          "estimated_concepts": 30
         },
         {
           "title": "Sugar, Slaves, and Silver: The Atlantic World's Economy",
@@ -643,19 +590,13 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 4.4",
-            "APWH 4.5",
-            "APWH 4.7"
-          ],
-          "revision": "Removed 'Racial Caste Systems in the Americas' (AP vocabulary list: mestizo, mulatto, zambo — terms to know for the exam, not a story). Replaced with 'The Casta Paintings,' which covers the same colonial race-making system but through a specific art-historical object that makes the system's logic strange and visible. Expanded 'Resistance and Rebellion' to give the Haitian Revolution its own title and foreground the reparations debt as the closing detail."
+          "estimated_concepts": 30
         }
       ]
     },
     {
       "chapter": "Chapter 3: The Age of Revolutions (c. 1750–1900 CE)",
-      "chapter_notes": "Covers AP World History Units 5 and 6. Enlightenment ideas, industrial technology, and European imperial expansion combine to produce a century that remakes political systems, economic structures, and the relationship between Europe and the rest of the world.",
+      "chapter_notes": "Enlightenment ideas, industrial technology, and European imperial expansion combine to produce a century that remakes political systems, economic structures, and the relationship between Europe and the rest of the world.",
       "videos": [
         {
           "title": "The Enlightenment and Its Revolutions: How Ideas Toppled Thrones",
@@ -722,12 +663,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 5.1",
-            "APWH 5.2"
-          ],
-          "revision": "Removed 'Enlightenment Ideas' (Locke, Montesquieu, Voltaire, Rousseau — four philosophers, four bullet points, zero narrative, no events). Replaced with 'The Contradiction at the Heart of Enlightenment,' which covers the same intellectual content but through the specific irony that makes it interesting: the same texts were used to argue for liberty by people who owned other people, and by the enslaved people those owners held. This reframes the Haitian Revolution from a downstream consequence to the central test case of whether Enlightenment ideas meant what they said."
+          "estimated_concepts": 30
         },
         {
           "title": "Coal, Steam, and Capital: The Industrial Revolution That Changed Everything",
@@ -804,15 +740,7 @@
               ]
             }
           ],
-          "estimated_concepts": 35,
-          "ap_topics": [
-            "APWH 5.3",
-            "APWH 5.4",
-            "APWH 5.5",
-            "APWH 5.7",
-            "APWH 5.8"
-          ],
-          "revision": "Replaced 'Capital and Economics' (Adam Smith's invisible hand, Ricardo's comparative advantage, gold standard — four economic theories in one concept, guaranteed thin narration) with 'The Children in the Mines,' which covers the social cost of industrialization through specific ages, specific jobs, specific Parliamentary testimony, and the specific mechanism by which the law changed. Rewrote 'Why Britain First' to foreground the Northumberland coal price story rather than generic 'coal geography, enclosure acts.' Renamed and refocused 'Responses to Industrial Conditions' as 'Industrialization's Global Impact' to connect the chapter forward."
+          "estimated_concepts": 35
         },
         {
           "title": "The Scramble for Africa: When Europe Divided a Continent",
@@ -879,14 +807,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 6.1",
-            "APWH 6.2",
-            "APWH 6.3",
-            "APWH 6.4"
-          ],
-          "revision": "Removed 'The Economic Architecture of Colonial Africa' (cash crop monocultures, migrant labor, deliberate underdevelopment — abstract taxonomy of a system with no one inside it). Replaced with the Morel/Casement story, which covers the Congo atrocity at the scale of two specific people using a specific investigative method — a shipping clerk counting cargo manifests — to expose a system that the Belgian government denied existed. The Congo Free State concept directly above it provides the context; this one provides the human response."
+          "estimated_concepts": 30
         },
         {
           "title": "The Great Migration: How Industrialization Moved 60 Million People",
@@ -953,19 +874,13 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 6.5",
-            "APWH 6.6",
-            "APWH 6.7"
-          ],
-          "revision": "Removed 'Effects on Sending Societies' (remittances, labor shortages, social disruption — a list of economic effects with no people in them). Replaced with 'The Watchtowers of Guangdong,' which covers the sending-society experience through a specific, still-visible physical object: 1,833 fortified towers built by men who sent money home because they couldn't go home themselves. The Irish coffin ship mortality comparison anchors the European sending experience in the same concept."
+          "estimated_concepts": 30
         }
       ]
     },
     {
       "chapter": "Chapter 4: The Age of World Wars (c. 1900–1945)",
-      "chapter_notes": "Covers AP World History Unit 7. Two world wars bracket an interwar period of economic catastrophe and ideological radicalization. The combined arc — why the wars happened, how they were fought, what they destroyed — is the single strongest lore narrative in the entire course.",
+      "chapter_notes": "Two world wars bracket an interwar period of economic catastrophe and ideological radicalization. The combined arc — why the wars happened, how they were fought, what they destroyed — is the single strongest lore narrative in the entire course.",
       "videos": [
         {
           "title": "The Great War: Why the World Tore Itself Apart in 1914",
@@ -1032,13 +947,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 7.1",
-            "APWH 7.2",
-            "APWH 7.3"
-          ],
-          "revision": "Removed 'The United States Entry and the End' (unrestricted submarine warfare, Zimmermann Telegram, the Armistice, '17 million dead' as a number — the human cost listed as a statistic produces abstract narration). Replaced with 'The Flu That Killed More Than the War,' which gives the video a closing image that is unexpected, dark in the right way for a sleep audience, and directly connected to the war's mechanics: the disease spread along the same routes as the final offensive."
+          "estimated_concepts": 30
         },
         {
           "title": "From Versailles to Catastrophe: How One War Made the Next Inevitable",
@@ -1105,13 +1014,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 7.4",
-            "APWH 7.5",
-            "APWH 7.6"
-          ],
-          "revision": "Removed 'The Beginning of World War II' (Germany's invasion of Poland, fall of France, Battle of Britain — these belong in the WWII video; including them here makes this video spill into the next rather than landing its own argument). Replaced with 'The Munich Moment and the Debate That Still Isn't Resolved,' which closes the video on an open question — a decision that historians still argue about — rather than opening the next conflict. Estimated concepts reduced from 26 to 22 with the net removal of one lesson."
+          "estimated_concepts": 30
         },
         {
           "title": "The Second World War: The Total War That Ended an Era",
@@ -1178,18 +1081,13 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 7.7",
-            "APWH 7.8"
-          ],
-          "revision": "Removed 'The Grand Alliance and Its Tensions' (Tehran, Yalta, Potsdam conferences, seeds of the Cold War — preview material for the next video; the story isn't complete yet and the concept produces thin narration because it's a setup, not an ending). Replaced with 'The Symphony in a Starving City,' which covers the Siege of Leningrad through one specific event — the August 9, 1942 Shostakovich performance — that gives the video its second emotional peak alongside Stalingrad."
+          "estimated_concepts": 30
         }
       ]
     },
     {
       "chapter": "Chapter 5: The Modern World — Division, Freedom, and Connection (c. 1945–present)",
-      "chapter_notes": "Covers AP World History Units 8 and 9. The postwar world produces two major parallel processes: the US-Soviet Cold War reshaping every region's politics, and decolonization creating 50+ new nations. By 1990, both processes end and a third begins: globalization.",
+      "chapter_notes": "The postwar world produces two major parallel processes: the US-Soviet Cold War reshaping every region's politics, and decolonization creating 50+ new nations. By 1990, both processes end and a third begins: globalization.",
       "videos": [
         {
           "title": "The Cold War: How Two Superpowers Divided the World Without Fighting Each Other",
@@ -1256,14 +1154,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 8.1",
-            "APWH 8.2",
-            "APWH 8.3",
-            "APWH 8.4"
-          ],
-          "revision": "Removed 'The Architecture of Containment' (Truman Doctrine, Marshall Plan, NATO, Berlin Blockade — list of four policy mechanisms, zero narrative, zero named individuals). Replaced with 'The Men Who Didn't End the World,' which covers the near-misses as a full concept anchored in Stanislav Petrov and Vasili Arkhipov specifically. These two individuals did more to prevent nuclear war than any doctrine, and their stories are almost completely unknown — the definition of what a lore concept should be."
+          "estimated_concepts": 30
         },
         {
           "title": "Decolonization: How 50 Countries Won Independence in 25 Years",
@@ -1330,13 +1221,7 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 8.5",
-            "APWH 8.6",
-            "APWH 6.3"
-          ],
-          "revision": "Removed 'The Conditions for Decolonization' (weakened European powers, ideological embarrassment, Atlantic Charter — abstract taxonomy of factors with no one experiencing them). Replaced with 'The Soldiers Who Came Home to Colonies,' which covers the same causal material through the specific irony that made decolonization politically inevitable: the men who fought for freedom returned to countries that didn't have it. The Sétif massacre (May 8, 1945 — the same day as V-E Day in Europe) is the specific event that makes the contradiction undeniable. Cyril Radcliffe burning his notes added to the Partition concept."
+          "estimated_concepts": 30
         },
         {
           "title": "Globalization: How the World Became One Interconnected System — and What That Cost",
@@ -1403,38 +1288,9 @@
               ]
             }
           ],
-          "estimated_concepts": 30,
-          "ap_topics": [
-            "APWH 9.1",
-            "APWH 9.2",
-            "APWH 9.3",
-            "APWH 9.4",
-            "APWH 9.5",
-            "APWH 9.6",
-            "APWH 9.7",
-            "APWH 9.8"
-          ],
-          "revision": "Removed 'International Institutions and Their Limits' (UN Security Council veto, IMF/World Bank conditionality, ICC — five institutions with zero specificity, the most anti-lore concept in the entire JSON) and 'Resistance to Globalization' (Seattle protests, Islamic political movements, right-wing nationalism — list of reactions without examining any closely). Replaced both with 'The Container That Changed Everything,' a single concept anchored in one person (Malcom McLean), one price point ($5.83 to $0.16 per ton), one year (1956), and one closing image (the CSCL Globe). Estimated concepts reduced from 24 to 20 with the net removal of one lesson."
+          "estimated_concepts": 30
         }
       ]
     }
-  ],
-  "_summary": {
-    "total_videos": 19,
-    "total_estimated_concepts": 560,
-    "avg_concepts_per_video": 29,
-    "ap_topics_covered": "all AP World History Modern Units 1–9",
-    "revision_date": "2026-09-15",
-    "notes": [
-      "Concepts revised from AP-exam framing (comparison, causation, vocabulary lists, multi-civilization surveys) to lore-narration framing (specific people, events, objects, price points). 18 concepts replaced across all 18 videos.",
-      "The 'Silk Roads' video (Video 1.2) overlaps with the existing Silk Road lore transcript but should be regrouped to include 2.5 and 2.6 for additional concept depth — the synthetic v3_silkroad.txt outline already incorporated equivalent content ad hoc.",
-      "Each video's 'revision' field documents exactly what was removed and why, and what replaced it — this serves as the specification for the concept enrichment layer if one is built later.",
-      "Chapter 4 videos (Great War, Versailles to Catastrophe, WWII) retain the highest expected entity density — they are dense with named people, specific dates, battles, institutions, and numerical facts. The Leningrad Symphony and Munich Moment concepts replace the two weakest slots in that chapter.",
-      "The three highest-impact single replacements: (1) Stanislav Petrov / Vasili Arkhipov replacing 'Architecture of Containment' in the Cold War video — two unknowns who are better lore material than four named policies; (2) Sogdian merchant letters replacing 'Environmental Consequences' in the Silk Roads video — anchors abstract trade-network content in a human voice; (3) Northumberland coal price replacing generic 'Why Britain First' in the Industrial Revolution video — grounds the macro event in one local economic constraint.",
-      "2026-09-16 dedupe and fact-check pass: every marquee fact now has exactly one home lesson per video — repeat tellings of the Mansa Musa gold crash, Berlin Conference, Tenochtitlan smallpox, Caffa plague, Zheng He's fleet, Ibn Battuta's arrivals, and the Mao/Great Leap pair were rewritten as callbacks or replaced with adjacent facts. Corrected: Askia Muhammad's caliphal title (granted by the Abbasid shadow caliph in Cairo, not 'the Abbasid caliph in Mecca'), Berlin Conference attendance unified at fourteen nations, Sundiata's century, Tordesillas as a bilateral treaty overriding the papal line. 'Industrialization Spreads' reframed as 'How the Machine Escaped the Island' to give the five-country survey a single arc. estimated_concepts recomputed from actual beat counts (see tools/check_lore_plan.py, which also flags cross-lesson near-duplicates).",
-      "Input quality bar: docs/lore_input_spec.md defines what must be true of a video entry (lessons, beats, coverage, fact load) for the pipeline to be accountable for producing a great video from it."
-    ],
-    "concepts_expanded": true,
-    "expansion_date": "2026-09-15"
-  }
+  ]
 }

@@ -6,79 +6,6 @@ from core.clients.openai import assistant_message, user_message
 
 DISABLE_TREE_DESCRIPTION = os.getenv('DISABLE_TREE_DESCRIPTION', 'false')
 
-BULLET_TITLE_TRIGGER_SYSTEM = """
-You are an AI assistant tasked with identifying the exact words used in a sentence corresponding to a title, given the list of titles and the sentence. The sentence speaks out the list of titles, it might use the exact same words as in the title or slightly different. Your job is to identify what words it uses for each title.
-"""
-
-BULLET_TITLE_TRIGGER_USER = """
-Given the following list of titles and the sentence, identify the exact words used in the sentence that correspond to each title.
-
-List of titles:
-<titles>
-{titles}
-</titles>
-
-Sentence:
-<sentence>
-{sentence}
-</sentence>
-
-Return a JSON object with the following structure:
-{{
-    "<exact_title_from_the_list_of_titles>": "<exact_words_used_in_the_sentence_that_correspond_to_the_title>"
-}}
-Return only the JSON object and nothing else.
-"""
-
-BULLET_POINT_SYSTEM = """
-You are an AI assistant tasked with creating concise bullet points for conclusion slide of an educational video. The educational video is aimed at students preparing for the AP exam. Your goal is to summarize the key takeaways in a way that maximizes student retention and understanding. You'll be given conclusion_text which is the transcript of the conclusion part of the video which the speaker will be speaking when we display our conclusion slide. You'll also be given a list of topics covered in the lesson. Each topic has a title and key phrases. The title of the lesson is also provided. Incorporate all of these in the bullet points you create.
-"""
-
-BULLET_POINT_USER = """
-Based on the provided conclusion text, lesson title, and topics list, generate bullet points to be displayed on-screen for students. These points should encapsulate the most crucial information to aid in retention.
-
-You are given:
-title: The title of the lesson.
-conclusion_text: The transcript that will be spoken when the conclusion slide is displayed.
-topics: The list of topics covered in the lesson with their titles and key phrases.
-Key phrases are the list of important phrases that the host will speak in that topic that students must remember.
-
-Important Instructions:
-- The bullet points will serve as memory aids for students to remember the key takeaways from the lesson.
-- These are not review notes, but aids to help students recall key points that they have already learned.
-- As a memory aid, every word counts. Avoid unnecessary words or stating the obvious.
-- Create one bullet point for each topic in the topic list. The bullet point should include key terms or examples that students must remember for the exam.
-- Include important words from the key phrases of that topic in the bullet point.
-- The bullet points should follow the same order as the topics in the topic list.
-- Use title case throughout.
-- You will return a JSON with key as the topic name and value as the bullet point. The keys should exactly match the topic names in the topic list.
-
-Lesson Title:
-<title>
-{title}
-</title>
-
-Conclusion Text:
-<conclusion_text>
-{conclusion_text}
-</conclusion_text>
-
-Topic List:
-<topics>
-{topics}
-</topics>
-
-Return your response as a JSON object with the following structure:
-{{
-    "bullet_points": [
-        "<1 Topic Name>": "<Examples or Supporting Points>",
-        "<2 Topic Name>": "<Examples or Supporting Points>",
-        ...
-    ]
-}}
-Only return the JSON object.
-"""
-
 
 TOPIC_TRANSITION_SYSTEM = """
 You are an AI assistant tasked with identifying the exact moment in a section overview where the section title is introduced. Each section in an educational video has an overview that introduces what will be covered in that section. Your goal is to find the exact sentence and phrase where the section title is mentioned or closely paraphrased in the overview text.
@@ -115,87 +42,6 @@ Respond with a JSON object in the following format:
 Please return only the JSON object and nothing else.
 """
 
-KEY_PHRASE_SYSTEM = """
-You are an AI assistant tasked with matching key phrases to corresponding verbatim sentences/phrases from a transcript for an educational video, aimed at students preparing for the AP exam. There are certain 'key phrases' that are very important sentences for the students to remember. These will be spoken by the host of the video and will get overlayed on the video while they are spoken, to aid in student retention. Now we already have the transcript and the list of key phrases. The task is to identify at which sentence/phrase of the transcript the key phrase is being spoken. Your goal is to find the closest verbatim sentence/phrase from the transcript which correspond to the particular key phrase for each of the key phrases (it will be almost exactly the same as the key phrase but might have some very slight variations).
-"""
-
-KEY_PHRASE_USER = """
-Given the following transcript and the list of key phrases, identify the verbatim sentence/phrase that correspond/match with each of the key phrases.
-
-Important Instructions:
-<instructions>
-- You have to return a JSON which will have "phrase" and "verbatim_phrase" as keys for each of the key phrases. Don't leave out any key phrases.
-- The "phrase" is the key phrase that you are provided and must match exactly be a key phrase from the list of key phrases provided.
-- The key phrase will most likely be directly spoken in the transcript, if not it varies very slightly. You have to find the sentence from the transcript that matches the key phrase almost exactly (because it might slightly vary from the key phrase). Carefully identify it. This will be the "verbatim_phrase".
-- The "verbatim_phrase" must exactly be a verbatim sentence/phrase from the transcript. The words, the punctuation, the case should all match. It's like you are copying a sentence/phrase from the transcript directly.
-- No 2 verbatim_phrase should overlap with each other strictly. Each key phrase should have a unique verbatim_phrase.
-</instructions>
-
-Transcript:
-<transcript>
-{transcript}
-</transcript>
-
-Key phrases:
-<key_phrases>
-{key_phrases}
-</key_phrases>
-
-Return a JSON object with the following structure:
-{{
-    "key_phrases": [
-        {{
-            "phrase": "The exact key phrase that you are provided in the list of key phrases",
-            "verbatim_phrase": "The exact verbatim sentence/phrase from the transcript that corresponds to the key phrase (it will be almost exactly the same as the key phrase but might have some very slight variations)",
-        }},
-        ...
-    ]
-}}
-Return only the JSON object and nothing else.
-"""
-
-
-CORRECT_VERBATIM_PHRASE_USER = """
-Given the following transcript,
-
-Transcript segments:
-<transcript>
-{segments}
-</transcript>
-
-Pick one single sentecne from the transcript (the dialogues) that is most identical to the following sentence:
-<sentence>
-{phrase}
-</sentence>
-
-Return only the sentence in plain text and nothing else.
-"""
-
-
-IDENTIFY_BULLET_POINT_TRIGGER_WORD = """As a content editor for online lessons, your role is to synchronize bullet point text reveals with the corresponding spoken phrases from the transcript. The aim is to align each bullet point with the precise phrase and word that should trigger its appearance, creating a smooth integration of text and narration.
-
-### Instructions
-- Strategically align each bullet point with the corresponding phrase where the text should appear. Identify the exact word within the phrase that initiates the text reveal.
-- Prioritize the first phrase that pertains to a given bullet point.
-- The trigger word cannot be a verb. It can be:
-  - A key term or concept mentioned in the bullet point
-  - A reference to data, numerical values, or variables related to the bullet point content
-  - A transition word or phrase that introduces a new idea or concept
-- Trigger words CANNOT be: discuss, explain, mention, list, etc.
-- Determine the exact word that should reveal the bullet point text. For instance:
-  - In the phrase 'Let's discuss the three main causes of climate change.', the word 'causes' triggers the appearance of the 'Causes' header for the bullet point list.
-- The bullet point should only appear once all the necessary context for the point has been provided. Here are some examples:
-  - In the sentence, 'The first principle of economics we'll cover is scarcity', the bullet point reveal is triggered by the word 'scarcity'. This is because 'principle' is mentioned before the specific concept is named; 'first' is not specific enough; 'economics' is too general. However, if the bullet point starts with a general account mentioning Principles of Economics, the trigger word is 'Economics'.
-  - In the sentence, 'Next up were Navigational Technologies, the compass and the astrolabe...', if the general theme of technologies is mentioned, the trigger word is 'Navigational'.
-  - In the sentence, 'In addition, Improved Commercial Practices came along like credit, paper money, and standardized...' and the bullet point is 'Practice developments:...', the trigger word is 'Commercial'. This is because the trigger word should ideally not be a generic adjective or verb, such as 'Improved'.
-- Use the template provided below, maintaining the same format and copying it exactly, but with the end times filled in as appropriate. Enclose in <matches> tags.
-
-<matches>
-```json
-{template}
-```
-</matches>
-"""
 
 TEXT_SLIDE_CONTENT_SYSTEM = """
 You are an AI assistant tasked with creating effective text slides for an educational video. Your goal is to identify the most important content that should appear on a slide based on a given transcript and concept syllabus. Follow these instructions carefully:
@@ -212,7 +58,6 @@ Goals:
 - All key terms, their definitions, key relationships, and concepts are captured in some bullet.
 - Each bullet included is critical to understanding the concept syllabus, anything that is not critical to the concept (not part of syllabus facts) is filtered out to avoid overloading the student.
 - Bullet points contain only the information/knowledge that is mentioned in the concept syllabus. Something that is in transcript but not mentioned in syllabus is not included in text slide.
-- Text slide should not display stuff like "AP World History" or "APUSH" or "AP Exam" or "AP Test" or anything related to the AP Exam, just the actual content of the concept.
 - Each and every detail mentioned in the syllabus facts must get covered in the text slide if transcript mentions it. 
 
 To create an effective text slide:
@@ -504,7 +349,7 @@ Your response must strictly be a JSON object strictly following the provided mod
 """
 
 DIAGRAM_CONTENT_SYSTEM = """
-You are an AI assistant tasked with creating educational diagrams for AP exam preparation content. Your goal is to organize complex concepts into clear visual structures for diagrams that help students understand and retain key information.
+You are an AI assistant tasked with creating educational diagrams for narrated lesson videos. Your goal is to organize complex concepts into clear visual structures for diagrams that help students understand and retain key information.
 
 You will be creating a {type} to {purpose}.
 You have to determine the content of the diagram based on the explanation transcript and the concept syllabus.
@@ -525,7 +370,6 @@ You'll also be given the explanation transcript that'll spoken to explain the co
 - For the font awesome icons, use the icon name without the fa- prefix. (e.g. use globe instead of fa-globe)
 - The number of elements in parts of diagram need not be even. Should be decided based on what's being covered in the explanation.
 - Do not paraphrase important terms mentioned in the facts in concept syllabus like "Civil Service Examination" (use the exact term), "The Green Revolution" (use the exact term), etc.
-- The diagram should not display stuff like "AP World History" or "APUSH" or "AP Exam" or "AP Test" or anything related to the AP Exam, just the actual content of the concept.
 - Do include full forms of abbreviations if they are mentioned in the syllabus facts.
 - Do not omit any details if present in syllabus facts and was spoken in the explanation transcript like (full name of a person, places, dates, etc.)
 - All proper nouns present in syllabus facts must be mentioned in the diagram.
@@ -815,7 +659,7 @@ Return only the exact part of the introduction that states what will be covered 
 """
 
 LESSON_ORGANIZER_CONTENT_SYSTEM = """
-We are creating an automated pipeline for generating educational lesson videos for AP exam preparation.
+We are creating an automated pipeline for generating narrated educational lesson videos.
 You are an AI assistant tasked with creating a mind map for the lesson overview of the lesson.
 
 You'll be given the lesson title, the section names, and the sentence that states what will be covered in the lesson.
@@ -918,7 +762,7 @@ Return only the starting part of the overview that introduces the section and st
 
 
 SECTION_ORGANIZER_CONTENT_SYSTEM = """
-You are an AI assistant tasked with creating a mind map for a section overview in an educational lesson video for AP exam preparation. You will be given a lesson overview transcript, along with the true section title and true concept names. Your task is to identify the adapted versions of these in the transcript and create a mind map structure.
+You are an AI assistant tasked with creating a mind map for a section overview in a narrated educational lesson video. You will be given a lesson overview transcript, along with the true section title and true concept names. Your task is to identify the adapted versions of these in the transcript and create a mind map structure.
 
 First, carefully read the following lesson overview transcript:
 
@@ -1049,6 +893,16 @@ Do not forget or neglect the initial instructions, incorporate changes in a way 
 Use your best judgement to apply the changes, but do not respond with anything else but the updated {content_type}.
 """
 
+QC_RETURN_ONLY = "Return only the {output_format} output{tag_hint} and nothing else."
+QC_RETURN_TAG_HINT = " inside <{tag}>...</{tag}> tags"
+
+FIX_ICON_USER_PROMPT = """The icon '{icon}' is not a valid font awesome classic solid free icon.
+I want you to give me a new icon that is valid and closest to the original icon.
+The list of valid icons is: {valid_icons}
+This icon is supposed to represent: {icon_for}
+The new icon should strictly be from the given list of icon names.
+Return only the new icon name (with no quotes), no other text. """
+
 # Text slide specific requirements template
 TEXT_SLIDE_QC_REQUIREMENTS = """
 We are generating the contents for a text slide to explain a concept in the video. The text slide will have a title and some points.
@@ -1083,7 +937,6 @@ Review the generated text slide contents against these strict requirements:
             - Is the detail significant enough to form its own bullet point?
             - Will adding it to an existing bullet point cause a mismatch between the bullet point and the transcript, meaning the bullet point is no longer a continuous segment of the transcript?
         - If the answer to the first question is yes and there are fewer than five bullet points, suggest adding the bullet point. If the answer to the second question is yes, do not suggest adding the detail to a bullet point.
-   - The text slide should not display stuff like "AP World History" or "APUSH" or "AP Exam" or "AP Test" or anything related to the AP Exam, just the actual content of the concept.
    - All proper nouns present in syllabus facts must be mentioned in the text slide.
 3. Formatting:
    - Points must end with a period (should not end with '...' or ',' or other punctuations)
@@ -1137,10 +990,22 @@ Review the generated diagram contents against these strict requirements:
 - Anything mentioned in the diagram should not be outside of the facts mentioned in the concept syllabus. Each diagram element MUST be part of the facts in the concept syllabus.
 - Each element in the diagram should be closely related to some segment in the transcript. Element should not be unrelated to the transcript
 - Each text in the diagram should be conveying the exact meaning that was conveyed in the transcript. Meaning should not be altered in any way.
-- The diagram should not display stuff like "AP World History" or "APUSH" or "AP Exam" or "AP Test" or anything related to the AP Exam, just the actual content of the concept.
 - Abbreviations should be expanded if the full forms are mentioned in the concept syllabus.
 
 - Is there any detail that was present in the syllabus facts as well as transcript spoke it but wasn't included in the diagram? If yes, add it.
 - Details like names of people, places, dates, events, diseases, etc. should not be omitted if present in the syllabus facts and was spoken in the transcript.
 - All proper nouns present in syllabus facts must be mentioned in the diagram.
 """
+
+
+# Retry and timing notes appended to the overlay calls.
+PHRASE_NOT_FOUND_ERROR = 'The previously suggested phrase could not be exactly found in the transcript. Error: {error}'
+TOPIC_TRANSITION_RETRY = '\n\nPrevious attempt failed: {error_message}\nPlease try again with a phrase that appears exactly in the overview.'
+SPLIT_CONTENT_USER_PROMPT = 'The spoken phrase has been split into two parts:\n<part1>{part1}</part1>\n<part2>{part2}</part2>\n\nSplit the written content accordingly: <content>{content}</content>. Split it into two parts and return each inside tags <content1> and <content2> respectively. <content2> can never start with punctuation mark, punctuation at the split point should appear in <content1>.'
+UNMATCHED_PHRASES_USER_PROMPT = 'Some identified phrases did not exactly match the text in the transcript. Remember, each identified phrase must match a substring in the transcript exactly. You may need to slightly adjust these mismatches to align with the transcript verbatim. If the match was completely incorrect, try to identify the closest semantic match in the transcript.\n<unmatched_phrases>\n{unmatched_phrases}\n</unmatched_phrases>\nPlease correct only these phrases, leaving the rest of the JSON as it is. Without asking any further questions, return the best JSON you can.'
+TREE_DIAGRAM_TIMING_NOTES = '- This text is designed for a tree diagram. Some node titles may not appear in the transcript as they represent implicit groupings. Regardless, assign a phrase to each node. Ensure that the phrase appears before its child node phrases and is logically placed when the transcript discusses the relevant subject.\n- Also remember to ensure the phrase begins at the exact starting point of the text for each title node. The end can extend beyond, but the beginning must coincide with the start of the point.\n- To reiterate parent node phrases must precede the child node phrase at all times. This is an absolute requirement.\n- Make sure your JSON response adheres to the Pydantic model of TreeDiagram provided.'
+SEGMENT_MISMATCH_USER_PROMPT = 'The identified part did not exactly match the text in the transcript. Remember, the segment you return must exactly match a verbatim substring in the transcript. Please try to identify the part again, only return the required part and nothing else.'
+LESSON_ORGANIZER_TIMING_NOTE = 'This is an introduction, just identify the exact phrase where each node is being introduced.'
+SECTION_TITLE_ICON_HINT = "\n\nUse the icon: '{icon}' for the section title."
+SECTION_ORGANIZER_TIMING_NOTE = 'This is a section overview, just identify the exact phrase where each node is being introduced.'
+CONCLUSION_TIMING_NOTES = '- As this is a conclusion, identify the exact phrase where each main point and sub-point is introduced.\n- The phrase for the main point should precede the sub-point.\n- The conclusion format follows this sequence: Main Point 1 phrase => Sub Point 1 Phrase => Main Point 2 phrase => Sub Point 2... Ensure to extract the best matching phrases in this exact order, rather than pulling from various parts of the transcript.\n  - In other words, the phrase for sub-point 1 should never appear before main point 2, and so on.\n- Concentrate on the middle part, typically paragraph 2, and extract phrases from there only. This is where all the matching phrases for the points are usually found.\n- Each phrase should be at least 5 words long, with the start of phrase exactly aligned with the bullet and not earlier.'
