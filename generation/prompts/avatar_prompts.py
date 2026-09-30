@@ -127,7 +127,13 @@ Here is a dictionary of voices with their respective descriptions:
 
 Remember to consider all aspects of the {figure} and voice descriptions when making your decision. If you're unsure between two options, explain the pros and cons of each before making your final choice."""
 
-MATCH_SIGNIFICANT_FIGURE_VOICE_USER_PROMPT = "{field} Figure: {figure_name}\nTopic: {unit} - {topic}.\nPortrait Description: {image_prompt}"
+MATCH_SIGNIFICANT_FIGURE_VOICE_USER_PROMPT = "Figure: {figure_name}\nTopic: {unit} - {topic}.\nPortrait Description: {image_prompt}"
+
+NO_PORTRAIT_DESCRIPTION = "No image description found, please infer an appropriate voice based on the significant figure's name."
+
+AVATAR_INTRODUCTION_USER_PROMPT = "Here is the list of signficant personas:\n<personas>\n{personas}\n</personas>"
+
+AVATAR_INTRODUCTION_TRIGGER_WORD_USER_PROMPT = "<phrases>\n{phrases}\n</phrases>"
 
 
 AVATAR_INTRODUCTION_TRIGGER_WORD_PROMPT = """You are tasked with identifying the exact phrase and corresponding trigger word for the introduction of a specific character in a given text. Your goal is to pinpoint where the character is first mentioned and determine the precise word that should cue the character's appearance.

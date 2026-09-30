@@ -32,11 +32,11 @@ from core.clients import local_store  # noqa: E402
 PNG = base64.b64decode(
     b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 )
-KEY = "college_board/AP US History: Video Lessons/AP US History - v2/contents/subsection"
+KEY = "runs/World History: Pilot/c01-v01-the-silk-roads"
 
 
 def check_json_round_trip():
-    path = f"{KEY}/Video Plan/abc123.json"
+    path = f"{KEY}/Video Plan.json"
     assert not local_store.does_file_exist(path), "temp root was not empty"
 
     local_store.save_json_to_s3({"title": "Taxation", "clips": [1, 2]}, path)
@@ -54,11 +54,11 @@ def check_json_round_trip():
 
 
 def check_windows_reserved_characters():
-    """Every real course name contains a colon, which Windows forbids in a path component."""
+    """S3 keys may carry a colon, which Windows forbids in a path component."""
     assert ":" in KEY, "the fixture stopped covering the case this guards"
     on_disk = local_store.path_for(KEY)
     assert ":" not in str(on_disk)[2:], on_disk  # skip the drive letter
-    assert "AP US History%3A Video Lessons" in on_disk.parts, on_disk.parts
+    assert "World History%3A Pilot" in on_disk.parts, on_disk.parts
 
     # Reversible, including for a key that already contains a percent sign.
     for key in (KEY, "a/b%3Ac/d.json", 'weird/<>:"|?*/x.json'):
@@ -151,7 +151,6 @@ def check_rebinding_took_effect():
     written = local_store.path_for(f"{KEY}/rebound.json")
     assert json.loads(written.read_text())["via"] == "s3 module", written
 
-    # Left on boto3 on purpose: core/post_evaluations.py imports these for a skipped path.
     assert not hasattr(local_store, "get_s3_client")
 
 
@@ -162,14 +161,13 @@ def check_pipeline_skips_vendor_stages():
     titles = run.pipeline()
     assert run.LOCAL_SKIP == {"Video Gen Clips"}, run.LOCAL_SKIP
     assert not (set(titles) & run.LOCAL_SKIP), titles
-    assert len(titles) == 8, titles
+    assert len(titles) == 7, titles
     # Avatar Clips stays: its ElevenLabs half builds the lesson_timings that Text Overlays
     # reads, and only the D-ID block inside it is skipped.
     assert "Avatar Clips" in titles
     assert titles.index("Avatar Clips") < titles.index("Text Overlays") < titles.index("Scenes Breakdown")
-    # ShotStack is substituted, not dropped, so local mode still ends in a rendered video.
-    assert run.LOCAL_SWAP == {"ShotStack": "Local Render"}, run.LOCAL_SWAP
-    assert "ShotStack" not in titles and titles[-1] == "Local Render", titles
+    # ffmpeg is the only renderer, so local mode still ends in a rendered video.
+    assert titles[-1] == "Local Render", titles
     assert callable(run.STAGES["Local Render"])
 
 

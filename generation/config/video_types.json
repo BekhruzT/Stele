@@ -1,13 +1,4 @@
 {
-    "history": {},
-    "general": {
-        "layers": {
-            "LAYER_AVATAR_VIDEO": false,
-            "LAYER_TEXT_SLIDES": false,
-            "LAYER_INFOGRAPHICS": false,
-            "LAYER_PLANNER_VISUAL_TECHNIQUES": false
-        }
-    },
     "lore": {
         "layers": {
             "LAYER_AVATAR_VIDEO": false,
@@ -18,6 +9,19 @@
             "LAYER_CONCLUSION_SLIDE": false,
             "LAYER_WEB_IMAGES": false,
             "LAYER_PROGRAMMATIC_MOTION": true
+        },
+        "params": {
+            "LAYER_PROGRAMMATIC_MOTION": {
+                "zoom_min": 0.06,
+                "zoom_max": 0.11,
+                "pan_drift": 0.05,
+                "bias_min": 0.3,
+                "bias_max": 0.7
+            },
+            "NARRATION": {
+                "target_minutes": 60,
+                "words_per_minute": 135
+            }
         },
         "skip_stages": ["Video Gen Clips"]
     }

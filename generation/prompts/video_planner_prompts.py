@@ -1,59 +1,16 @@
-import json
-from typing import Any, Dict, List, Tuple
-
-video_plan_schema = """
-{
-  "lesson_title": "<lesson_title>",
-  "sections": [
-    {
-      "section_title": "<section1_title>",
-      "concepts": [
-        {
-          "concept_name": "<concept1_name>",
-          "concept": "<concise_statement_that_synthesizes_the_concept>",
-          "facts": ["<fact1 statement>", "<fact2 statement>", "<fact3 statement>"],
-          "cross_unit_facts": ["<cross_unit_fact1 statement>", "<cross_unit_fact2 statement>", "<cross_unit_fact3 statement>"],
-          "visual": {
-            "type": "text_slide|diagram",
-            "diagram_type": "<mind_map|tree|venn_diagram (required if type is diagram)>",
-            "justification": "<explanation_of_why_this_visual_format_is_most_appropriate_for_this_concept>"
-          },
-          "teaching_technique": {
-            "choice": "<technique_name>",
-            "suggestion": "<specific implementation suggestion>",
-            "justification": "<explanation_of_why_this_teaching_technique_is_most_appropriate_for_this_concept>"
-          }
-        },
-        ...
-      ],
-      "concept_justifications": {
-        "for_grouping": "<reasoning_for_grouping>",
-        "for_ordering": "<reasoning_for_ordering>",
-      }
-    },
-    ...
-  ],
-  "section_justifications": {
-    "for_grouping": "<reasoning_for_grouping>",
-    "for_ordering": "<reasoning_for_ordering>",
-  }
-}
-"""
-
 
 VIDEO_PLANNER_SYSTEM_PROMPT = """
 We're creating a direct instruction video for an {subject} topic. As an educational content planner, your job is to transform the raw syllabus into a well-structured lesson plan. You'll be tasked with arranging the facts in a logical order that promotes progressive learning, and grouping closely related facts together for comprehensive coverage.
 
-You'll receive a knowledge schema, a list detailing facts and their relationships. Your job is to use this to create a structured lesson plan that ensures the best possible learning experience for {subject} students. This plan will lay the groundwork for the lesson transcript that will be produced next.
+You'll receive the research facts for one video, grouped under the lessons they were researched for. Your job is to use them to create a structured lesson plan that ensures the best possible experience for viewers. This plan will lay the groundwork for the lesson transcript that will be produced next.
 
 Your mentality throughout your planning stage is to get into their shoes and think from their perspective
 SEQUENCING. From a student's view, I need content delivered in a way where each new piece builds naturally on what I already know. I shouldn't encounter terms or concepts that require understanding something not yet explained. Think of it like climbing a ladder - each step should be reachable from where I am now. When the sequence works, I should be thinking "This makes sense because of what I just learned" rather than "I feel lost because I'm missing information yet to come."
 GROUPING. As a student, I need related facts that depend on each other to be taught together as a single unit - seeing them separately would either give me an incomplete or misleading understanding. But I also don't want to be overwhelmed with too many facts at once especially when they can be taught in sequence without compromising on my understanding. When I encounter a group of facts together, I should feel that each piece was necessary for my understanding of every other fact. 
 
 ### Input Format
-- A compilation of historical FACTS
-- A compilation of RELATIONSHIPS between these data points (illustrating how they are linked through relationships such as 'causes', 'enables', 'exemplifies', and so on.)
-- The fact ids (like c_vwY1, K.C.12.1.3, etc.) are just for identification purposes, they don't add any meaning to the facts.
+- The video title
+- The research FACTS, grouped under the lesson each was researched for. The lesson grouping is a hint, not a required structure.
 
 ## OBJECTIVES
 ### SEQUENCING Success Criteria:
@@ -110,7 +67,7 @@ Lesson, Section & Concept Titles:
 
 Concept Statement Success Criteria:
 • Statement synthesizes all grouped facts into a single, clear sentence that captures the core message and shows how individual facts connect to form a larger idea, without listing specific details
-• Statement employs precise academic language while remaining accessible to AP students, maintaining consistent voice/tone with other concept statements and aligning with (but not duplicating) the concept name
+• Statement employs precise academic language while remaining accessible to a general audience, maintaining consistent voice/tone with other concept statements and aligning with (but not duplicating) the concept name
 • Statement provides clear framework for understanding the grouped facts while highlighting broader implications or significance of the concept within the larger historical context
 
 
@@ -155,7 +112,6 @@ This hierarchy (lesson → sections → concepts → facts) helps students build
 The output will be a JSON object in the specified JSON schema, ensuring:
 - Clear concept groupings that make pedagogical sense
 - Logical progression of ideas
-- NOTE: Do not include fact identifiers, such as c_vwY1 or K.C.12.1.3, in the output video plan, including in the list of facts, concept names, or concept statements.
 - As you group the facts, make sure to write them out word for word without any modifications. 
 
 ## OUTPUT SCHEMA ##
@@ -275,26 +231,18 @@ video_planner_history = [
 }
 ```"""}
 ]
-VIDEO_PLANNER_USER_PROMPT = """The syllabus objective this lesson falls under is titled: "{title}"
+VIDEO_PLANNER_USER_PROMPT = """The video is titled: "{title}"
 
-<facts>  
+<facts>
 {facts}
 </facts>
-
-There are some advanced facts, known as L3 facts, that also need to be covered. 
-- Some of these facts synthesize or provide an overview of the simpler, lower-level facts. Such L3 facts must appear only once the underlying facts have been covered, as understanding the lower level picture first is critical to understanding the bigger picture. These are the high level facts.
-- Such High Level facts must never precede their related child facts. 
-- Other facts contain information that students need to know before they can learn the related high level facts. It's important to maintain a logical sequence.
-- High Level facts should never be grouped as a concept. They should be placed with the facts they are an overview of and after the facts they are an overview of.
-- High Level facts should be marked as "(HIGH LEVEL)" in the facts section. Append "(HIGH LEVEL)" to the end of the fact statement to indicate it is an high level fact.
-<l3_facts>
-{l3_facts}
-</l3_facts>
- 
-<relationships>
-{relationships}
-</relationship> 
 """
+
+VIDEO_PLANNER_MISSING_FACTS = (
+    "Some required facts are missing from the plan. "
+    "Please request they be added according to best practices for sequencing and grouping. "
+    "The missing facts are:\n{missing_facts}"
+)
 
 TEACHING_TECHNIQUE_SYSTEM_PROMPT = """We're creating a direct instruction video for an {subject} topic. As an educational content planner, your job is to select the most effective teaching techniques for each concept in the lesson plan.
 
@@ -319,10 +267,10 @@ As a student, I need content delivered in a way that makes complex ideas accessi
 a) Sameness and Difference Principle (Preferred when applicable)
    - The concept contains a key term/idea that students often misunderstand or have trouble grasping precisely (e.g., nationalism, socialism, feudalism)
    - Understanding the concept requires clear differentiation of what it is and isn't through careful analysis
-   - Is most effective when the concept includes two or more related terms or sub-concepts where the distinctions are subtle or nuanced enough to potentially confuse AP students (e.g., capitalism vs mercantilism, different forms of democracy)
+   - Is most effective when the concept includes two or more related terms or sub-concepts where the distinctions are subtle or nuanced enough to potentially confuse viewers (e.g., capitalism vs mercantilism, different forms of democracy)
    - Highly applicable with concept details marked as Definition - meaning they define a key term, as long as the key term is complex enough to warrant the usage of the principle.
    - Do NOT use:
-      - For terms/ideas that are already clear and unambiguous to AP students (e.g., radio vs television, democracy vs monarchy, peace vs war) 
+      - For terms/ideas that are already clear and unambiguous to viewers (e.g., radio vs television, democracy vs monarchy, peace vs war) 
      
 b) Setup Principle (Preferred when applicable)
    - The concept is complex or abstract, requiring a familiar scenario or analogy to make it comprehensible.
@@ -367,10 +315,10 @@ General Notes:
 • **Suggestion**. Suggest how the chosen technique should be employed. The suggestion should focus on technique-specific elements.
   - Suggestions should focus on the implementation of the technique rather than the content to be covered. They should be specific enough to guide content creation, without repeating information already in the concept statement. Additionally, they should be actionable and clear.
   - Suggestion should be one sentence long each
-  - Suggestion should not mention or use any new information/term that is not present in the concept or previous concepts or not already known to AP students. If you refer to something make sure that AP students would already know about it either from:
+  - Suggestion should not mention or use any new information/term that is not present in the concept or previous concepts or not already known to a general audience. If you refer to something make sure the viewer would already know about it either from:
     - Previous concepts
     - The facts of the current concept
-    - Previous AP Units (not later AP units as they are not yet taught)
+    - Common general knowledge
 
   - Suggestion guidelines by technique:
     - Sameness and Difference: Define the key term(s) to which the technique should be applied, briefly explaining what it is and what it isn't. Take into account common misconceptions students often encounter when first learning this term, and highlight or differentiate aspects that would help clarify the term. 
@@ -498,148 +446,6 @@ VISUAL_ORGANIZER_USER_PROMPT = """Here is the video plan structure update with o
 ```
 """
 
-HISTORICAL_FIGURES_PROMPT = """
-You are tasked with planning the selection of historical figures for an educational video transcript. Your goal is to:
-1. Identify 1-2 key historical figures for each section who are best suited to introduce and teach the content of that section
-2. Assign specific historical figures to teach each concept within those sections
-
-To complete this task, follow these steps:
-1. Carefully analyze the concepts and facts in each section.
-2. Identify the most suitable historical figures for teaching each section:
-  a) For each section, choose 1-2 figures who are best suited to convey the key points. Factors to consider include:
-     - Their direct involvement or observation of the topic
-     - Their expertise and contributions
-     - Their historical significance and recognition
-  b) When selecting multiple figures for a section, consider their synergy and how they can complement each other in covering key aspects. Choose figures that, together, will deliver the ideal lesson.
-  c) While it's acceptable for a figure to appear in multiple sections, aim to diversify your selections when possible.
-  d) Choose figures that represent diverse perspectives, showcasing cultural exchange and interaction between groups. Aim for a balance among figures of different origins, cultures, and occupations.
-
-3. For each concept within the sections:
-  a) Assign one of the section's historical figures to teach that specific concept
-  b) Choose the figure who is best suited to explain that particular concept based on their:
-     - Direct experience with the concept's subject matter
-     - Expertise in the specific area
-     - Ability to provide unique insights or perspective on the topic
-
-## OUTPUT FORMAT ##
-Present your output as a valid JSON object, complying with the following schema:
-<output_json_schema>
-{{
-  "historical_figures": {{
-    "<section_title>": [
-      {{
-        "name": "<figure_name>",
-        "justification": "<explanation of why this figure is ideal for teaching this section's content>",
-        "assigned_concepts": [
-          {{
-            "concept_name": "<concept_name>",
-            "justification": "<explanation of why this figure is best suited to teach this specific concept>"
-          }},
-          ...
-        ]
-      }},
-      ...
-    ],
-    ...
-  }}
-}}
-</output_json_schema>
-
-## INPUT ##
-Here is the video plan with its sections and content:
-<video_plan>
-{video_plan}
-</video_plan>
-
-Provide only the JSON output, nothing else.
-"""
-
-
-VIDEO_PLAN_QC_PROMPT = """
-You are an expert educational content reviewer tasked with quality checking a video lesson plan for {subject}. This video plan was generated based on an input knowledge graph. Your goal is to ensure the plan generated based on the knowledge graph maximizes learning effectiveness and meets all the requirements specifed in the prompt.
-
-About the knowledge graph input:
-It consists of a list of facts and their relationships.
-The facts tell you what is to be explicitly taught in the lesson.
-The relationships aid in organizing facts and making other decisions while creating the lesson plan as they tell how the facts are connected to each other.
-
-Specifically, following information is provided:
-- LESSON FACTS: list of lesson facts that are to be taught in the lesson.
-- CROSS-UNIT CONNECTING FACTS: these facts are also new information and are to be taught in the lesson. But they focus on connecting the lesson facts to the previous lessons and brings in new information deepening the understanding of the lesson facts.
-- LESSON RELATIONSHIPS: list of relationships between the lesson facts (showing how facts are connected through relationships like 'causes', 'enables', 'exemplifies', etc.)
-- PREVIOUS LESSON RELATIONSHIPS: list of relationships between lesson facts and some facts taught in the previous lesson
-
-Here is the knowledge graph input:
-<input>
-{KGinput}
-</input>
-
-Here is the proposed video plan:
-<video_plan>
-{video_plan}
-</video_plan>
-
-Review the video plan against these requirements:
-
-1. HIERARCHICAL ORGANIZATION
-   - Facts should be logically grouped into concepts, that is facts that are related to the same topic should be grouped together
-   - A concept should not have too many facts, if it's hard to digest the facts in a single concept, then it should be split into multiple concepts
-   - Concepts should be properly grouped into sections, that is concepts belonging to same part of the lesson should be grouped together
-   - Each section should have atleast 2 concepts
-   - If total number of concepts is less than 5, then there should be a single section
-   - Titles should be concise (2-4 words) and student-friendly
-   - No listing-style titles (e.g., avoid "Global Responses: Science, Policy, and Activism")
-   - Ensure any definition facts are placed before other facts that mention that term being defined
-
-2. VISUAL PLANNING
-   - Visual formats should be diverse (mix of text_slides and diagrams). Diagram types should further be diverse when possible (mind_map, tree, venn_diagram)
-   - Diagram types should be the best fit for the concept (among mind_map, tree, venn_diagram):
-      * mind_map: For exploring a central concept and its immediate related ideas (star shaped, 1 root node, 2-5 main branches, 0-4 sub-branches). Best for brainstorming and showing direct relationships to a main topic (e.g., aspects of Roman culture, components of feudalism)
-      * tree: For showing clear hierarchical relationships, classifications, or organizational structures (vertical branching, 1 root node, multiple levels). Ideal for depicting power structures, taxonomies, or evolutionary relationships (e.g., social class systems, species classification)
-      * venn_diagram: For comparing and contrasting concepts that have significant overlapping characteristics (2-3 circles). Best used for closely related concepts (e.g., democracy vs republic, Buddhism vs Hinduism) rather than clearly distinct items. Avoid using for obviously different concepts with minimal overlap
-   - Text slides should be used when diagrams aren't clearly beneficial
-   - Text slides should be used when there is a definition to be given
-   - The diagram should be focused on the main content of the facts of that concept, not side information to good to know things. So for example, if a venn diagram is suggested, the comparison should be the main content of the facts or one of the facts of that concept.
-
-3. TEACHING TECHNIQUES
-   - There should be a diverse mix of teaching techniques (among Sameness and Difference Principle, Setup Principle, Contextualization Technique, Storytelling Technique, Simple Explanation)
-   - Specialized techniques should be chosen over simple explanations whenever applicable
-   - Each technique has specific, actionable implementation suggestions
-   - Sameness and Difference Principle must be used only for:
-     * Only for concepts with subtle, non-obvious differences that could confuse AP students
-     * Not for concepts that are clearly distinct to AP students (e.g., radio vs television, democracy vs monarchy)
-     * Should help students understand nuanced distinctions (e.g., capitalism vs mercantilism, different forms of democracy)
-
-4. NO FACT IDs
-   - Striclty ensure no fact ids are present in the video plan. These facts ids would be present in knowledge graph input (such as c_UFH7, c_vwY1 etc.) but they must not appear in the video plan anywhere.
-
-5. FACTS COVERAGE
-   - Ensure all lesson facts are present in the video plan
-   - Ensure all cross-unit connecting facts are present in the video plan
-   - Ensure the lesson facts and cross unit facts are not mixed and are present in their respective fields.
-
-6. FOCUS ON MAIN CONTENT
-   - The video plan suggestions and choices should be focused on the main content of the facts of that particular concept, not side information to good to know things.
-   - Any choice or suggestion that talks about side things (not the main content of the facts) should be rejected.
-
-Output a JSON object with this format:
-{{
-    "qc_pass": true/false,
-    "feedback": "Detailed feedback message if qc_pass is false, empty string if true"
-}}
-
-Important Instructions:
-- Review thoroughly against all requirements
-- Set qc_pass=true only if ALL requirements are met
-- If qc_pass=false, provide specific, actionable feedback
-- Focus on substantive issues, not minor details
-- Feedback should be clear enough for the generator to make specific improvements
-- Feedback should be very specific with what to change, where to change, and how to change
-- Don't just mention that this requirement is not met, tell how to fix it, what exact change should be made
-
-Provide only the JSON output, nothing else.
-"""
-
 FINAL_TOUCHUPS_SYSTEM_PROMPT = """You are an AI assistant tasked with enhancing a video lesson plan by performing specific touch-up tasks and creating secondary fields. Your goal is to improve the plan and provide additional information that will be useful for the video production team.
 
 You will perform the following tasks on this plan:
@@ -705,14 +511,3 @@ FINAL_TOUCHUPS_USER_PROMPT = """Here is the original video lesson plan:
 {plan}
 </plan>
 """
-
-
-def get_historical_figures_prompt(video_plan: Dict[str, Any]) -> str:
-    return HISTORICAL_FIGURES_PROMPT.format(video_plan=json.dumps(video_plan, indent=2))
-
-def get_video_plan_qc_prompt(subject: str, KGinput: str, video_plan: Dict[str, Any]) -> str:
-    return VIDEO_PLAN_QC_PROMPT.format(
-        subject=subject,
-        KGinput=KGinput,
-        video_plan=json.dumps(video_plan, indent=2)
-    )

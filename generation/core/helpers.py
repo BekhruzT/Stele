@@ -3,30 +3,23 @@ import functools
 import json
 import logging
 import mimetypes
-import os
 import re
-import string
 import threading
-import time
 import traceback
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, Callable
+from typing import Any, Dict, List, Optional, Tuple, Union, Callable
 
-import boto3
 import requests
-from core.context import APVideoContext as Context
+from core.context import Context
 from prompts.clips_prompts import (
-    DEFINE_TRANSCRIPT_CLIPS, IMAGE_CLASSIFICATION_PROMPT,
-    IMAGE_GEN_SYSTEM_PROMPT, IMAGE_GEN_USER_PROMPT, LUMA_VIDEO_PROMPT)
+    IDENTIFY_LOCATION_SYSTEM_PROMPT, IDENTIFY_LOCATION_USER_PROMPT, IMAGE_GEN_SYSTEM_PROMPT,
+    IMAGE_GEN_USER_PROMPT, LUMA_VIDEO_PROMPT, LUMA_VIDEO_USER_PROMPT)
 from prompts.common_prompts import \
     get_subject_specific_clips_prompt_entries
 from prompts.qc_prompts import (   
     QC_FINDER_SYSTEM_PROMPT, QC_FINDER_USER_PROMPT, content_guidelines
     )
-from core.parsers import str_2_json
-from core.clients.images import GeneratedImageTypes
 from fuzzywuzzy import fuzz
 from pydantic import BaseModel
-from core.logger import Logger
 from core.clients.openai import (LLM, assistant_message, ensure_json, llm_complete,
                           system_message, user_message)
 from core.clients.s3 import load_json_from_s3
@@ -89,14 +82,14 @@ def llm_call(
 def llm_call_with_qc(
     system_prompt: str, 
     user_prompt: str, 
-    model: LLM = LLM.GPT_4_O, 
+    model: LLM = LLM.GPT_5, 
     tag: Optional[str] = None, 
     is_json: bool = False, 
     history: List[Dict[str, str]] = [],
     temperature: float = 0,
     # Optional QC-related parameters
     qc_requirements: Optional[str] = None,
-    qc_model: LLM = LLM.CLAUDE_3_7_SONNET,
+    qc_model: LLM = LLM.CLAUDE_5_SONNET,
     type_of_content: str = "content",
     max_iterations: int = 2
 ) -> Tuple[List[Dict[str, str]], Any]:
@@ -123,7 +116,10 @@ def llm_call_with_qc(
     from core.types import \
         Feedback
     from prompts.overlay_prompts import (
-        QC_FEEDBACK_PROMPT, QC_SYSTEM_PROMPT, QC_USER_PROMPT, length_violation_feedback)
+        QC_FEEDBACK_PROMPT, QC_RETURN_ONLY, QC_RETURN_TAG_HINT, QC_SYSTEM_PROMPT, QC_USER_PROMPT,
+        length_violation_feedback)
+    return_only = QC_RETURN_ONLY.format(output_format='JSON' if is_json else 'text',
+                                        tag_hint=QC_RETURN_TAG_HINT.format(tag=tag) if tag is not None else '')
     
     messages = [
         *([system_message(system_prompt)] if not history else history),
@@ -143,7 +139,7 @@ def llm_call_with_qc(
             current_messages.append(user_message(QC_FEEDBACK_PROMPT.format(
                     content_type=type_of_content,
                     feedback=feedback.feedback
-                ) + f"Return only the {'JSON' if is_json else 'text'} output{f' inside <{tag}>...</{tag}> tags' if tag is not None else ''} and nothing else."
+                ) + return_only
             ))
 
         # Get task output
@@ -207,35 +203,6 @@ def image_to_data_uri(image_path: str)->str:
     data_uri = f"data:{mime_type};base64,{base64_encoded_data}"
     return data_uri
 
-def classify_image(subject: str, prompt: str) -> GeneratedImageTypes:
-    if 'history' not in subject.lower():
-        return GeneratedImageTypes.FLUX
-
-    messages = [
-        system_message(IMAGE_CLASSIFICATION_PROMPT),
-        user_message(prompt)
-    ]
-    classification = extract_tag_content('classification', llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET))
-
-    return GeneratedImageTypes(str_2_json(classification)['class'].lower())
-
-def cache_to_json(model: Type[BaseModel]):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            filename = f"{func.__name__}-{os.path.basename(__file__)}.json"
-            
-            if os.path.exists(filename):
-                with open(filename, 'r') as file:
-                    data = json.load(file)
-                    return {kk:model(**vv) for kk, vv in data.items()}
-            else:
-                result = func(*args, **kwargs)
-                with open(filename, 'w') as file:
-                    json.dump({kk: vv.dict() for kk, vv in result.items()}, file)
-                return result
-        return wrapper
-    return decorator
 
 def exception_handler(func):
     @functools.wraps(func)
@@ -252,27 +219,6 @@ def exception_handler(func):
 def print_json(obj: dict, prefix: str = '') -> None:
     print(f"\n```{prefix}\n{json.dumps(obj, indent=2)}\n```")
 
-def construct_phrases(data: List[Dict[str, Union[str, float]]], limit: int = 12) -> List[Dict[str, Union[float, str]]]:
-    combined_data = []
-    current_text = ''
-    current_start, current_end = None, None
-
-    for item in data:
-        if current_start is None:
-            current_start = item['start']
-
-        current_text += (item['text'] + ' ') if not bool(re.search(r'[,.!?;:]', item['text'])) else item['text']
-        current_end = item['end']
-
-        if bool(re.search(r'[,.!?;:]', item['text'])) or len(current_text.split()) >= limit:
-            combined_data.append(
-                {'text': current_text.strip(),
-                 'start': round(current_start / 1000, 1),
-                 'end': round(current_end / 1000, 1)})
-            current_text = ''
-            current_start = None
-
-    return combined_data
 
 def extract_tag_content(tag_name: str, text: str)->str:
     pattern = f"<{tag_name}[^>]*>(.*?)</{tag_name}>"
@@ -353,7 +299,7 @@ def generate_img_prompt(subject: str, description: str) -> str:
         user_message(IMAGE_GEN_USER_PROMPT.format(description=description, **ssi))
     ]
 
-    prompt = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2)
+    prompt = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     
     extracted_prompt = extract_tag_content('prompt', prompt)
     if extracted_prompt:
@@ -366,27 +312,16 @@ def generate_video_prompt(subject: str, description: str, img_prompt: str) -> st
 
     messages = [
         system_message(LUMA_VIDEO_PROMPT.format(**ssi)),
-        user_message(f"<image_prompt>\n{img_prompt}\n</image_prompt>\n\n<scene_description>\n{description}\n</scene_description>")
+        user_message(LUMA_VIDEO_USER_PROMPT.format(img_prompt=img_prompt, description=description))
     ]
 
-    prompt = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2)
+    prompt = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     
     extracted_prompt = extract_tag_content('prompt', prompt)
     if extracted_prompt:
         return extracted_prompt
     else:
         return prompt
-
-def get_topics_list(execution_input):
-    original_dict = load_json_from_s3(f"{execution_input['curriculum']}/{execution_input['course']}/{execution_input['subject']}/lesson_plan.json")
-
-    for unit in original_dict['Units'].values():
-        for chapter in unit['Chapters'].values():
-            for section_title, section_content in chapter['Sections'].items():
-                if 'Subsections' in section_content:
-                    chapter['Sections'][section_title] = list(section_content['Subsections'].keys())
-    return original_dict
-
 
 def save_video(video_url: str, local_path: str)->None:
     try:
@@ -418,48 +353,6 @@ def sanitize_path(path):
     return sanitized
 
 
-def replace_spaces(text: str) -> str:
-    pattern = r'[\u0020\u00A0\u202F\u200A\u2009\u2002\u2003\u2007\u2008\u200B\u200C\u205F\u3000\u180E\xa0]'
-    text = re.sub(pattern, ' ', text)
-    return text
-
-
-def retrieve_markdown_element(markdown: str, element: str) -> Optional[str]:
-    """
-    Extracts content from markdown text based on the specified element.
-    """
-    escaped_element = re.escape(element)
-    is_header = element.startswith('#')
-    try:
-        # Find the start of the content
-        content_start = re.search(escaped_element, markdown)
-        if not content_start:
-            return None
-        
-        start_pos = content_start.end()
-        remaining_text = markdown[start_pos:]
-        
-        # Find where to stop based on element type
-        if is_header:
-            # Look for the next header (any level)
-            next_header = re.search(r'^###\s+\w+', remaining_text, re.MULTILINE)
-            if next_header:
-                content = remaining_text[:next_header.start()].strip()
-            else:
-                content = remaining_text.strip()
-        else:
-            # For bold elements, look for the next bold marker
-            next_bold = re.search(r'\*\*[^*]+\*\*', remaining_text)
-            if next_bold:
-                content = remaining_text[:next_bold.start()].strip()
-            else:
-                content = remaining_text.strip()
-            
-        return content
-        
-    except Exception as e:
-        print(f"Error parsing markdown: {e}")
-        return None
     
 def fuzzy_find_matching_string(text: str, options: List[str], similarity_threshold: int = 95) -> str:
     best_score, best_match = max((fuzz.ratio(text, opt), opt) for opt in options)
@@ -500,7 +393,7 @@ def qc_llm_call(content_type: str, evaluation_type: str):
                     context="" if llm_call_output.context is None else llm_call_output.context,
                     general_content=main_guidelines['name']
                 ),
-                model=LLM.CLAUDE_3_7_SONNET_THINKING if evaluation_type=="CONCEPT EXPLANATION" or content_type=="VideoPlan"  else LLM.CLAUDE_3_7_SONNET
+                model=LLM.CLAUDE_5_OPUS if evaluation_type=="CONCEPT EXPLANATION" or content_type=="VideoPlan"  else LLM.CLAUDE_5_SONNET
             )
             any_fail = any(x.lower() == 'fail' for x in re.findall(r'<evaluation>(.*?)</evaluation>', finder_output, flags=re.DOTALL))
 
@@ -520,16 +413,15 @@ def qc_llm_call(content_type: str, evaluation_type: str):
     return decorator
 
 def fix_single_icon(icon: str, icon_for: str, valid_icons: List[str]) -> str:
+    from prompts.overlay_prompts import FIX_ICON_USER_PROMPT
     attempts = 0
     while icon not in valid_icons and attempts < 5:
         attempts += 1
         logger.warning(f"Icon '{icon}' is not a valid font awesome classic solid free icon. Attempt {attempts} of 5 to fix it.")
         _, icon = llm_call(
             system_prompt='',
-            user_prompt= f"The icon '{icon}' is not a valid font awesome classic solid free icon.\nI want you to give me a new icon that is valid and closest to the original icon."
-            + f"\nThe list of valid icons is: {json.dumps(valid_icons, indent=2)}"
-            + f"\nThis icon is supposed to represent: {icon_for}\nThe new icon should strictly be from the given list of icon names.\nReturn only the new icon name (with no quotes), no other text. ",
-            model=LLM.CLAUDE_3_7_SONNET_THINKING,
+            user_prompt=FIX_ICON_USER_PROMPT.format(icon=icon, valid_icons=json.dumps(valid_icons, indent=2), icon_for=icon_for),
+            model=LLM.CLAUDE_5_OPUS,
             is_json=False,
             temperature=1
         )
@@ -538,9 +430,9 @@ def fix_single_icon(icon: str, icon_for: str, valid_icons: List[str]) -> str:
 def identify_location(context: Context, snippet: str)->str:
     transcript = load_json_from_s3(context.transcripts_path)['lesson_transcript']
     history, location = llm_call(
-        system_prompt = "You will be given a transcript from a history lesson and a specific snippet from that transcript. Your task is to determine the location being discussed in the snippet. The location should be a high-level place such as a kingdom, empire, country, or city.\n\nCarefully read the snippet and identify the location being discussed. Consider any mentions of place names, empires, kingdoms, or countries. If multiple locations are mentioned, choose the most prominent or relevant one.",
-        user_prompt = f"Here is the full transcript:\n<transcript>\n{transcript}\n</transcript>\nHere is the specific snippet to analyze:\n<snippet>\n{snippet}\n</snippet>\nI want to know where this scene being captured to visualize the transcript snippet is taking place. I want an answer, however generic or even if the scene cannot be attributed to anywhere specifically, just give me your best guess. Specify the identified location within <location> tags. Do not go more detailed than city level. If specifying a city, also include the country, kingdom, or empire it belongs to.",
+        system_prompt=IDENTIFY_LOCATION_SYSTEM_PROMPT,
+        user_prompt=IDENTIFY_LOCATION_USER_PROMPT.format(transcript=transcript, snippet=snippet),
         tag = "location",
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2
+        model=LLM.CLAUDE_5_SONNET
     )
     return location

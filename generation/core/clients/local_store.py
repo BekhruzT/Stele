@@ -43,8 +43,8 @@ def storage_root() -> Path:
                 or Path(__file__).resolve().parents[2] / "artifacts")
 
 
-# Characters S3 keys allow but Windows forbids in a path component. Every real course name
-# contains one: "AP US History: Video Lessons". Percent-encoded so the mapping is reversible
+# Characters S3 keys allow but Windows forbids in a path component, such as the colon in an
+# S3 prefix copied down by hand. Percent-encoded so the mapping is reversible
 # and the tree stays legible. '%' is escaped first so an encoded segment round-trips.
 #
 # ponytail: this covers the reserved characters, not the other Windows path rules -- a
@@ -70,11 +70,9 @@ def path_for(key: str) -> Path:
 
     Leading slashes are stripped so the key stays relative.
 
-    ponytail: the bucket argument every caller may pass is ignored, so the main bucket and
-    the two hardcoded ones ('gen-ai-textbooks-media', S3_BUCKET_UI) share one tree. Their
-    key prefixes do not overlap today, so nothing collides. If that changes, namespace this
-    by bucket -- note that s3.py itself is inconsistent about the default, with some
-    functions defaulting to S3_BUCKET and others to the literal 'gen-ai-textbooks-dev'.
+    ponytail: the bucket argument every caller may pass is ignored, so the run bucket and
+    the hardcoded 'gen-ai-textbooks-media' share one tree. Their key prefixes do not overlap
+    today, so nothing collides. If that changes, namespace this by bucket.
     """
     return storage_root().joinpath(*(_encode(part) for part in str(key).lstrip("/").split("/")))
 
@@ -116,7 +114,7 @@ def list_files_in_directory(directory, return_type: str = 'full_path'):
     return keys if return_type == 'full_path' else [os.path.basename(k) for k in keys]
 
 
-def create_presigned_url(key, bucket='gen-ai-textbooks-dev', expiration=3600, url_style='path'):
+def create_presigned_url(key, bucket=None, expiration=3600, url_style='path'):
     """A base64 data URI for a local image. bucket, expiration and url_style are ignored."""
     path = path_for(key)
     if not path.is_file():
@@ -127,8 +125,8 @@ def create_presigned_url(key, bucket='gen-ai-textbooks-dev', expiration=3600, ur
     if not content_type.startswith('image/'):
         raise ValueError(
             f"STORAGE=local can only presign images, not {content_type or 'unknown type'} "
-            f"({key}). Audio and video are presigned only by the D-ID, Video Gen Clips and "
-            f"ShotStack steps, which local mode skips because vendors must fetch the URL."
+            f"({key}). Audio and video are presigned only by the D-ID and Video Gen Clips "
+            f"steps, which local mode skips because vendors must fetch the URL."
         )
 
     size = path.stat().st_size
@@ -147,7 +145,7 @@ def download_directory(s3_directory, local_directory):
         shutil.copyfile(path_for(key), f"{local_directory}/{os.path.basename(key)}")
 
 
-def download(s3_path, local_path, bucket='gen-ai-textbooks-dev'):
+def download(s3_path, local_path, bucket=None):
     try:
         Path(local_path).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path_for(s3_path), local_path)
@@ -253,8 +251,7 @@ def get_folder_link(folder_path: str, s3_bucket=None) -> str:
 
 
 # What s3.py rebinds. Kept explicit so adding a helper here does not silently shadow an
-# S3 function that was deliberately left alone (get_s3_client and S3_BUCKET, for instance,
-# stay on boto3 because core/post_evaluations.py imports them for a skipped code path).
+# S3 function that was deliberately left alone (get_s3_client and S3_BUCKET stay on boto3).
 OVERRIDES = [
     "check_folder_exists", "copy_s3_folder", "copy_s3_object", "create_presigned_url",
     "delete_file_from_s3", "does_file_exist", "does_path_exist", "download",

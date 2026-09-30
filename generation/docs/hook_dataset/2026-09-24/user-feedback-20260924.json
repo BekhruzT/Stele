@@ -1,0 +1,66 @@
+{
+  "date": "2026-09-24",
+  "principle": "A recognizable expectation, followed by a concrete departure from it. Stop when the surprise lands.",
+  "provenance": "Hand-curated responses to the latest user feedback. These are proposals, not pipeline generations; only Carpenter is newly approved. The fission line was already approved in an earlier review.",
+  "topics": {
+    "harrison": {
+      "status": "approved",
+      "feedback": "User is happy with the compass hook. Preserve the exact wording.",
+      "proposals": []
+    },
+    "musa": {
+      "status": "revise",
+      "feedback": "The fact is clear but lacks a felt contrast in scale: an individual spending money versus affecting the city’s gold market. Do not invent a rule that one person cannot move a market.",
+      "proposals": [
+        {
+          "text": "Mansa Musa didn’t just spend a fortune in Cairo—he reportedly changed what gold was worth there for more than a decade.",
+          "note": "Spending a fortune is the expectation; changing the value of gold is the turn. The existing account’s uncertainty and duration remain."
+        },
+        {
+          "text": "Cairo’s gold market reportedly took more than a decade to recover from one visitor’s spending.",
+          "note": "City-wide market and decade-long aftermath versus one visitor. The following prose must immediately identify Musa and his party."
+        }
+      ]
+    },
+    "silk-roads": {
+      "status": "new_direction",
+      "feedback": "A merchant turning back supplies neither scope nor significance. The opening needs the scale and interests of the wider network.",
+      "proposals": [
+        {
+          "text": "Silk linked Rome and China—but the empire between them reportedly tried to stop the two from making direct contact.",
+          "note": "New opening direction, grounded in the Chinese account of Parthian silk interests. It requires a broader opening section before the fourth-century letters; it is not a drop-in replacement for the existing body."
+        }
+      ]
+    },
+    "leiden": {
+      "status": "revise",
+      "feedback": "An ordinary wire losing energy as heat is clear, but does not create enough surprise and takes too long. Lead with what superconductivity lets a current do.",
+      "proposals": [
+        {
+          "text": "Electricity can keep circulating after you disconnect the power—if its loop of wire is cold enough.",
+          "note": "The wire must be a suitable superconductor and remain within its operating limits. The body must explain the closed loop and that cooling can require energy; no claim of free power or a measured duration."
+        }
+      ]
+    },
+    "meitner": {
+      "status": "restore_approved",
+      "feedback": "The electricity/disbelieving-scientists version is wordy. The exile and letter create distracting questions. Return to the earlier approved discovery-scale sentence.",
+      "proposals": [
+        {
+          "text": "The discovery that opened the nuclear age started with an accident.",
+          "note": "Previously approved wording, recommended for restoration here. Accident means an unexpected result during deliberate research, not a spill or equipment failure."
+        }
+      ]
+    },
+    "bell": {
+      "status": "revise",
+      "feedback": "Pre-existing properties and locality are too abstract for the opening. Start with an understandable ordinary situation behaving unexpectedly.",
+      "proposals": [
+        {
+          "text": "Two players who cannot communicate can win a guessing game more often with quantum particles than with any shared plan alone.",
+          "note": "An illustration using the CHSH game, not a claim that Clauser ran a literal game. Shared entanglement beats the classical limit on average; it does not guarantee wins or let either player send a message. The body must introduce the game and then connect it to Bell tests."
+        }
+      ]
+    }
+  }
+}

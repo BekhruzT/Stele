@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Generate AP video lessons from a course's lesson plan, one stage at a time.
+"""Generate lore videos from a run directory, one stage at a time.
 
-The whole orchestrator: stage order, dispatch, skip, retry, lesson selection and the
-worker pool. A stage knows nothing about any of it -- it is handed a dict and returns a
-dict, and this module decides everything else.
+The run directory is a local folder or an s3://bucket/prefix holding lesson_plan.json, and
+every artifact of the run is written back into it, one folder per video. This module is the
+whole orchestrator: stage order, dispatch, skip, retry, video selection and the worker
+pool. A stage knows nothing about any of it -- it is handed a dict and returns a dict.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import argparse
 import json
 import logging
 import os
+import re
 import sys
 import traceback
 from concurrent.futures import as_completed
@@ -22,35 +24,45 @@ from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 # Load the environment before any core import, because core/constants.py reads os.getenv at
-# module scope and would otherwise bake in None for every key. Without it there is no
-# bucket and no credentials.
+# module scope and would otherwise bake in None for every key.
 for _env in (Path(__file__).parent / ".env", Path(__file__).parent.parent / ".env"):
     if _env.is_file():
         load_dotenv(_env)
         break
 
-# --storage has to reach the environment before the first core import too, because
-# core/clients/s3.py chooses its backend at module scope. The real parser in build_parser()
-# runs inside main(), long after that decision, so the flag is read twice: here to set the
-# variable, and there so it appears in --help and is not rejected as unknown.
+
+def storage_for(directory: str) -> tuple[Dict[str, str], str]:
+    """The environment a run directory needs, and the key prefix of the directory itself."""
+    if directory.startswith("s3://"):
+        bucket, _, prefix = directory[len("s3://"):].partition("/")
+        prefix = prefix.strip("/")
+        return {"STORAGE": "s3", "S3_BUCKET": bucket}, f"{prefix}/" if prefix else ""
+    return {"STORAGE": "local", "LOCAL_STORAGE_ROOT": str(Path(directory).resolve())}, ""
+
+
+# The directory has to reach the environment before the first core import, because
+# core/clients/s3.py picks its backend and bucket at module scope. The real parser in
+# build_parser() runs inside main(), long after that, so the argument is read twice.
 _pre = argparse.ArgumentParser(add_help=False)
-_pre.add_argument("--storage", choices=("s3", "local"))
-_preselected = _pre.parse_known_args()[0].storage
-if _preselected:
-    os.environ["STORAGE"] = _preselected
+_pre.add_argument("directory", nargs="?")
+_directory = _pre.parse_known_args()[0].directory
+if _directory:
+    _env_vars, ROOT = storage_for(_directory)
+    os.environ.update(_env_vars)
+else:
+    ROOT = ""
 STORAGE = os.getenv("STORAGE", "s3").strip().lower()
 
-from config.courses import get_execution_input  # noqa: E402
-from core.clients.s3 import (check_folder_exists, copy_s3_folder,  # noqa: E402
-                             does_file_exist, load_json_from_s3, save_json_to_s3)
+from config.subject_profiles import resolve_profile  # noqa: E402
+from core.clients.s3 import (does_file_exist, load_json_from_s3,  # noqa: E402
+                             save_json_to_s3)
 from core.context import Context  # noqa: E402
 from core.log import (ContextAwareThreadPoolExecutor, setup_logging,  # noqa: E402
                       with_logging_context)
 from core.notification_system import NotificationSystem  # noqa: E402
-from core.path import get_content_path, get_lesson_plan_path  # noqa: E402
-from stages import (avatar_clips, image_clips, knowledge_graph,  # noqa: E402
-                    local_render, scenes_breakdown, shotstack, text_overlays,
-                    transcript, video_clips, video_plan)
+from stages import (avatar_clips, image_clips, local_render,  # noqa: E402
+                    scenes_breakdown, text_overlays, transcript, video_clips,
+                    video_plan)
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +91,6 @@ LAYER_DEFAULTS: Dict[str, bool] = {
 # nothing: the order stages run in comes from config/stages.json. Adding an entry here
 # does not schedule it, and the config is what to edit to change the pipeline.
 STAGES: Dict[str, Callable] = {
-    "Knowledge Graph": knowledge_graph.generate_lesson_knowledge_graph,
     "Video Plan": video_plan.generate_lesson_video_plan,
     "Video Transcript": transcript.generate_lesson_transcript,
     "Avatar Clips": avatar_clips.generate_avatar_assets,
@@ -87,7 +98,6 @@ STAGES: Dict[str, Callable] = {
     "Scenes Breakdown": scenes_breakdown.generate_clips,
     "Image Gen Clips": image_clips.generate_all_images,
     "Video Gen Clips": video_clips.generate_all_videos,
-    "ShotStack": shotstack.generate_lesson_video,
     "Local Render": local_render.render_lesson,
 }
 
@@ -98,21 +108,13 @@ STAGES: Dict[str, Callable] = {
 # is skipped in place by stages/avatar_clips.py and the ElevenLabs audio around it still runs.
 LOCAL_SKIP = {"Video Gen Clips"}
 
-# Substituted rather than skipped. ShotStack composites from presigned URLs, so it cannot run
-# locally, but the compositing itself is not the part that needs a vendor: stages/local_render
-# does it with ffmpeg over local paths, writes the MP4 to the same media path and returns the
-# same 'lesson_video' shape. Keeping it a swap rather than an extra entry means it inherits
-# ShotStack's position in config/stages.json, which is last.
-LOCAL_SWAP = {"ShotStack": "Local Render"}
-
 
 def pipeline(skip: set | None = None) -> List[str]:
     """Stage titles in config order, minus anything in skip."""
-    config = json.loads(CONFIG.read_text(encoding="utf-8"))
-    titles = [entry["title"] for entry in config["content"]["subsection"]
-              if entry.get("type", "gen-ai") == "custom" and entry["title"] not in (skip or set())]
+    titles = [title for title in json.loads(CONFIG.read_text(encoding="utf-8"))["stages"]
+              if title not in (skip or set())]
     if STORAGE == "local":
-        return [LOCAL_SWAP.get(title, title) for title in titles if title not in LOCAL_SKIP]
+        return [title for title in titles if title not in LOCAL_SKIP]
     return titles
 
 
@@ -122,9 +124,9 @@ def video_type(name: str) -> Dict[str, Any]:
     if name not in config:
         raise SystemExit(f"No such video type {name!r}; have: {', '.join(sorted(config))}")
     entry = config[name]
-    if bad := sorted(set(entry) - {"layers", "skip_stages"}):
+    if bad := sorted(set(entry) - {"layers", "skip_stages", "params"}):
         raise SystemExit(f"video type {name!r} has unknown key(s): {', '.join(bad)}")
-    flags, skip = entry.get("layers", {}), entry.get("skip_stages", [])
+    flags, skip, params = entry.get("layers", {}), entry.get("skip_stages", []), entry.get("params", {})
     # Refused rather than silently defaulted, so a typo doesn't quietly buy a full set of vendor calls.
     if bad := sorted(set(flags) - set(LAYER_DEFAULTS)):
         raise SystemExit(f"video type {name!r} sets unknown layer(s): {', '.join(bad)}\n"
@@ -134,7 +136,10 @@ def video_type(name: str) -> Dict[str, Any]:
     if bad := sorted(set(skip) - set(STAGES)):
         raise SystemExit(f"video type {name!r} skips unknown stage(s): {', '.join(bad)}\n"
                          f"known stages: {', '.join(STAGES)}")
-    return {"layers": {**LAYER_DEFAULTS, **flags}, "skip_stages": set(skip)}
+    # Only shape-checked here; each stage owns and defaults the contents of its own block.
+    if bad := sorted(k for k, v in params.items() if not isinstance(v, dict)):
+        raise SystemExit(f"video type {name!r} must give every param block an object: {', '.join(bad)}")
+    return {"layers": {**LAYER_DEFAULTS, **flags}, "skip_stages": set(skip), "params": params}
 
 
 def video_types() -> List[str]:
@@ -142,118 +147,73 @@ def video_types() -> List[str]:
     return sorted(json.loads(VIDEO_TYPES.read_text(encoding="utf-8")))
 
 
-def load_plan(execution_input: dict) -> dict:
-    """The course lesson plan, which every stage and the lesson list are derived from."""
-    path = get_lesson_plan_path(
-        execution_input["course"], execution_input["curriculum"], execution_input["subject"])
-    if STORAGE == "local" and not does_file_exist(path):
-        # The first thing local mode needs and the one thing it cannot generate, so say
-        # exactly where to put it rather than raising a bare file-not-found from json.
-        # path_for, not the raw key: the on-disk name has its colons percent-encoded.
-        from core.clients.local_store import path_for
-        raise SystemExit(
-            f"No lesson plan under STORAGE=local. Copy it from S3 to:\n  {path_for(path)}"
-        )
+def load_plan(root: str) -> dict:
+    """The run directory's lesson_plan.json, which the video list is derived from."""
+    path = f"{root}lesson_plan.json"
+    if not does_file_exist(path):
+        raise SystemExit(f"No lesson_plan.json in the run directory ({_directory})")
     return load_json_from_s3(path)
 
 
-def lessons(execution_input: dict) -> List[dict]:
-    """Every subsection in the course's lesson plan, flattened to unit/chapter/section."""
-    plan = load_plan(execution_input)
+def slug(text: str, limit: int = 60) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:limit].rstrip("-")
+
+
+def videos(plan: dict, root: str) -> List[Context]:
+    """Every video in the plan, each with the folder all of its artifacts go into."""
+    meta = plan.get("_meta", {})
+    subject = resolve_profile(meta.get("subject", ""), meta.get("subject_profile")).id
     return [
-        {"unit": unit, "chapter": chapter, "section": section, "subsection": subsection}
-        for unit, unit_plan in plan.get("Units", {}).items()
-        for chapter, chapter_plan in unit_plan.get("Chapters", {}).items()
-        for section, section_plan in chapter_plan.get("Sections", {}).items()
-        for subsection in section_plan.get("Subsections", {})
+        Context(root=root, folder=f"c{ci:02d}-v{vi:02d}-{slug(video['title'])}", subject=subject,
+                chapter=chapter["chapter"], title=video["title"], lessons=video["lessons"])
+        for ci, chapter in enumerate(plan["chapters"], 1)
+        for vi, video in enumerate(chapter["videos"], 1)
     ]
 
 
-def artifact_path(context: Context, title: str) -> str:
-    """Where a stage's JSON lands. The stage never builds this path itself."""
-    return get_content_path(context.course, context.curriculum, context.subject,
-                            "subsection", f"{title}/{context.key}.json")
-
-
-def placeholders(context: Context, plan: dict, content: dict,
-                 layer_flags: Dict[str, bool]) -> Dict[str, Any]:
-    """The uppercase input dict every stage receives; Context ignores the LAYER_* flags in it."""
-    unit = context.get_unit_lesson_plan(plan)
-    chapter = context.get_chapter_lesson_plan(plan)
-    section = context.get_section_lesson_plan(plan)
-    subsection = context.get_subsection_lesson_plan(plan)
-    return {
-        "GRADE": context.grade,
-        "SUBJECT": context.subject,
-        "COURSE": context.course,
-        "CURRICULUM": context.curriculum,
-        "CATEGORY": context.category,
-        "UNIT_TITLE": context.unit,
-        "UNIT_LESSON_PLAN": json.dumps(unit, indent=4),
-        "UNIT_OBJECTIVE": unit.get("Objective", ""),
-        "CHAPTER_TITLE": context.chapter,
-        "CHAPTER_LESSON_PLAN": json.dumps(chapter, indent=4),
-        "CHAPTER_OBJECTIVE": chapter.get("Objective", ""),
-        "SECTION_TITLE": context.section,
-        "SECTION_LESSON_PLAN": json.dumps(section, indent=4),
-        "SECTION_OBJECTIVE": section.get("Objective", ""),
-        "SUBSECTION_TITLE": context.subsection,
-        "SUBSECTION_OBJECTIVE": subsection.get("Objective", ""),
-        "SUBSECTION_CONCEPTS": json.dumps(subsection.get("ContentPlan", []), indent=4),
-        "SUBSECTION_CONTENT": json.dumps(content, indent=4),
-        "THINKING_SKILL": subsection.get("Thinking Skill", ""),
-        **layer_flags,
-    }
+def selected(wanted: List[str], plan: dict, root: str) -> Dict[str, Context]:
+    """The videos this run builds, keyed by folder. A --video matches a folder prefix
+    (c01-v02) or an exact title; asking for nothing builds every video in the plan."""
+    found = videos(plan, root)
+    if wanted:
+        found = [c for c in found if any(c.folder.startswith(w) or c.title == w for w in wanted)]
+    return {context.key: context for context in found}
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, max=15))
 def run_stage(title: str, context: Context, inputs: dict, force: bool = False) -> dict:
-    """One stage, skipped if its artifact is already in S3. The only place skip and retry live.
+    """One stage, skipped if its artifact already exists. The only place skip and retry live.
 
-    Only the canonical {key}.json is tested, never the {key}-edited.json sidecar a reviewer
-    may have written. So an edited sidecar does not stop the stage regenerating, and
+    Only the canonical "<stage>.json" is tested, never the "<stage>-edited.json" sidecar a
+    reviewer may have written. So an edited sidecar does not stop the stage regenerating, and
     deleting only the canonical file leaves a stale sidecar that downstream stages still
     prefer. To genuinely redo a stage, delete both.
 
     Only JSON is skipped. Media is not: every mp3, mp4, mov and png below a stage that
     runs is regenerated and re-bought at full vendor cost.
     """
-    path = artifact_path(context, title)
+    path = context.artifact_path(title)
     if does_file_exist(path) and not force:
         logger.info(f"Content already exists at {path}. Skipping!")
         return load_json_from_s3(path)
 
-    content = STAGES[title]("subsection", title, inputs)
+    content = STAGES[title](path, title, inputs)
     save_json_to_s3(content, path)
     logger.info(f"Successfully generated custom content and saved at {path}")
     return content
 
 
-def run_lesson(execution_input: dict, lesson: dict, plan: dict, titles: List[str],
-               layer_flags: Dict[str, bool] | None = None, force: bool = False) -> dict:
-    """Every stage for one subsection in order; no per-stage try/except since a later stage reads what an earlier one wrote."""
-    context = Context(**execution_input, **lesson)
-    content: Dict[str, Any] = {}
+def run_video(context: Context, titles: List[str], layer_flags: Dict[str, bool] | None = None,
+              force: bool = False, params: Dict[str, Dict[str, Any]] | None = None) -> None:
+    """Every stage for one video in order; no per-stage try/except since a later stage reads what an earlier one wrote."""
+    inputs = {
+        **context.model_dump(),
+        **(layer_flags or LAYER_DEFAULTS),
+        # One block becomes one "<name>_PARAMS" key, so a stage asks by a name it already knows.
+        **{f"{name}_PARAMS": block for name, block in (params or {}).items()},
+    }
     for title in titles:
-        content.update(run_stage(
-            title, context, placeholders(context, plan, content, layer_flags or LAYER_DEFAULTS), force))
-    content["title"] = context.subsection
-    return content
-
-
-def selected(args: argparse.Namespace, execution_input: dict) -> Dict[str, dict]:
-    """The lessons this run will build, keyed by the hash every artifact path carries.
-
-    The filter is the CLI, and asking for something that matches nothing is an error
-    rather than a silent no-op: a run that quietly schedules zero work and finishes clean
-    looks exactly like a run that worked.
-    """
-    wanted = lessons(execution_input)
-    for field in ("unit", "chapter", "section", "subsection"):
-        values = getattr(args, field)
-        if values:
-            wanted = [lesson for lesson in wanted if lesson[field] in values]
-    return {Context(**execution_input, **lesson).key: lesson for lesson in wanted}
+        run_stage(title, context, inputs, force)
 
 
 class _Silent:
@@ -266,29 +226,21 @@ class _Silent:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--subject", default="AP US History - v2",
-                        help="subject with version suffix, e.g. 'AP US History - v2'")
-    parser.add_argument("--unit", action="append", default=[], metavar="TITLE")
-    parser.add_argument("--chapter", action="append", default=[], metavar="TITLE")
-    parser.add_argument("--section", action="append", default=[], metavar="TITLE")
-    parser.add_argument("--subsection", action="append", default=[], metavar="TITLE",
-                        help="repeatable; the usual way to name one lesson")
-    parser.add_argument("--video-type", choices=video_types(), default="history",
-                        help="which layers run, from config/video_types/ (default history, "
-                             "every layer on)")
+    parser.add_argument("directory",
+                        help="run directory holding lesson_plan.json: a local folder or s3://bucket/prefix")
+    parser.add_argument("--video", action="append", default=[], metavar="FOLDER|TITLE",
+                        help="repeatable; a folder prefix such as c01-v02, or an exact title")
+    parser.add_argument("--video-type", choices=video_types(), default="lore",
+                        help="which layers run, from config/video_types.json (default lore)")
     parser.add_argument("--until", metavar="STAGE",
                         help="stop after this stage instead of running the rest")
     parser.add_argument("--force", action="store_true",
                         help="run every stage even where its JSON already exists")
     parser.add_argument("--workers", type=int, default=3,
-                        help="lessons built in parallel (default 3)")
-    parser.add_argument("--storage", choices=("s3", "local"), default=STORAGE,
-                        help="where artifacts live; local skips the stages whose vendors must "
-                             f"fetch a URL ({', '.join(sorted(LOCAL_SKIP))}, and D-ID inside "
-                             "Avatar Clips) and renders with ffmpeg instead of ShotStack")
+                        help="videos built in parallel (default 3)")
     parser.add_argument("--list-stages", action="store_true", help="print the pipeline and exit")
     parser.add_argument("--dry-run", action="store_true",
-                        help="print the lessons, keys and artifact paths, touch nothing")
+                        help="print the videos, folders and artifact paths, touch nothing")
     return parser
 
 
@@ -297,7 +249,7 @@ def main() -> int:
     args = parser.parse_args()
 
     selection = video_type(args.video_type)
-    layer_flags, skip_stages = selection["layers"], selection["skip_stages"]
+    layer_flags, skip_stages, params = selection["layers"], selection["skip_stages"], selection["params"]
     titles = pipeline(skip_stages)
     if args.list_stages:
         for number, title in enumerate(titles, 1):
@@ -305,12 +257,12 @@ def main() -> int:
         for title in sorted(skip_stages):
             print(f"-. {title} (skipped: video type {args.video_type})")
         for title in sorted(LOCAL_SKIP - skip_stages) if STORAGE == "local" else []:
-            print(f"-. {title} (skipped: STORAGE=local)")
-        for old, new in sorted(LOCAL_SWAP.items()) if STORAGE == "local" else []:
-            print(f"-. {old} (replaced by {new}: STORAGE=local)")
+            print(f"-. {title} (skipped: local run directory)")
         print(f"\nvideo type: {args.video_type}")
         for flag, on in layer_flags.items():
             print(f"  {'on ' if on else 'off'}  {flag}")
+        for key, block in params.items():
+            print(f"  param  {key}: {block}")
         return 0
     if args.until:
         if args.until not in titles:
@@ -320,63 +272,49 @@ def main() -> int:
     # CloudWatch is AWS, so local mode logs to the console only.
     setup_logging(cloudwatch=not args.dry_run and STORAGE != "local")
 
-    data = get_execution_input(args.subject)
-    execution_input = data["ExecutionInput"]
-
-    keys = selected(args, execution_input)
-    if not keys:
-        parser.error("no lessons matched; narrow or widen --unit/--chapter/--section/--subsection")
+    contexts = selected(args.video, load_plan(ROOT), ROOT)
+    if not contexts:
+        parser.error("no videos matched --video; see --dry-run for the folder names")
 
     if args.dry_run:
-        print(f"subject: {execution_input['subject']}")
-        print(f"storage: {STORAGE}")
-        print(f"stages : {len(titles)} of {len(pipeline())}")
-        print(f"type   : {args.video_type}"
+        print(f"directory: {args.directory}")
+        print(f"storage  : {STORAGE}")
+        print(f"stages   : {len(titles)} of {len(pipeline())}")
+        print(f"type     : {args.video_type}"
               + (f" (skips {', '.join(sorted(skip_stages))})" if skip_stages else ""))
         for flag, on in layer_flags.items():
             print(f"  {'on ' if on else 'off'}  {flag}")
-        for key, lesson in keys.items():
-            context = Context(**execution_input, **lesson)
-            print(f"\n{key}  {lesson['subsection']}")
+        for key, block in params.items():
+            print(f"  param  {key}: {block}")
+        for key, context in contexts.items():
+            print(f"\n{key}  {context.title}")
             print(f"  media  {context.media_path}")
             for title in titles:
-                print(f"  {'HAVE' if does_file_exist(artifact_path(context, title)) else 'MISS'}"
-                      f"  {artifact_path(context, title)}")
+                path = context.artifact_path(title)
+                print(f"  {'HAVE' if does_file_exist(path) else 'MISS'}  {path}")
         return 0
 
-    # A versioned subject starts from the v0 corpus. Idempotent: skipped if the prefix is
-    # already there.
-    base = f"{execution_input['curriculum']}/{execution_input['course']}/{args.subject.split('-')[0].strip()} - v0/"
-    new = f"{execution_input['curriculum']}/{execution_input['course']}/{execution_input['subject']}/"
-    if base != new and not check_folder_exists(new):
-        logger.info(f"Copying base contents {base} -> {new}")
-        copy_s3_folder(base, new)
-
-    logger.info(f"STARTING GENERATION IN SUBJECT: {execution_input['subject']}")
-    logger.info(f"{len(keys)} lesson(s), {len(titles)} stage(s) each")
+    logger.info(f"STARTING GENERATION IN: {args.directory}")
+    logger.info(f"{len(contexts)} video(s), {len(titles)} stage(s) each")
     off = [flag for flag, on in layer_flags.items() if not on]
     logger.info(f"Video type '{args.video_type}': "
                 + (f"layers off: {', '.join(off)}" if off else "every layer on")
                 + (f"; stages skipped: {', '.join(sorted(skip_stages))}" if skip_stages else ""))
     if STORAGE == "local":
-        swaps = ', '.join(f"{old} -> {new}" for old, new in sorted(LOCAL_SWAP.items()))
-        logger.info(f"STORAGE=local: skipping {', '.join(sorted(LOCAL_SKIP))} and the D-ID "
-                    f"block inside Avatar Clips; {swaps}")
+        logger.info(f"Local run directory: skipping {', '.join(sorted(LOCAL_SKIP))} and the D-ID "
+                    f"block inside Avatar Clips")
 
     # Notifications are SES and Google Chat, both AWS-side, and a local run has no audience.
-    notifications = _Silent() if STORAGE == "local" else NotificationSystem(data, keys)
+    notifications = _Silent() if STORAGE == "local" else NotificationSystem(args.directory, contexts)
     notifications.send_initial_message()
-
-    plan = load_plan(execution_input)
 
     failures = 0
     futures = {}
     with ContextAwareThreadPoolExecutor(max_workers=args.workers) as pool:
-        for key, lesson in keys.items():
-            logger.info(f"GENERATING SUBSECTION: {lesson['subsection']}")
-            work = with_logging_context(lesson_id=key)(run_lesson)
-            futures[pool.submit(work, execution_input, lesson, plan, titles,
-                                layer_flags, args.force)] = key
+        for key, context in contexts.items():
+            logger.info(f"GENERATING VIDEO: {context.title}")
+            work = with_logging_context(lesson_id=key)(run_video)
+            futures[pool.submit(work, context, titles, layer_flags, args.force, params)] = key
 
         for future in as_completed(futures):
             key = futures[future]
@@ -385,13 +323,13 @@ def main() -> int:
                 notifications.send_success_message(key)
             except Exception as error:
                 failures += 1
-                logger.error(
-                    f"Generation of subsection '{keys[key]['subsection']}' failed with error:\n{error}")
+                logger.error(f"Generation of video '{contexts[key].title}' failed with error:\n{error}")
                 notifications.send_error_message(key, str(error), traceback.format_exc())
 
-    logger.info(f"Finished: {len(keys) - failures} succeeded, {failures} failed")
+    logger.info(f"Finished: {len(contexts) - failures} succeeded, {failures} failed")
     return 1 if failures else 0
 
 
 if __name__ == "__main__":
     sys.exit(main())
+

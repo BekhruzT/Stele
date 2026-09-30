@@ -2,52 +2,32 @@ import concurrent.futures
 import json
 import logging
 import os
-import re
-import string
-import subprocess
 import time
-import uuid
-import random
 import fal_client
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
-import boto3
-import cv2
-import numpy as np
-import requests
 from core.types import (
-    Clip, ImageDetails, ImagesMetadata, LayerName, Media, VideoDetails, VideoClipQC, Severity, 
-    VideoMetadata)
-from core.post_evaluations import find_json_keys
+    Clip, ImagesMetadata, LayerName, VideoDetails, VideoClipQC, VideoMetadata)
 from core.log import (
-    ContextAwareThreadPoolExecutor, setup_logging, with_logging_context)
+    ContextAwareThreadPoolExecutor, with_logging_context)
 from core.media.media_assets import (
-    is_frame_black, is_video_black, speed_up_video
+    is_video_black, speed_up_video
 )
 from core.helpers import (
-    concurrency_slots, construct_phrases, exception_handler, llm_call, generate_img_prompt, generate_video_prompt,
-    extract_tag_content, print_json, save_video)
+    concurrency_slots, exception_handler, llm_call, generate_img_prompt, generate_video_prompt,
+    extract_tag_content, save_video)
 from prompts.clips_prompts import (
-    DEFINE_TRANSCRIPT_CLIPS, RUNWAY_VIDEO_PROMPT, AI_VIDEO_QC_PROMPT, AI_VIDEO_QC_SEVERITY_CHECK, 
-    SECURE_VIDEO_PROMPT_SYSTEM_PROMPT, SCENE_REIMAGINE_USER_PROMPT, SCENE_REIMAGINE_SYSTEM_PROMPT)
-from core.parsers import str_2_json
-from core.clients.images import (GeneratedImageTypes, classify_image,
-                                          generate_image, save_image, GeneratedImageTypes)
-from core.clients.image_qc import image_quality_check
+    AI_VIDEO_QC_PROMPT, AI_VIDEO_QC_SEVERITY_CHECK, 
+    SECURE_VIDEO_PROMPT_SYSTEM_PROMPT)
+from core.clients.images import GeneratedImageTypes
 from lumaai import LumaAI
-from pydantic import BaseModel, model_validator, root_validator
 from tenacity import retry, stop_after_attempt, wait_exponential, wait_fixed, wait_chain
 from stages.image_clips import generate_image_wrapper
-from core.context import APVideoContext as Context
-from core.hash import hash_image_description
+from core.context import Context
 from core.clients.gemini import gemini_media_analysis, delete_old_gemini_files
-from core.clients.openai import (LLM, assistant_message, generate_speech_via_openai,
-                          llm_complete, system_message, tts, user_message, log_llm_message)
-from core.clients.s3 import (copy_s3_object, create_presigned_url, does_file_exist,
-                      download, load_json_from_s3, read_content_from_s3,
-                      save_json_to_s3, upload_file_to_s3)
-import google.generativeai as genai
+from core.clients.openai import (LLM, assistant_message, llm_complete, system_message, user_message)
+from core.clients.s3 import (create_presigned_url, does_file_exist,
+                      load_json_from_s3, save_json_to_s3, upload_file_to_s3)
 
 logger = logging.getLogger(__name__)
 
@@ -59,30 +39,29 @@ def secure_prompt(prompt: str):
         user_message(prompt)
     ]
 
-    response = llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    response = llm_complete(messages, LLM.CLAUDE_5_SONNET)
     
     return extract_tag_content('prompt', response)
 
 def reimagine_image_prompt(context: Context, clip: Clip, qc_reasoning: str):
     from prompts.clips_prompts import (
-        FIX_CLIPS_USER_PROMPT, IDENTIFY_CLIP_DURATIONS, MAP_IS_NECESSARY_PROMPT,
-        get_system_prompt_define_clips, get_user_prompt_define_clips)
-    
+        REIMAGINE_SCENE_EXCLUDED_FIGURES, REIMAGINE_SCENE_QC_REASON, REIMAGINE_SCENE_TOLERANCE,
+        REIMAGINE_SCENE_USER_PROMPT, get_system_prompt_define_clips, get_user_prompt_define_clips)
+
     history = [
         system_message(get_system_prompt_define_clips(context)),
-        user_message(get_user_prompt_define_clips(clip.text, {'text': clip.text, 'positive_tolerance': f'Can add at any words to this segment', 'negative_tolerance': f'Can remove at any words from this segment'}, "Any and all real historic figures.")),
+        user_message(get_user_prompt_define_clips(clip.text, {'text': clip.text, **REIMAGINE_SCENE_TOLERANCE}, REIMAGINE_SCENE_EXCLUDED_FIGURES)),
         assistant_message("<segments>{out}</segments>".format(out=json.dumps({"text": clip.text, "media": {"description": clip.media.description}}, indent=2)))
     ]
 
-    user_msg = 'Keep it as a single segment, but reimagine the scene. Create something new, simple, and relevant, clearly focusing on one moment. Ensure the visualization accurately reflects the original historical period, location, and context. Avoid using text, maps, transitions, or multiple scenes. Maintain historical accuracy, but reimagine the representative scene.'
-
+    user_msg = REIMAGINE_SCENE_USER_PROMPT
     if qc_reasoning:
-        user_msg += f"\n\nFor your information, a new scene is being requested because the previously generated video had some issues. These issues might be resolved by updating the scene. Keep the following issues in mind and avoid repeating the same mistakes:\n```Fail Reason\n{qc_reasoning}\n```" 
+        user_msg += REIMAGINE_SCENE_QC_REASON.format(qc_reasoning=qc_reasoning)
 
     _, clips_raw = llm_call(
         system_prompt='',
         user_prompt=user_msg,
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2,
+        model=LLM.CLAUDE_5_SONNET,
         tag="segments",
         history=history, 
         is_json=True
@@ -384,28 +363,3 @@ def generate_all_videos(output_path: str, output_type: str, inputs: dict, force:
         generated_videos.append(future.result())
 
     return {'videos': [metadata.dict() for metadata in generated_videos]}
- 
-
-if __name__ == '__main__':
-    from core.context import prep_content_gen_input
-    from config.courses import get_execution_input, data_list
-    from core.clients.s3 import download
-    import concurrent.futures
-    import traceback
-    from functools import partial
-
-    setup_logging(level=logging.DEBUG)
-
-    exec_input    = get_execution_input(
-        subject = "AP US History - vUnit_7_new", 
-        subsection = "Explain the consequences of U.S. involvement in World War II."
-    )
-    context = Context(**prep_content_gen_input(exec_input))
-
-    clips = load_json_from_s3(context.clips_path)
-    clip = next(clip for clip in clips['clips'] if clip['end_time']>50 and clip['start_time']<50)
-
-    clip = Clip(**clip)
-    # result = process_generate_ai_video(context, clip)
-    speed_up_video('87220643-v4-1.mp4', 0.3)
-        

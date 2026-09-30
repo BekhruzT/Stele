@@ -1,6 +1,6 @@
 # Docs
 
-Everything the team needs to understand the video pipeline is in this folder.
+Everything the team needs to understand the lore video pipeline is in this folder.
 
 ## Start here
 
@@ -8,27 +8,28 @@ Everything the team needs to understand the video pipeline is in this folder.
 | --- | --- |
 | [../README.md](../README.md) | How to run the pipeline. |
 | [architecture/13-generation-layout.md](architecture/13-generation-layout.md) | The layout: what lives where, the two storage backends, and the check suite. |
-| [../ops/README.md](../ops/README.md) | The human-driven tooling: what each tool does, and its status. |
+| [lore_input_spec.md](lore_input_spec.md) | The `lesson_plan.json` format and the quality bar its research must clear before generation is worth running. |
+| [info/lore_editorial_pipeline.md](info/lore_editorial_pipeline.md) | How the transcript stage plans, hooks, drafts, reviews and repairs the narration. |
+| [info/subject_onboarding.md](info/subject_onboarding.md) | What to specify to add a subject, and what each profile field controls. |
+| [hook_dataset/2026-09-24/README.md](hook_dataset/2026-09-24/README.md) | 45 attributed hook passages, derived guidelines, and two fresh six-topic experiments. |
 
 ## The stage set
 
-Docs 00–12 are the deep reference: one per stage, plus the overview, the upstream prerequisites, the support layer and operator tooling. Read [00](architecture/00-overview.md) first for the shape of the thing; the rest stand alone.
+Docs 00–13 are the deep reference: one per stage, plus the overview, the pipeline input, the support layer and the layout. Read [00](architecture/00-overview.md) first for the shape of the thing; the rest stand alone.
 
 | doc | covers |
 | --- | --- |
-| [00-overview.md](architecture/00-overview.md) | The pipeline's shape, the stage contract, the key scheme, every artifact path, and the load-bearing orderings |
-| [01-upstream.md](architecture/01-upstream.md) | The three prerequisites a lesson run assumes exist: guidelines, lesson plan, content plan and metadata |
-| [02-knowledge-graph.md](architecture/02-knowledge-graph.md) | Stage 1: the facts, read out of Google Sheets with no model involved |
-| [03-video-plan.md](architecture/03-video-plan.md) | Stage 2: sections, concepts, teaching techniques, visuals, historical figures |
-| [04-transcript.md](architecture/04-transcript.md) | Stage 3: the lesson as dialogue, plus its knowledge-check questions |
-| [05-avatar-clips.md](architecture/05-avatar-clips.md) | Stage 4: voices, talking heads, and the word clock everything later times against |
-| [06-text-overlays.md](architecture/06-text-overlays.md) | Stage 5: slides, diagrams and the conclusion, pinned to that clock |
-| [07-scenes-breakdown.md](architecture/07-scenes-breakdown.md) | Stage 6: the transcript cut into timed clips around the overlay windows |
-| [08-images.md](architecture/08-images.md) | Stage 7: one still per clip, generated or sourced, and the QC that picks it |
-| [09-videos.md](architecture/09-videos.md) | Stage 8: motion from each chosen still. Skipped under `STORAGE=local` |
-| [10-shotstack.md](architecture/10-shotstack.md) | Stage 9: the timeline assembled, rendered, split, subtitled and published. Under local mode `stages/local_render.py` reproduces its layer order |
-| [11-support-layer.md](architecture/11-support-layer.md) | `core/`: storage, the model clients, cost, logging, notifications, and every environment variable |
-| [12-operator-tooling.md](architecture/12-operator-tooling.md) | `ops/`: the reviewer, the `-edited.json` contract, repair and delivery, and what QC actually gates |
+| [00-overview.md](architecture/00-overview.md) | The pipeline's shape, the stage contract, the folder scheme, every artifact path, and the load-bearing orderings |
+| [01-upstream.md](architecture/01-upstream.md) | The run directory, the `lesson_plan.json` format, storage selection, folder naming and video selection |
+| [03-video-plan.md](architecture/03-video-plan.md) | Stage 1: the plan's facts arranged into sections, concepts and teaching techniques |
+| [04-transcript.md](architecture/04-transcript.md) | Stage 2: the video as single-host lore narration |
+| [05-avatar-clips.md](architecture/05-avatar-clips.md) | Stage 3: the voice, the talking head, and the word clock everything later times against |
+| [06-text-overlays.md](architecture/06-text-overlays.md) | Stage 4: slides, diagrams and the conclusion, pinned to that clock |
+| [07-scenes-breakdown.md](architecture/07-scenes-breakdown.md) | Stage 5: the transcript cut into timed clips around the overlay windows |
+| [08-images.md](architecture/08-images.md) | Stage 6: one still per clip, generated or sourced, and the QC that picks it |
+| [09-videos.md](architecture/09-videos.md) | Stage 7: motion from each chosen still. Skipped for lore and under `STORAGE=local` |
+| [10-render.md](architecture/10-render.md) | Stage 8: every artifact composited into one MP4 with ffmpeg by `stages/local_render.py` |
+| [11-support-layer.md](architecture/11-support-layer.md) | `core/`: storage, the model clients, logging, notifications, and every environment variable |
 | [13-generation-layout.md](architecture/13-generation-layout.md) | The folder rules, the two storage backends, and the checks that enforce both |
 
 ## Conventions

@@ -1,0 +1,39 @@
+{
+  "status": "candidate_references_pending_user_review",
+  "method": "Composed directly; not generated or repaired by the pipeline",
+  "audio_generated": false,
+  "documents": [
+    {
+      "title": "The Silk Roads: How Distant Cities Stayed Connected",
+      "canonical_source": "generation/docs/golden_references/2026-09-23/history-silk-roads-full.txt",
+      "viewer_copy": "generations/history/silk-roads/20260923-hand-curated-history-v1/full.txt",
+      "sha256": "120380ffc5901f10cfa1303e21935aefa463a6747f662379b3eaae0363d040dc",
+      "scope": "Complete short hand-curated narrative",
+      "word_count": 1779,
+      "paragraph_count": 36,
+      "estimated_minutes_at_120_to_135_wpm": [
+        13.2,
+        14.8
+      ],
+      "duplicate_paragraphs": [],
+      "repeated_12_word_sequences": [],
+      "interpretation": "Duplication diagnostics require editorial interpretation; no sentence or hook length quota."
+    },
+    {
+      "title": "Mansa Musa: The Gold Behind a King's Journey",
+      "canonical_source": "generation/docs/golden_references/2026-09-23/history-mali-opening-sample.txt",
+      "viewer_copy": "generations/history/mansa-musa/20260923-hand-curated-history-v1/opening_sample.txt",
+      "sha256": "31ae6aef43f764e905f9796b2f9165cd032783a39ef69914b303878ec98ff37b",
+      "scope": "Hand-curated connected opening sample",
+      "word_count": 1187,
+      "paragraph_count": 25,
+      "estimated_minutes_at_120_to_135_wpm": [
+        8.8,
+        9.9
+      ],
+      "duplicate_paragraphs": [],
+      "repeated_12_word_sequences": [],
+      "interpretation": "Duplication diagnostics require editorial interpretation; no sentence or hook length quota."
+    }
+  ]
+}

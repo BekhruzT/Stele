@@ -48,12 +48,12 @@ def list_files_in_directory(directory, return_type: str = 'full_path'):
     return file_list
 
 
-def create_presigned_url(key, bucket = 'gen-ai-textbooks-dev', expiration=3600, url_style='path'):
+def create_presigned_url(key, bucket=None, expiration=3600, url_style='path'):
     from urllib.parse import urlparse, urlunparse
     s3_client = get_s3_client()
     try:
         response = s3_client.generate_presigned_url('get_object',
-                                                    Params={'Bucket': bucket,
+                                                    Params={'Bucket': bucket or S3_BUCKET,
                                                             'Key': key},
                                                     ExpiresIn=expiration)
     except botocore.exceptions.ClientError as e:
@@ -83,10 +83,10 @@ def download_directory(s3_directory, local_directory):
         bucket.download_file(obj.key, local_file_key)
 
 
-def download(s3_path, local_path, bucket='gen-ai-textbooks-dev'):
+def download(s3_path, local_path, bucket=None):
     try:
         s3_resource = get_s3_resource()
-        bucket = s3_resource.Bucket(bucket)
+        bucket = s3_resource.Bucket(bucket or S3_BUCKET)
         bucket.download_file(s3_path, local_path)
     except Exception as e:
         logger.error(f"Failed to download: {s3_path}, to {local_path}. {e}")

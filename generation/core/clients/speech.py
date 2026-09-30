@@ -1,5 +1,4 @@
 import base64
-import concurrent.futures
 import json
 import logging
 import math
@@ -7,32 +6,18 @@ import os
 import re
 import string
 import subprocess
-import sys
-import time
 import uuid
-from contextlib import contextmanager
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
-import assemblyai as aai
-import boto3
 import requests
-from bs4 import BeautifulSoup
 from core.types import (
-    TranscriptTiming, WordTiming)
-from core.media.clip_timings import (
-    extract_pause_times, mute_intervals)
-from core.stage_constants import \
-    elevenlabs_voice_descriptions
-from core.parsers import str_2_json
+    WordTiming)
 from df.enhance import enhance, init_df
 from df.io import load_audio, save_audio
 from elevenlabs.client import ElevenLabs
 from pydub import AudioSegment
 from tenacity import retry, stop_after_attempt, wait_exponential
 from core.constants import ELEVENLABS_API_KEY
-from core.hash import hash_image_description
-from core.clients.openai import (LLM, assistant_message, generate_speech_via_openai,
-                          llm_complete, system_message, tts, user_message)
 from core.clients.s3 import upload_file_to_s3
 
 logger = logging.getLogger(__name__)
@@ -42,6 +27,55 @@ logger = logging.getLogger(__name__)
 # successor and still serves the /with-timestamps endpoint the word-level clock depends on.
 # Override with ELEVENLABS_MODEL_ID, or per call by passing model_id through kwargs.
 ELEVENLABS_MODEL_ID = os.getenv("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
+_BREAK_RE = re.compile(r'<break\s+time=["\'][\d.]+s["\']\s*/>')
+_SENTENCE_END_RE = re.compile(r'[.!?]["\u201d\u2019)\]]*$')
+_PAUSE_TRANSITION_RE = re.compile(
+    r"^(?:after|before|by \d|in \d|on (?:the |\d)|years? later|the next|"
+    r"that gap|what changed|from there|with that|the .* (?:problem|failure|test|trial))\b", re.I)
+_PAUSE_STOPWORDS = frozenset(
+    "about after again against also among because been before being between both could from have "
+    "into itself more most much only other over same some such than that their them then there "
+    "these they this those through under very what when where which while with would".split())
+
+
+def add_narration_pauses(text: str) -> str:
+    """Insert sentence breaths and stronger paragraph-level SSML pauses."""
+    if _BREAK_RE.search(text):
+        return text
+    from nltk.tokenize import PunktSentenceTokenizer
+
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n+", text) if p.strip()]
+    if len(paragraphs) < 2:
+        return text
+    tokenizer = PunktSentenceTokenizer(text)
+
+    def content_words(paragraph: str) -> set[str]:
+        return {word for word in re.findall(r"[a-z]{4,}", paragraph.lower())
+                if word not in _PAUSE_STOPWORDS}
+
+    def paced_paragraph(paragraph: str) -> str:
+        sentences = [paragraph[start:end].strip() for start, end in tokenizer.span_tokenize(paragraph)]
+        return ' <break time="1s"/> '.join(sentences)
+
+    out, words_since_long_pause = [paced_paragraph(paragraphs[0])], len(paragraphs[0].split())
+    previous_words = content_words(paragraphs[0])
+    for index, paragraph in enumerate(paragraphs[1:], 1):
+        current_words = content_words(paragraph)
+        overlap = len(previous_words & current_words) / max(1, min(len(previous_words), len(current_words)))
+        starts_transition = bool(_PAUSE_TRANSITION_RE.match(re.sub(r"^\[[^\]]+\]:\s*", "", paragraph)))
+        sentence_boundary = bool(_SENTENCE_END_RE.search(out[-1]))
+        major_transition = words_since_long_pause >= 320 and starts_transition
+        topic_transition = words_since_long_pause >= 260 and overlap <= 0.05
+        pause = (2.5 if major_transition else 2.0 if topic_transition else
+                 1.5 if len(paragraphs[index - 1].split()) < 80 else 2.0
+                 ) if sentence_boundary else 0.0
+        if pause:
+            out.append(f'<break time="{pause:g}s"/>')
+            words_since_long_pause = 0 if major_transition or topic_transition else words_since_long_pause
+        out.append(paced_paragraph(paragraph))
+        words_since_long_pause += len(paragraph.split())
+        previous_words = current_words
+    return "\n\n".join(out)
 
 def clean_voice_with_elevenlabs(audio_path, out_path):
     client = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
@@ -54,31 +88,6 @@ def clean_voice_with_elevenlabs(audio_path, out_path):
         output_file.write(audio_data)
 
 # Was defined to be used for deep filter net but breaks when running in multiple threads
-@contextmanager
-def suppress_all_output():
-    original_stdout = sys.stdout
-    original_stderr = sys.stderr
-    
-    null_device = open(os.devnull, 'w')
-    
-    try:
-        # Redirect both stdout and stderr to null device
-        sys.stdout = null_device
-        sys.stderr = null_device
-        
-        # Disable all logging
-        logging.getLogger().setLevel(logging.CRITICAL + 1)  # Above all defined levels
-        logging.disable(logging.CRITICAL)  # Disable all logging
-        
-        yield
-    finally:
-        # Restore original stdout/stderr
-        sys.stdout = original_stdout
-        sys.stderr = original_stderr
-        null_device.close()
-        
-        # Re-enable logging if needed for other parts of the program
-        logging.disable(logging.NOTSET)
 
 def deep_filter_net(audio_path: str, output_path: str):
     model, df_state, _ = init_df()
@@ -119,136 +128,10 @@ def standardize_volume(audio_path: str, output_path: str, amplitude: int = 2250)
     factor = calculate_volume_adjustment(rms, amplitude)
     adjust_audio_volume(audio_path, output_path, factor)
 
-def seconds_to_srt_timestamp(seconds: float) -> str:
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-    milliseconds = int((seconds - int(seconds)) * 1000)
-    return f"{hours:02}:{minutes:02}:{secs:02},{milliseconds:03}"
-
-def group_words_fixed_interval(timings: List[WordTiming], interval: float = 2.0) -> List[List[WordTiming]]:
-    groups = []
-    current_group = []
-    current_start_time = timings[0].start_time
-    for word in timings:
-        if word.end_time - current_start_time <= interval:
-            current_group.append(word)
-        else:
-            groups.append(current_group)
-            current_group = [word]
-            current_start_time = word.start_time
-    if current_group:
-        groups.append(current_group)
-    return groups
-
-def group_words(timings: List[WordTiming]) -> List[List[WordTiming]]:
-    groups = []
-    n = len(timings)
-    i = 0  # Index for the current word
-
-    while i < n:
-        current_group = []
-        group_start_time = timings[i].start_time
-        group_end_time = group_start_time
-        group_duration = 0.0
-
-        # Flag to indicate if the group has been extended beyond 2 seconds
-        extended = False
-
-        # Step 1: Add words until a punctuation mark is found or duration reaches 2 seconds
-        while i < n and group_duration < 2.0:
-            word = timings[i]
-            current_group.append(word)
-            group_end_time = word.end_time
-            group_duration = group_end_time - group_start_time
-
-            # Check for punctuation
-            if re.search(r'[.,:;!?\-"]$', word.text.strip()) is not None:
-                # End the group at punctuation mark
-                i += 1  # Move to next word for the next group
-                break  # Exit inner loop to start a new group
-
-            i += 1  # Move to next word
-
-        # If group ended due to duration reaching 2 seconds without punctuation
-        if group_duration >= 2.0 and re.search(r'[.,:;!?\-"]$', current_group[-1].text.strip()) is None:
-            # Step 2: Check for punctuation within the next 1 second (up to 3 seconds total)
-            temp_group = current_group.copy()
-            temp_i = i  # Temporary index for lookahead
-
-            while temp_i < n:
-                next_word = timings[temp_i]
-                next_word_end_time = next_word.end_time
-                extended_duration = next_word_end_time - group_start_time
-
-                if extended_duration > 3.0:
-                    break  # Do not extend beyond 3 seconds
-
-                temp_group.append(next_word)
-
-                if re.search(r'[.,:;!?\-"]$', next_word.text.strip()) is not None:
-                    # Found punctuation within the extension window
-                    current_group = temp_group  # Update current group
-                    group_end_time = next_word_end_time
-                    group_duration = extended_duration
-                    i = temp_i + 1  # Move index to after the extended group
-                    extended = True
-                    break
-
-                temp_i += 1
-
-            if not extended:
-                # No punctuation found within extension window, end group at 2 seconds
-                # No need to adjust 'i' because it's already at the correct position
-                pass  # The group remains as it was at 2 seconds
-
-        # Append the group to the list of groups
-        groups.append(current_group)
-
-        # If the inner loops terminated due to reaching the end of timings
-        if i >= n:
-            break
-
-        # If we haven't advanced 'i' in any of the above conditions, ensure we do so here
-        # This handles cases where the group ended exactly at 2 seconds without punctuation
-        if not extended and re.search(r'[.,:;!?\-"]$', current_group[-1].text.strip()) is None:
-            # 'i' is already at the correct position
-            pass
-
-    return groups
-
-def create_subtitles_file(transcript: TranscriptTiming, output_path: str = './output.srt') -> str:
-    # groups = group_words_fixed_interval(transcript.timings, interval=3.0)
-    groups = group_words(transcript.timings)
-    logger.debug(json.dumps([[g.text for g in gs] for gs in groups], indent=2))
-    srt_entries = []
-    for index, group in enumerate(groups, start=1):
-        start_timestamp = seconds_to_srt_timestamp(group[0].start_time)
-        end_timestamp = seconds_to_srt_timestamp(group[-1].end_time)
-        text = ' '.join([word.text for word in group])
-
-        srt_entry = f"{index}\n{start_timestamp} --> {end_timestamp}\n{text}\n"
-        srt_entries.append(srt_entry)
-    
-    srt = "\n".join(srt_entries)
-
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(srt)
-
-    return srt
 
 def get_audio_duration(file_path: str) -> float:
     audio = AudioSegment.from_mp3(file_path)
     return round(len(audio) / 1000.0, 3) 
-
-def transcribe_mp3(file_path: str) -> Tuple[List[Dict[str, Union[float, str]]], float]:
-    aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
-    config = aai.TranscriptionConfig(speech_model=aai.SpeechModel.best, language_code="en_us")
-
-    transcriber = aai.Transcriber(config=config)
-    transcript = transcriber.transcribe(file_path)
-    end_time = transcript.json_response['words'][-1]['end']/1000
-    return [{k: v for k, v in word.items() if k in ['text', 'end', 'start']} for word in transcript.json_response['words']], end_time
 
 
 def split_text(text: str, max_length: int = 4096) -> List[str]:
@@ -468,7 +351,7 @@ def generate_speech(text:str, speech_file_path='./speech.mp3', voice='IKne3meq5a
 
 def synthesize_speech(
         file_path: str, text: str, s3_media_path: str, voice: str = 'echo', **kwargs) -> Tuple[List[WordTiming], str]:
-    enhanced_text = text #speech_enhance_transcript(text)
+    enhanced_text = add_narration_pauses(text) if kwargs.pop("add_pauses", False) else text
     character_timestamps = []
     request_ids = []
     if len(enhanced_text) >= 4096:  # limit is 5k in elevenlabs but sticking to this for simplicity
@@ -514,56 +397,3 @@ def synthesize_speech(
     return timings, [id for id in request_ids if id]
 
 
-def speech_enhance_transcript(transcript: str) -> str:
-    """
-    Enhances the transcript for TTS.
-    """
-    messages = [
-        system_message(TRANSCRIPT_SPEECH_ENHANCEMENT_PROMPT),
-        user_message(transcript)
-    ]
-    response = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
-    if not response:
-        raise Exception("Speech enhancement failed.")
-    return response
-
-TRANSCRIPT_SPEECH_ENHANCEMENT_PROMPT = """
-You are an expert in converting numerical values in text to their corresponding pronunciation based on the international number system. Here are some examples:
-- "279" should be pronounced as "two hundred seventy-nine"
-- "12696" should be pronounced as "twelve thousand six hundred ninety-six"
-- "2,000,000" should be pronounced as "two million"
-- "-1" should be pronounced as "negative one"
-- "-3,400" should be pronounced as "negative three thousand four hundred"
-
-You will be given a piece of text. Your task is to replace all numerical values with their corresponding pronunciations similar to the examples above. Please ensure that nothing else in the text is altered.
-"""
-
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, max=30))
-def get_voice_metadata(voice_id: str) -> Dict[str, Any]:
-    url = f"https://api.elevenlabs.io/v1/voices/{voice_id}"
-    
-    headers = {
-        "xi-api-key": ELEVENLABS_API_KEY
-    }
-    
-    response = requests.get(url, headers=headers)
-    
-    if response.status_code != 200:
-        raise Exception(f"Error getting voice metadata: {response.status_code} - {response.text}")
-        
-    return response.json()
-
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, max=30))
-def get_voice_metadata(voice_id: str) -> Dict[str, Any]:
-    url = f"https://api.elevenlabs.io/v1/voices/{voice_id}"
-    
-    headers = {
-        "xi-api-key": ELEVENLABS_API_KEY
-    }
-    
-    response = requests.get(url, headers=headers)
-    
-    if response.status_code != 200:
-        raise Exception(f"Error getting voice metadata: {response.status_code} - {response.text}")
-        
-    return response.json()

@@ -1,0 +1,49 @@
+{
+  "20260924-youtube45": {
+    "topics": 6,
+    "errors": 0,
+    "calls_with_all_45": 18,
+    "requested_models": [
+      "openai-group/gpt-6-astra"
+    ],
+    "response_models": [
+      "gpt-6-astra"
+    ],
+    "model_passes": 6,
+    "usage": {
+      "prompt_tokens": 316426,
+      "completion_tokens": 24722,
+      "total_tokens": 341148,
+      "costInUSD": 4.400359999999999
+    }
+  },
+  "20260924-youtube45-calibrated": {
+    "topics": 6,
+    "errors": 0,
+    "calls_with_all_45": 18,
+    "requested_models": [
+      "openai-group/gpt-6-astra"
+    ],
+    "response_models": [
+      "gpt-6-astra"
+    ],
+    "model_passes": 6,
+    "usage": {
+      "prompt_tokens": 333689,
+      "completion_tokens": 25407,
+      "total_tokens": 359096,
+      "costInUSD": 4.5497749999999995
+    }
+  },
+  "offline_checks": {
+    "editorial_tests_passed": 23,
+    "cache_tests_passed": 8,
+    "viewer_selftest": "passed",
+    "javascript_syntax": "passed",
+    "corpus_quotes_exact": 45,
+    "review_cases": 6,
+    "candidate_hooks_in_review": 60,
+    "offline_cache_reuse_verified": 45,
+    "browser_visual_verification": "Blocked by browser URL policy for the local file URL; not bypassed"
+  }
+}

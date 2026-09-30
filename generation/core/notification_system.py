@@ -1,13 +1,12 @@
 import logging
 import os
-from functools import wraps
 from typing import Optional
 
 import boto3
 import requests
 from core.log import \
     CloudWatchHandler
-from core.clients.s3 import load_json_from_s3, get_folder_link
+from core.clients.s3 import get_folder_link
 
 logger = logging.getLogger(__name__)
 
@@ -68,26 +67,25 @@ def get_cloudwatch_stream():
 
 
 class NotificationSystem:
-    def __init__(self, event, keys, thread_id: Optional[str] = None):
-        self.event = event
-        self.keys = keys
+    def __init__(self, directory: str, contexts: dict, thread_id: Optional[str] = None):
+        self.directory = directory
+        self.contexts = contexts
         self.thread_id = thread_id
 
 
     def send_initial_message(self):
         log_link = get_cloudwatch_stream() or "No log stream available"
-        exec_input = self.event['ExecutionInput']
-        folder_link = get_folder_link(f"{exec_input['curriculum']}/{exec_input['course']}/{exec_input['subject']}")
-        
+        folder_link = get_folder_link(next(iter(self.contexts.values())).root)
+
         lesson_list = []
-        for key, item in self.keys.items():
+        for key, context in self.contexts.items():
             lesson_log_link = log_link + f'?filterPattern={{$.metadata.lesson_id={key}}}'
-            lesson_list.append(f"[<{lesson_log_link}|{key}>] {item['subsection'][:50]}{'...' if len(item['subsection']) > 50 else ''}")
-        
+            lesson_list.append(f"[<{lesson_log_link}|{key}>] {context.title[:50]}{'...' if len(context.title) > 50 else ''}")
+
         initial_message = (
-            f"🎬 Starting video generation for the {len(lesson_list)} lessons:\n"
+            f"🎬 Starting video generation for the {len(lesson_list)} videos:\n"
             f"\n* " + "\n* ".join(lesson_list) + "\n\n"
-            f"🗂️ Folder: <{folder_link}|{exec_input['subject']}>\n"
+            f"🗂️ Folder: <{folder_link}|{self.directory}>\n"
             f"🔍 Progress can be tracked at: <{log_link}|Log Stream>"
         )
         if self.thread_id:
@@ -98,19 +96,10 @@ class NotificationSystem:
 
 
     def send_success_message(self, key):
-        # Get video URL for the completed subsection
-        video_json = load_json_from_s3(
-            f"{self.event['ExecutionInput']['curriculum']}/{self.event['ExecutionInput']['course']}/"
-            f"{self.event['ExecutionInput']['subject']}/contents/subsection/ShotStack/{key}.json"
-        )
-        video_url = video_json['lesson_video']['output_data'].get('url', None)
-        sheet_link = video_json['lesson_video']['output_data'].get('sheet_link', None)
-        
-        # Send success message in thread
+        context = self.contexts[key]
         success_message = (
-            f"✅ Video generated successfully! ({key})"+
-            (f" <{sheet_link}|Sheet Link>" if sheet_link else "")+
-            (f"\n<{video_url.replace(' ', '%20')}|{self.keys[key]['subsection']}>" if video_url else "🚫 Video URL not found")
+            f"✅ Video generated successfully! ({key})\n"
+            f"<{get_folder_link(context.base_path)}|{context.title}>"
         )
         send_gchat_message(success_message, thread_id=self.thread_id)
 
@@ -119,7 +108,7 @@ class NotificationSystem:
         # Send error message in thread
         error_message = (
             f"❌ Error generating video ({key})\n"
-            f"⚠️ {self.keys[key]['subsection']}\n\n"
+            f"⚠️ {self.contexts[key].title}\n\n"
             f"```\nError: {error_message}\n"
             f"{error_traceback}\n```"
         )

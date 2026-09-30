@@ -4,29 +4,23 @@ import logging
 import os
 import re
 import traceback
-from concurrent.futures import (ProcessPoolExecutor, ThreadPoolExecutor,
-                                as_completed)
+from concurrent.futures import (ProcessPoolExecutor, as_completed)
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from core.types import (
-    BaseDiagram, ConclusionBulletPoint, ConclusionSlideNew, Diagram,
-    DiagramType, Feedback, KeyConcept, LayerName, LessonMetadata, MindMap,
-    OverlaysData, QuestionOverlay, TextSlide, TextSlideElement,
+    BaseDiagram, ConclusionSlideNew, Diagram,
+    DiagramType, LayerName, MindMap,
+    OverlaysData, TextSlide, TextSlideElement,
     TextSlideElementType, TextSlidePhrase, TitleOverlay, TitleOverlayType,
-    TranscriptConcept, TranscriptLesson, TranscriptOutput, TranscriptSection,
-    TranscriptTiming, TreeDiagram, VennDiagram, VideoPlan, VisualType)
+    TranscriptOutput, TranscriptTiming, TreeDiagram, VennDiagram, VideoPlan, VisualType)
 from core.media.clip_timings import (
-    identify_word_index_in_transcript, match_segment_timings)
+    match_segment_timings)
 from core.log import (
-    ContextAwareThreadPoolExecutor, setup_logging, with_logging_context)
+    ContextAwareThreadPoolExecutor, with_logging_context)
 from core.helpers import (
     concurrency_slots, exception_handler, extract_tag_content, llm_call,
-    llm_call_with_qc, print_json, sanitize_path, split_speaker_dialogue,
-    split_transcript)
-from core.stage_constants import \
-    VALID_FA_ICONS
+    llm_call_with_qc, print_json)
 from core.media.html_to_video import (
-    generate_video_asset_from_html, render_conclusion_slides_template,
     render_diagram_template, render_text_slide_template)
 from prompts.overlay_prompts import (
     DIAGRAM_CONFIGS, DIAGRAM_QC_REQUIREMENTS, DIAGRAM_TIMINGS_SYSTEM_PROMPT,
@@ -39,13 +33,12 @@ from prompts.overlay_prompts import (
     TEXT_SLIDE_TIMINGS_SYSTEM_PROMPT, TEXT_SLIDE_TIMINGS_USER_PROMPT,
     TOPIC_TRANSITION_SYSTEM, TOPIC_TRANSITION_USER,
     get_diagram_content_system_prompt, get_diagram_content_user_prompt,
+    CONCLUSION_TIMING_NOTES, LESSON_ORGANIZER_TIMING_NOTE, PHRASE_NOT_FOUND_ERROR, SECTION_ORGANIZER_TIMING_NOTE, SECTION_TITLE_ICON_HINT, SEGMENT_MISMATCH_USER_PROMPT, SPLIT_CONTENT_USER_PROMPT, TOPIC_TRANSITION_RETRY, TREE_DIAGRAM_TIMING_NOTES, UNMATCHED_PHRASES_USER_PROMPT,
     text_slide_content_examples, text_slides_timings_examples)
-from pydantic import BaseModel
-from core.context import APVideoContext as Context
-from core.context import get_lesson_context
+from core.context import Context
 from core.clients.openai import (LLM, assistant_message, ensure_json, llm_complete,
                           system_message, user_message)
-from core.clients.s3 import load_json_from_s3, upload_file_to_s3
+from core.clients.s3 import load_json_from_s3
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +93,6 @@ def generate_text_overlays(output_path: str, output_type: str, inputs: dict):
 
     video_split_times  = identify_video_split_times(transcript, transcript_timings) 
 
-    question_timings = identify_question_timings(transcript, transcript_timings)
-
     # create lesson title overlays
     lesson_title_overlay = create_lesson_title_overlay(video_plan.simple_title)
     
@@ -134,7 +125,6 @@ def generate_text_overlays(output_path: str, output_type: str, inputs: dict):
         diagrams=diagrams,
         conclusion_slide=conclusion_slide,
         video_splits=video_split_times,
-        questions=question_timings
     )
 
     return text_overlays_data.model_dump()
@@ -151,26 +141,11 @@ def identify_video_split_times(transcript: TranscriptOutput, transcript_timings:
     }
 
     for section_name, section in transcript.lesson_transcript_breakdown.sections.items():
-        last_words_in_section = list(section.explanations.values())[-1].recap
-        _, end_index = match_segment_timings(transcript_timings, last_words_in_section)
+        last = list(section.explanations.values())[-1]
+        _, end_index = match_segment_timings(transcript_timings, " ".join((last.recap or last.explanation).split()[-10:]))
         split_times[f"Section: {section_name}"] = transcript_timings.timings[end_index].end_time
 
     return dict(sorted(split_times.items(), key=lambda x: x[1]))  
-
-def identify_question_timings(transcript: TranscriptOutput, transcript_timings: TranscriptTiming)->Dict[str, Dict[str, QuestionOverlay]]:
-    questions = {}
-    for section_title, section_questions in transcript.supplementary_content.questions.items():
-        questions[section_title] = {}
-        for concept_name, concept_questions in section_questions.items():
-            explanation = transcript.lesson_transcript_breakdown.sections[section_title].explanations[concept_name].explanation
-            _, end_index = match_segment_timings(transcript_timings, " ".join(explanation.split()[-15:]))
-            trigger_word = transcript_timings.timings[end_index]
-            questions[section_title][concept_name] = QuestionOverlay(
-                time=trigger_word.start_time + 1, # Assumes a 2 second pause is there
-                questions= concept_questions
-            )
-    # print_json({s: {k: mcqs.model_dump() for k, mcqs in sc.items()} for s, sc in questions.items()})
-    return questions
 
 #=======================================LESSON TITLE OVERLAY==========================================
 
@@ -223,7 +198,7 @@ def create_transition_canvases(transcript_timings: TranscriptTiming, transcript:
                         transition = determine_section_transition(
                             section_title, 
                             section_overview,
-                            error_message=f"The previously suggested phrase could not be exactly found in the transcript. Error: {str(e)}"
+                            error_message=PHRASE_NOT_FOUND_ERROR.format(error=e)
                         )
                     else:
                         # Fall back to using the start of the overview
@@ -252,7 +227,7 @@ def create_transition_canvases(transcript_timings: TranscriptTiming, transcript:
 
 def determine_section_transition(section_title: str, overview: str, error_message: str = "") -> dict:
     """Helper function to determine transition data for a single section"""
-    retry_prompt = f"\n\nPrevious attempt failed: {error_message}\nPlease try again with a phrase that appears exactly in the overview." if error_message else ""
+    retry_prompt = TOPIC_TRANSITION_RETRY.format(error_message=error_message) if error_message else ""
     
     messages = [
         system_message(TOPIC_TRANSITION_SYSTEM),
@@ -261,7 +236,7 @@ def determine_section_transition(section_title: str, overview: str, error_messag
             overview=overview
         ) + retry_prompt)
     ]
-    transition_data = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2)
+    transition_data = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
     return ensure_json(transition_data or '{}')
 
 
@@ -312,8 +287,8 @@ def normalize(text:str)->str:
 def phrase_split_to_content_split(content: str, phrases: Tuple[str, str]) -> Tuple[str, str]:
     _, response = llm_call(
         system_prompt = "",
-        user_prompt = f"The spoken phrase has been split into two parts:\n<part1>{phrases[0]}</part1>\n<part2>{phrases[1]}</part2>\n\nSplit the written content accordingly: <content>{content}</content>. Split it into two parts and return each inside tags <content1> and <content2> respectively. <content2> can never start with punctuation mark, punctuation at the split point should appear in <content1>.",
-        model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2
+        user_prompt = SPLIT_CONTENT_USER_PROMPT.format(part1=phrases[0], part2=phrases[1], content=content),
+        model=LLM.CLAUDE_5_SONNET
     )
     return extract_tag_content("content1", response), extract_tag_content("content2", response)
 
@@ -455,7 +430,7 @@ def process_text_slide_concept(concept_data, transcript_timings):
                 transcript=concept_transcript['explanation'],
                 figure_name=concept_data.get('figure_name', '')
             ),
-            model=LLM.CLAUDE_3_7_SONNET_THINKING, is_json=True, tag='answer', type_of_content="text slide content"
+            model=LLM.CLAUDE_5_OPUS, is_json=True, tag='answer', type_of_content="text slide content"
         )
 
         # Determining text slide timings
@@ -465,7 +440,7 @@ def process_text_slide_concept(concept_data, transcript_timings):
                 points=json.dumps(slide_content["points"], indent=2),
                 transcript=concept_transcript['explanation']
             ),
-            model=LLM.CLAUDE_3_7_SONNET_THINKING,
+            model=LLM.CLAUDE_5_OPUS,
             history=[system_message(TEXT_SLIDE_TIMINGS_SYSTEM_PROMPT), *text_slides_timings_examples],
             is_json=True
         )
@@ -473,8 +448,8 @@ def process_text_slide_concept(concept_data, transcript_timings):
         if failed_matches:
             _, point_matches = llm_call(
                 system_prompt='',
-                user_prompt=f"Some identified phrases did not exactly match the text in the transcript. Remember, each identified phrase must match a substring in the transcript exactly. You may need to slightly adjust these mismatches to align with the transcript verbatim. If the match was completely incorrect, try to identify the closest semantic match in the transcript.\n<unmatched_phrases>\n{failed_matches}\n</unmatched_phrases>\nPlease correct only these phrases, leaving the rest of the JSON as it is. Without asking any further questions, return the best JSON you can.",
-                model=LLM.CLAUDE_3_7_SONNET,
+                user_prompt=UNMATCHED_PHRASES_USER_PROMPT.format(unmatched_phrases=failed_matches),
+                model=LLM.CLAUDE_5_SONNET,
                 history=history,
                 tag='answer',
                 is_json=True
@@ -604,7 +579,7 @@ def identify_diagram_timings(Model: BaseDiagram, contents: dict, transcript: str
             transcript=transcript,
             custom=custom
         ),
-        model=LLM.CLAUDE_3_7_SONNET,
+        model=LLM.CLAUDE_5_SONNET,
         tag='answer',
         is_json=True,
     )
@@ -620,8 +595,8 @@ def identify_diagram_timings(Model: BaseDiagram, contents: dict, transcript: str
     
     _, phrase_matched_content = llm_call(
         system_prompt='',
-        user_prompt=f"Some identified phrases did not exactly match the text in the transcript. Remember, each identified phrase must match a substring in the transcript exactly. You may need to slightly adjust these mismatches to align with the transcript verbatim. If the match was completely incorrect, try to identify the closest semantic match in the transcript.\n<unmatched_phrases>\n{unmatched_phrases}\n</unmatched_phrases>\nPlease correct only these phrases, leaving the rest of the JSON as it is. Without asking any further questions, return the best JSON you can.",
-        model=LLM.CLAUDE_3_7_SONNET,
+        user_prompt=UNMATCHED_PHRASES_USER_PROMPT.format(unmatched_phrases=unmatched_phrases),
+        model=LLM.CLAUDE_5_SONNET,
         history=history,
         tag='answer',
         is_json=True
@@ -648,7 +623,7 @@ def process_diagram_concept(concept_data, transcript_timings):
                 explanation=concept_transcript['explanation'],
                 figure_name=concept_data['figure_name']
             ),
-            model=LLM.CLAUDE_3_7_SONNET_THINKING,
+            model=LLM.CLAUDE_5_OPUS,
             qc_requirements=DIAGRAM_QC_REQUIREMENTS.format(
                 diagram_type=concept_data['visual']['diagram_type'],
                 diagram_specific_requirements=diagram_config["qc_requirements"],
@@ -672,7 +647,7 @@ def process_diagram_concept(concept_data, transcript_timings):
         diagram_model = identify_diagram_timings(
             models[concept_data['visual']['diagram_type']], diagram_content,
             concept_transcript['explanation'], diagram_segment_transcript_timings,
-            custom='- This text is designed for a tree diagram. Some node titles may not appear in the transcript as they represent implicit groupings. Regardless, assign a phrase to each node. Ensure that the phrase appears before its child node phrases and is logically placed when the transcript discusses the relevant subject.\n- Also remember to ensure the phrase begins at the exact starting point of the text for each title node. The end can extend beyond, but the beginning must coincide with the start of the point.\n- To reiterate parent node phrases must precede the child node phrase at all times. This is an absolute requirement.\n- Make sure your JSON response adheres to the Pydantic model of TreeDiagram provided.' if concept_data['visual']['diagram_type']=='tree' else '',
+            custom=TREE_DIAGRAM_TIMING_NOTES if concept_data['visual']['diagram_type']=='tree' else '',
             start_time=-1 if concept_start is None else concept_start
         )
 
@@ -734,7 +709,7 @@ def extract_intro_overview_segment(introduction: str, section_names: str):
             sections=section_names
         ))
     ]
-    lesson_organizer_part = llm_complete(messages, model=LLM.GPT_4_O)
+    lesson_organizer_part = llm_complete(messages, model=LLM.GPT_5)
     return lesson_organizer_part, messages+[assistant_message(lesson_organizer_part)]
 
 def get_lesson_overview_diagram_contents(video_plan: VideoPlan, transcript_json: TranscriptOutput, transcript_timings: TranscriptTiming) -> Diagram:
@@ -755,8 +730,8 @@ def get_lesson_overview_diagram_contents(video_plan: VideoPlan, transcript_json:
                 logger.warning(f"Attempt {attempt + 1}: Failed to match lesson organizer segment. Retrying...")
                 _, lesson_organizer_part = llm_call(
                     system_prompt='',
-                    user_prompt=f"The identified part did not exactly match the text in the transcript. Remember, the segment you return must exactly match a verbatim substring in the transcript. Please try to identify the part again, only return the required part and nothing else.",
-                    model=LLM.GPT_4_O,
+                    user_prompt=SEGMENT_MISMATCH_USER_PROMPT,
+                    model=LLM.GPT_5,
                     history=history,
                     is_json=False
                 )
@@ -777,14 +752,14 @@ def get_lesson_overview_diagram_contents(video_plan: VideoPlan, transcript_json:
         system_message(LESSON_ORGANIZER_CONTENT_SYSTEM),
         user_message(LESSON_ORGANIZER_CONTENT_USER.format(organizer_data=json.dumps(organizer_data, indent=2)))
     ]
-    lesson_organizer_data = llm_complete(messages, model=LLM.GPT_4_O)
+    lesson_organizer_data = llm_complete(messages, model=LLM.GPT_5)
     lesson_organizer_data = ensure_json(lesson_organizer_data or json.dumps(organizer_data))
     # print_json(lesson_organizer_data)
 
     diagram_model = identify_diagram_timings(
         MindMap, lesson_organizer_data, 
         lesson_organizer_part, lesson_organizer_timings,
-        custom='This is an introduction, just identify the exact phrase where each node is being introduced.'
+        custom=LESSON_ORGANIZER_TIMING_NOTE
     )
     logger.debug(f"Lesson organizer data: {json.dumps(diagram_model.model_dump(), indent=2)}")
     diagram = Diagram(
@@ -830,7 +805,7 @@ def get_section_overview_diagram_contents(video_plan: VideoPlan, transcript_json
             ))
         ]
         history = [messages[0]]
-        section_organizer_part = llm_complete(messages, model=LLM.GPT_4_O)
+        section_organizer_part = llm_complete(messages, model=LLM.GPT_5)
         
         # Match the identified segment with retries
         max_retries = 2
@@ -844,8 +819,8 @@ def get_section_overview_diagram_contents(video_plan: VideoPlan, transcript_json
                     logger.warning(f"Attempt {attempt + 1}: Failed to match section organizer segment for section {section.section_title}. Retrying...")
                     _, section_organizer_part = llm_call(
                         system_prompt='',
-                        user_prompt=f"The identified part did not exactly match the text in the transcript. Remember, the segment you return must exactly match a verbatim substring in the transcript. Please try to identify the part again, only return the required part and nothing else.",
-                        model=LLM.GPT_4_O,
+                        user_prompt=SEGMENT_MISMATCH_USER_PROMPT,
+                        model=LLM.GPT_5,
                         history=history,
                         is_json=False
                     )
@@ -867,9 +842,9 @@ def get_section_overview_diagram_contents(video_plan: VideoPlan, transcript_json
             user_message(SECTION_ORGANIZER_CONTENT_USER.format(
                 section_title=section.simple_title,
                 concepts=concept_names
-            )+(f"\n\nUse the icon: '{section_title_icon}' for the section title." if section_title_icon else ''))
+            )+(SECTION_TITLE_ICON_HINT.format(icon=section_title_icon) if section_title_icon else ''))
         ]
-        section_organizer_data = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET_V2)
+        section_organizer_data = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
         section_organizer_data = ensure_json(extract_tag_content('mind_map', section_organizer_data) or '{}')
 
         section_start_time = next((val for val in video_split_times.values() if 0 < section_organizer_timings.timings[0].start_time - val < 1),
@@ -878,7 +853,7 @@ def get_section_overview_diagram_contents(video_plan: VideoPlan, transcript_json
         diagram_model = identify_diagram_timings(
             MindMap, section_organizer_data,
             section_organizer_part, section_organizer_timings,
-            custom='This is a section overview, just identify the exact phrase where each node is being introduced.',
+            custom=SECTION_ORGANIZER_TIMING_NOTE,
             is_section=len(video_plan.sections) > 1, start_time=section_start_time
         )
         logger.debug(f"Section organizer data for {section.section_title} starts at {diagram_model}")
@@ -958,7 +933,7 @@ def create_conclusion_slide(context: Context, transcript: TranscriptOutput, tran
     slide = identify_diagram_timings(
         ConclusionSlideNew, transcript.lesson_transcript_breakdown.conclusion_slide.model_dump(),
         transcript.lesson_transcript_breakdown.conclusion, conclusion_timings,
-        custom='- As this is a conclusion, identify the exact phrase where each main point and sub-point is introduced.\n- The phrase for the main point should precede the sub-point.\n- The conclusion format follows this sequence: Main Point 1 phrase => Sub Point 1 Phrase => Main Point 2 phrase => Sub Point 2... Ensure to extract the best matching phrases in this exact order, rather than pulling from various parts of the transcript.\n  - In other words, the phrase for sub-point 1 should never appear before main point 2, and so on.\n- Concentrate on the middle part, typically paragraph 2, and extract phrases from there only. This is where all the matching phrases for the points are usually found.\n- Each phrase should be at least 5 words long, with the start of phrase exactly aligned with the bullet and not earlier.',
+        custom=CONCLUSION_TIMING_NOTES,
         start_time=conclusion_timings.timings[0].start_time
     )
 
@@ -978,26 +953,3 @@ def create_conclusion_slide(context: Context, transcript: TranscriptOutput, tran
 
 
 #=========================================MAIN========================================================
-
-if __name__ == '__main__':
-    from config.courses import get_execution_input
-    from core.context import prep_content_gen_input
-    from core.clients.s3 import download, upload_file_to_s3
-    setup_logging(level=logging.DEBUG)
-    exec_input    = get_execution_input(
-        subject = "AP World History - Unit_1_v2", 
-        subsection = "Explain the effects of innovation on the Chinese economy over time."
-    )
-    context = Context(**prep_content_gen_input(exec_input))
-
-    # print_json(generate_text_overlays('', '', context.dict()))
-    assets = OverlaysData(**load_json_from_s3(context.text_overlays_path))
-
-    diagram = next(asset for asset in assets.diagrams if asset.end_time>600 and asset.start_time<600)
-
-    print_json(diagram.model_dump())
-    print(diagram.src)
-
-    diagram = Diagram(**json.loads())
-    print(render_diagram_template(context, diagram))
-    # download(diagram.src, os.path.basename(diagram.src))

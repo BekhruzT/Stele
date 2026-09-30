@@ -1,0 +1,13 @@
+{
+  "channels": [
+    {"slug":"hotu", "names":["History of the Universe"], "queries":["\"History of the Universe\""], "search_max":25, "pool":"original_reference"},
+    {"slug":"deep-science", "names":["Deep Science with Mark Watts"], "queries":["\"Deep Science with Mark Watts\""], "search_max":20, "pool":"original_reference"},
+    {"slug":"dreamoria", "names":["Dreamoria"], "queries":["\"Dreamoria\" history"], "search_max":15, "pool":"original_reference"},
+    {"slug":"secret-origins", "names":["Secret Origins"], "queries":["\"Secret Origins\" history"], "search_max":12, "pool":"original_reference"},
+    {"slug":"uncharted", "names":["Uncharted Mysteries"], "queries":["\"Uncharted Mysteries\""], "search_max":10, "pool":"original_reference"},
+    {"slug":"fall-civilizations", "names":["Fall of Civilizations"], "queries":["\"Fall of Civilizations\""], "search_max":15, "pool":"expanded_history"},
+    {"slug":"history-earth", "names":["History of the Earth"], "queries":["\"History of the Earth\""], "search_max":12, "pool":"expanded_science"},
+    {"slug":"voices-past", "names":["Voices of the Past"], "queries":["\"Voices of the Past\""], "search_max":12, "pool":"expanded_history"},
+    {"slug":"history-time", "names":["History Time"], "queries":["\"History Time\""], "search_max":12, "pool":"expanded_history"}
+  ]
+}

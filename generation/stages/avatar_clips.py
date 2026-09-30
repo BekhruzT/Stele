@@ -9,42 +9,40 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import requests
 from core.types import (
-    AvatarAsset, AvatarIntroduction, LayerName, Speaker, TranscriptTiming,
-    WordTiming)
+    AvatarAsset, AvatarIntroduction, LayerName, Speaker)
 from core.media.clip_timings import \
     identify_word_index_in_transcript
 from core.log import (
-    setup_logging, with_logging_context)
+    with_logging_context)
 from core.helpers import (
-    exception_handler, extract_tag_content, print_json, split_transcript)
+    exception_handler, extract_tag_content, split_transcript)
 from core.stage_constants import (
-    CHARACTER_BUNDLE, elevenlabs_voice_descriptions, get_unit_from_chapter)
+    CHARACTER_BUNDLE, elevenlabs_voice_descriptions)
 from core.clients.did import (
     create_avatar, create_listening_avatar)
 from core.media.html_to_video import (
-    generate_video_asset_from_html, render_template)
+    generate_video_asset_from_html)
 from prompts.avatar_prompts import (
     AVATAR_INTRODUCTION_PROMPT, AVATAR_INTRODUCTION_TRIGGER_WORD_PROMPT,
+    AVATAR_INTRODUCTION_TRIGGER_WORD_USER_PROMPT, AVATAR_INTRODUCTION_USER_PROMPT,
     GENERATE_AVATER_IMAGE_PROMPT, GENERATE_AVATER_IMAGE_USER_PROMPT,
-    MATCH_SIGNIFICANT_FIGURE_VOICE_PROMPT, SPEAKER_IDENTIFIER_PROMPT)
+    MATCH_SIGNIFICANT_FIGURE_VOICE_PROMPT, MATCH_SIGNIFICANT_FIGURE_VOICE_USER_PROMPT,
+    NO_PORTRAIT_DESCRIPTION, SPEAKER_IDENTIFIER_PROMPT)
 from prompts.common_prompts import \
     get_subject_specific_general_prompt_entries
 from core.parsers import str_2_json
 from core.clients.images import generate_flux_image_portrait
 from fuzzywuzzy import process
 from PIL import Image
-from pydub import AudioSegment
-from core.context import APVideoContext as Context
+from core.context import Context
 from core.hash import hash_image_description
-from core.logger import Logger
 from core.clients.openai import (LLM, ensure_json, llm_complete, system_message,
                           user_message)
 from core.clients.s3 import (create_presigned_url, does_file_exist, is_local,
-                      load_json_from_s3, save_json_to_s3, upload_file_to_s3)
+                      load_json_from_s3, upload_file_to_s3)
 from core.clients.speech import (combine_audio_timings, get_audio_duration,
-                          mute_intervals, synthesize_speech)
+                          synthesize_speech)
 
-# logger = Logger("AvatarAssetsGenerator", logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def generate_listening_avatar_ssml(duration: float) -> str:
@@ -61,17 +59,17 @@ def generate_listening_avatar_ssml(duration: float) -> str:
 def find_best_voice(context: Context, speaker: str, image_prompt: str):
     messages = [
         system_message(MATCH_SIGNIFICANT_FIGURE_VOICE_PROMPT.format(voices = json.dumps(elevenlabs_voice_descriptions, indent=2),  **get_subject_specific_general_prompt_entries(context.subject))),
-        user_message(f"{context.category} Figure: {speaker}\nTopic: {get_unit_from_chapter(context.subject, context.chapter)} - {context.subsection}.\nPortrait Description: {image_prompt}")
+        user_message(MATCH_SIGNIFICANT_FIGURE_VOICE_USER_PROMPT.format(figure_name=speaker, unit=context.chapter, topic=context.title, image_prompt=image_prompt))
     ]
-    voice_id = extract_tag_content('voice_id', llm_complete(messages, model=LLM.GPT_4_TURBO))
+    voice_id = extract_tag_content('voice_id', llm_complete(messages, model=LLM.GPT_5))
     return voice_id
 
 def describe_avatars(subject: str, transcript: str, avatar_intros: Dict[str, str]) -> Dict[str, str]:
     messages = [
         system_message(AVATAR_INTRODUCTION_PROMPT.format(transcript=transcript, introducing_phrases=json.dumps(avatar_intros, indent=2), **get_subject_specific_general_prompt_entries(subject))),
-        user_message(f"Here is the list of signficant personas:\n<personas>\n{json.dumps(list(avatar_intros.keys()), indent=2)}\n</personas>")
+        user_message(AVATAR_INTRODUCTION_USER_PROMPT.format(personas=json.dumps(list(avatar_intros.keys()), indent=2)))
     ]
-    avatar_introductions = llm_complete(messages, model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    avatar_introductions = llm_complete(messages, model=LLM.CLAUDE_5_SONNET)
 
     return str_2_json(extract_tag_content('introductions', avatar_introductions))
 
@@ -97,11 +95,11 @@ def identify_speaker_intro(speaker: str, avatar_asset: AvatarAsset) -> Dict[str,
 
     messages = [
         system_message(AVATAR_INTRODUCTION_TRIGGER_WORD_PROMPT.format(template=json.dumps(speaker_intro_timings_template, indent=2))),
-        user_message(f"<phrases>\n{json.dumps({ii: split for ii, split in enumerate(splits)})}\n</phrases>")
+        user_message(AVATAR_INTRODUCTION_TRIGGER_WORD_USER_PROMPT.format(phrases=json.dumps(dict(enumerate(splits)))))
     ]
 
 
-    llm_response = llm_complete(messages, LLM.ANTHROPIC_CLAUDE_3_5_SONNET)
+    llm_response = llm_complete(messages, LLM.CLAUDE_5_SONNET)
     try:
         response = str_2_json(extract_tag_content('matches', llm_response))
         trigger_word_index = identify_word_index_in_transcript(splits, response['word'], response['phrase_index'])
@@ -171,7 +169,7 @@ def find_best_match(speaker: str, character_bundles: dict) -> Optional[str]:
     
     prompt = SPEAKER_IDENTIFIER_PROMPT.format(speaker=speaker, candidate_matches=matches_str)
 
-    llm_response = ensure_json(llm_complete([user_message(prompt)], model=LLM.ANTHROPIC_CLAUDE_3_5_SONNET))
+    llm_response = ensure_json(llm_complete([user_message(prompt)], model=LLM.CLAUDE_5_SONNET))
     
     if llm_response and 'match_found' in llm_response and llm_response['match_found']:
         return llm_response.get('matching_candidate')
@@ -216,7 +214,7 @@ def load_speaker(context: Context, loaded_speakers: Dict[str, Speaker], segment:
                 speaker.voice_id = character_data['voiceId']
             else:
                 logger.info(f"Pre created character {segment['speaker']} has no chosen voice. Picking from default voices...")
-                speaker.voice_id = find_best_voice(context, segment['speaker'], "No image description found, please infer an appropriate voice based on the significant figure's name.")
+                speaker.voice_id = find_best_voice(context, segment['speaker'], NO_PORTRAIT_DESCRIPTION)
 
             loaded_speakers[segment['speaker']] = speaker
             
@@ -230,10 +228,10 @@ def load_speaker(context: Context, loaded_speakers: Dict[str, Speaker], segment:
     
     messages = [
         system_message(GENERATE_AVATER_IMAGE_PROMPT.format(**get_subject_specific_general_prompt_entries(context.subject))),
-        user_message(GENERATE_AVATER_IMAGE_USER_PROMPT.format(figure_name=segment['speaker'], topic=context.subsection, unit=get_unit_from_chapter(context.subject, context.chapter), **get_subject_specific_general_prompt_entries(context.subject)))
+        user_message(GENERATE_AVATER_IMAGE_USER_PROMPT.format(figure_name=segment['speaker'], topic=context.title, unit=context.chapter, **get_subject_specific_general_prompt_entries(context.subject)))
     ]
 
-    image_prompt = extract_tag_content('prompt', llm_complete(messages, model=LLM.GPT_4_TURBO))
+    image_prompt = extract_tag_content('prompt', llm_complete(messages, model=LLM.GPT_5))
     image_url = generate_flux_image_portrait(image_prompt)
     if image_url == "NSFW":
         raise Exception(f"Generation of image for {segment['speaker']} failed as it contained NSFW concepts.")
@@ -265,14 +263,15 @@ def create_avatar_asset_audio(context: Context, host_names: List[str], loaded_sp
                 
     # Generate audio for all segments, including host, with their dialogue
     audio_s3_path = context.media_path + f'{segment_clip_prefix_name}.mp3'
-    voice_id = 'IKne3meq5aSn9XLyUdCD' if is_host else loaded_speakers[segment['speaker']].voice_id  # Voice IDs for host and others
+    # Alternate: George (audition #4) — JBFqnCBsd6RMkjVDRZzb
+    voice_id = 'PIGsltMj3gFMR34aFDI3' if is_host else loaded_speakers[segment['speaker']].voice_id
     try:
         speech_timings, request_ids = synthesize_speech(
             f'/tmp/{segment_clip_prefix_name}.mp3', 
             segment['dialogue'], context.media_path, 
             voice=voice_id, previous_text=previous_text, 
             next_text=next_text, previous_request_ids=previous_request_ids,
-            speed=1.1 if is_host else 1.0
+            speed=0.9 if is_host else 1.0, add_pauses=is_host
         )
 
     except Exception as e:
@@ -284,7 +283,8 @@ def create_avatar_asset_audio(context: Context, host_names: List[str], loaded_sp
                 f'/tmp/{segment_clip_prefix_name}.mp3', 
                 segment['dialogue'], context.media_path, 
                 voice=loaded_speakers[segment['speaker']].voice_id, previous_text=previous_text, 
-                next_text=next_text, previous_request_ids=previous_request_ids, speed=1.1 if is_host else 1.0
+                next_text=next_text, previous_request_ids=previous_request_ids,
+                speed=0.9 if is_host else 1.0, add_pauses=is_host
             )
             logger.info(f"Changed, {segment['speaker']} - {voice_id}, to a default voice: {loaded_speakers[segment['speaker']].voice_id}")
         else: 
@@ -423,7 +423,7 @@ def generate_avatar_assets(output_path: str, output_type: str, inputs: dict):
 
     # Generate assets for all speakers
     segment_clip_prefix_names = [
-        hash_image_description(f"{context.subsection}_{segment['speaker']}_{idx}") 
+        hash_image_description(f"{context.title}_{segment['speaker']}_{idx}") 
         for idx, segment in enumerate(speaker_segments)
     ]
 
@@ -483,60 +483,3 @@ def generate_avatar_assets(output_path: str, output_type: str, inputs: dict):
         'lesson_timings': [t.model_dump() for t in lesson_timings],
         'avatar_introductions': [a.model_dump() for a in avatar_introductions]
     }
-
-if __name__ == '__main__':
-    from config.courses import get_execution_input
-    from core.context import prep_content_gen_input
-    from core.clients.s3 import download
-    setup_logging(level=logging.DEBUG)
-    exec_input    = get_execution_input(
-        subject = "AP US History - vUnit_8_new", 
-        chapter = "Period 8: 1945-1980",
-        section = "The Vietnam War",
-        subsection = "Explain the causes and effects of the Vietnam War",
-    )
-    context = Context(**prep_content_gen_input(exec_input))
-    assets = load_json_from_s3(context.avatar_assets_path)['avatar_assets']
-    time = 318
-    asset = next(asset for asset in assets if asset['end_time']>time and asset['start_time']<time)
-    # print_json(asset)
-    # intro = AvatarIntroduction(**{
-    #   "start_time": 570.022,
-    #   "end_time": 581.408,
-    #   "avatar_name": "Zheng He",
-    #   "description": "Commander of China's greatest treasure ship fleet",
-    #   "src": "college_board/AP World History: Video Lessons 2/AP World History - vUnit_4_new/media/962adc0b/Avatar/Introduction/75e3a336.mov"
-    # })
-    # generate_introduction_overlay(context, intro)
-
-    asset_id = asset['src'].split('/')[-1].split('.')[0]
-    logger.info("Audio path:" + context.media_path + f"{asset_id}.mp3")
-    logger.info("Video path:" + context.media_path + f"avatar_assets{asset_id}.mp4")
-    download(context.media_path + f"{asset_id}.mp3", f"{asset_id}.mp3")
-    mute_intervals(f"./{asset_id}.mp3", [(55.2, 57)], f"./{asset_id}-muted.mp3")    # download the audio with above lines and determine the mute intervals manullay
-    upload_file_to_s3(f"./{asset_id}-muted.mp3", context.media_path + f"{asset_id}.mp3")
-    
-    # t, ids = synthesize_speech(
-    #     file_path=f'./hello.mp3',
-    #     text="Today we're exploring What made the Song Dynasty So Successful. Spanning from 960 to 1279 A.D., the Song Dynasty was a period of remarkable cultural and economic growth in China. Renowned for its technological advancements, flourishing arts, and the establishment of a strong centralized government, the dynasty set the foundation for modern Chinese society. <break time=\"1.5s\"> In examining the Song dynasty's success, we'll look at how Confucian and Neo-Confucian ideas shaped government <break time=\"0.75s\"> , explore how the merit-based civil service exams created an effective administration <break time=\"0.75s\"> , and see how these systems led to lasting political stability, social advancement, and economic growth in medieval China <break time=\"0.75s\"> . By the end of this lesson, you'll understand how the Song Dynasty's unique combination of ethics and innovation created a lasting legacy. <break time=\"2.0s\">",
-    #     s3_media_path=f"custom/media/",
-    #     voice= "IKne3meq5aSn9XLyUdCD",
-    #     previous_request_ids=[],
-    #     speed=1.2
-    # )
-    # create_listening_avatar(
-    #     create_presigned_url(context.media_path + "character_images/asdasd-adsdafa-qwqqe-31312.jpg"),
-    #     generate_listening_avatar_ssml(11.7),
-    #     video_file_path=f"/tmp/02103599_listening.mp4",
-    #     s3_prefix=context.media_path + 'avatar_assets'
-    # )
-
-    create_avatar(
-        create_presigned_url(context.media_path + f"{asset_id}.mp3"),
-        create_presigned_url(context.media_path + "character_images/" + re.search(r'character_images/(.*?)\?X-Amz-Algorithm=', asset['image']).group(1)),
-        f"./avatar_assets{asset_id}.mp4",
-        context.media_path
-    )
-    # print(json.dumps([c.text for c in t]))
-
-    

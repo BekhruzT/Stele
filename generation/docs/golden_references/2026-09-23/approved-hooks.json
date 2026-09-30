@@ -1,0 +1,47 @@
+{
+  "approved_in_user_review": "2026-09-23",
+  "topics": [
+    {
+      "title": "Mansa Musa: The Gold Behind a King's Journey",
+      "reference_file": "musa-hook.txt",
+      "text": "Mansa Musa spent so much gold in Cairo that its price reportedly dropped and failed to recover for more than a decade.",
+      "meaning": "Reportedly preserves al-Umari's attribution of a decline in gold's exchange value to the party's spending. His account describes about twelve years, not multiple decades, halving, or an independently established economy-wide crash. Develop the spending and prolonged effect before court protocol.",
+      "alternatives": []
+    },
+    {
+      "title": "The Letter That Split the Atom",
+      "reference_file": "meitner-full.txt",
+      "text": "The discovery that opened the nuclear age started with an accident.",
+      "meaning": "Accident means an unexpected discovery during deliberate research, not a spill, equipment failure, or other laboratory mishap. Follow with the actual story, without a disclaimer correcting this ordinary use of the word.",
+      "alternatives": []
+    },
+    {
+      "title": "The Coldest Place on Earth Was a House in Leiden",
+      "reference_file": "leiden-hook.txt",
+      "text": "There is a limit to how cold anything can get—and near that limit, scientists found electricity could flow without resistance.",
+      "meaning": "Researchers approached absolute zero; they did not reach it. Resistance-free current refers to superconductivity under suitable conditions, not every material.",
+      "alternatives": []
+    },
+    {
+      "title": "Ten Sheets of Glass in a Berkeley Basement",
+      "reference_file": "bell-opening-sample.txt",
+      "text": "Einstein helped create quantum physics, but its success left him questioning whether it described reality or only what scientists could observe.",
+      "meaning": "The successful theory and Einstein's completeness objection establish the premise. The story must narrow this to what Bell tests actually constrain; it must not claim every question about reality was settled.",
+      "alternatives": [
+        "Quantum physics worked—but did nature really need its strange rules, or was a more familiar explanation waiting underneath?"
+      ]
+    },
+    {
+      "title": "The Carpenter Who Solved the Ocean",
+      "reference_file": "harrison-hook.txt",
+      "text": "A compass tells you which way you’re going, but not where you are. For centuries, that gap could cost sailors their lives—and a carpenter helped close it with a clock.",
+      "meaning": "The familiar distinction between compass direction and position establishes the missing capability. The risk to sailors makes the clock consequential. Harrison helped improve longitude measurement; the claim does not say a clock alone supplies a complete fix, that every ship gained one immediately, or that shipwrecks ended.",
+      "alternatives": [],
+      "approved_in_user_review": "2026-09-24",
+      "approved_from": {
+        "run_id": "20260924-prose-first-v5-2",
+        "candidate_index": 2
+      }
+    }
+  ]
+}
